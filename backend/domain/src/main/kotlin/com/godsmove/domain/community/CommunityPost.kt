@@ -1,5 +1,6 @@
 package com.godsmove.domain.community
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.crop.Crop
 import com.godsmove.domain.farming.FarmingRecord
 import com.godsmove.domain.member.Member
@@ -14,7 +15,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -49,7 +49,4 @@ class CommunityPost(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     val status: CommunityPostStatus = CommunityPostStatus.ACTIVE,
-
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()

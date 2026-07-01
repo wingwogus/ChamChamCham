@@ -1,5 +1,6 @@
 package com.godsmove.domain.policy
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.member.ManagementType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -41,4 +42,4 @@ class PolicyProgram(
 
     @Column(name = "source_url", length = 2048)
     val sourceUrl: String? = null,
-)
+) : BaseTimeEntity()

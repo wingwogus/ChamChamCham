@@ -1,5 +1,6 @@
 package com.godsmove.domain.policy
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.member.Member
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -11,7 +12,6 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.math.BigDecimal
-import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -35,7 +35,4 @@ class PolicyRecommendation(
 
     @Column(nullable = false, length = 1000)
     val reason: String,
-
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()

@@ -1,5 +1,6 @@
 package com.godsmove.domain.member
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -43,4 +44,4 @@ class ExternalIdentity(
 
     @Column(name = "email_at_link_time", nullable = false)
     val emailAtLinkTime: String
-)
+) : BaseTimeEntity()

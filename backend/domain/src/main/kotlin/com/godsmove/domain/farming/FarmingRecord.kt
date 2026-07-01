@@ -1,5 +1,6 @@
 package com.godsmove.domain.farming
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.crop.Crop
 import com.godsmove.domain.farm.Farm
 import com.godsmove.domain.member.Member
@@ -47,10 +48,4 @@ class FarmingRecord(
 
     @Column(name = "entry_mode", nullable = false, length = 32)
     val entryMode: String,
-
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()

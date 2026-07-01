@@ -1,5 +1,6 @@
 package com.godsmove.domain.legal
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.member.Member
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -43,4 +44,4 @@ class MemberConsent(
 
     @Column(name = "agreed_at", nullable = false)
     val agreedAt: LocalDateTime,
-)
+) : BaseTimeEntity()

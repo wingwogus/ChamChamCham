@@ -1,5 +1,6 @@
 package com.godsmove.domain.crop
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -27,4 +28,4 @@ class Crop(
 
     @Column(name = "default_unit", nullable = false, length = 32)
     val defaultUnit: String,
-)
+) : BaseTimeEntity()

@@ -1,5 +1,6 @@
 package com.godsmove.domain.farming
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -18,4 +19,4 @@ class WorkType(
 
     @Column(nullable = false, unique = true, length = 128)
     val name: String,
-)
+) : BaseTimeEntity()

@@ -1,5 +1,6 @@
 package com.godsmove.domain.member
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -55,12 +56,6 @@ class Member(
     @Column(nullable = false)
     val role: String = "ROLE_USER",
 
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-
     @Column(name = "withdrawn_at")
     val withdrawnAt: LocalDateTime? = null,
-)
+) : BaseTimeEntity()

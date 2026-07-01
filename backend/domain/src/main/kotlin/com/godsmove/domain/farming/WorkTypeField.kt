@@ -1,5 +1,6 @@
 package com.godsmove.domain.farming
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -52,4 +53,4 @@ class WorkTypeField(
 
     @Column(columnDefinition = "text")
     val description: String? = null,
-)
+) : BaseTimeEntity()

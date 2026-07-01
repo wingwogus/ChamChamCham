@@ -1,5 +1,6 @@
 package com.godsmove.domain.crop
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.farm.Farm
 import com.godsmove.domain.member.Member
 import jakarta.persistence.Column
@@ -42,4 +43,4 @@ class MemberCrop(
 
     @Column(name = "started_on")
     val startedOn: LocalDate? = null,
-)
+) : BaseTimeEntity()

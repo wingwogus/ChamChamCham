@@ -1,5 +1,6 @@
 package com.godsmove.domain.farming
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -11,7 +12,6 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -44,7 +44,4 @@ class FarmingRecordFieldValue(
 
     @Column(name = "value_json", columnDefinition = "text")
     val valueJson: String? = null,
-
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()

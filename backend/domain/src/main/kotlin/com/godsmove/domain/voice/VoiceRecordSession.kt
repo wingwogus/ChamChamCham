@@ -1,5 +1,6 @@
 package com.godsmove.domain.voice
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.farming.FarmingRecord
 import com.godsmove.domain.member.Member
 import jakarta.persistence.Column
@@ -36,9 +37,6 @@ class VoiceRecordSession(
     @Column(columnDefinition = "text")
     val transcript: String? = null,
 
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
     @Column(name = "confirmed_at")
     val confirmedAt: LocalDateTime? = null,
-)
+) : BaseTimeEntity()

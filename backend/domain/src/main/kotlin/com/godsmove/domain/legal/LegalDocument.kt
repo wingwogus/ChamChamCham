@@ -1,5 +1,6 @@
 package com.godsmove.domain.legal
 
+import com.godsmove.domain.common.BaseTimeEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -40,4 +41,4 @@ class LegalDocument(
 
     @Column(name = "published_at", nullable = false)
     val publishedAt: LocalDateTime,
-)
+) : BaseTimeEntity()

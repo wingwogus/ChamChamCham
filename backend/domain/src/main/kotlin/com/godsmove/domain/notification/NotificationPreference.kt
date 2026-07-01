@@ -1,5 +1,6 @@
 package com.godsmove.domain.notification
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.member.Member
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -11,7 +12,6 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -42,7 +42,4 @@ class NotificationPreference(
 
     @Column(nullable = false)
     val enabled: Boolean = true,
-
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()

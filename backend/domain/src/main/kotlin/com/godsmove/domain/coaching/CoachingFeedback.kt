@@ -1,5 +1,6 @@
 package com.godsmove.domain.coaching
 
+import com.godsmove.domain.common.BaseTimeEntity
 import com.godsmove.domain.crop.Crop
 import com.godsmove.domain.farming.FarmingRecord
 import com.godsmove.domain.member.Member
@@ -15,7 +16,6 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
@@ -62,7 +62,4 @@ class CoachingFeedback(
 
     @Column(name = "model_name", nullable = false, length = 128)
     val modelName: String,
-
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-)
+) : BaseTimeEntity()
