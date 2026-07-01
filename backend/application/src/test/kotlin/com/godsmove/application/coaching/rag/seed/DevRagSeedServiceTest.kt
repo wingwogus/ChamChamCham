@@ -29,7 +29,7 @@ class DevRagSeedServiceTest {
         val service = DevRagSeedService(
             jdbcTemplate = jdbcTemplate,
             ragProperties = RagProperties(),
-            vectorStore = NoopVectorStore(),
+            vectorStore = RecordingVectorStore(),
             farmingRecordDocumentFactory = FarmingRecordDocumentFactory(),
             pdfTextExtractor = NoopPdfTextExtractor()
         )
@@ -126,9 +126,14 @@ class DevRagSeedServiceTest {
     fun `seed does not write relational data when pdf validation fails`() {
         val seedDirectory = Files.createTempDirectory("godsmove-rag-seed-dir-")
         val jdbcTemplate = RecordingJdbcTemplate()
+        val vectorStore = RecordingVectorStore()
 
         try {
-            val service = service(jdbcTemplate = jdbcTemplate, seedDirectory = seedDirectory)
+            val service = service(
+                jdbcTemplate = jdbcTemplate,
+                vectorStore = vectorStore,
+                seedDirectory = seedDirectory
+            )
 
             assertThatThrownBy {
                 service.seed(
@@ -145,21 +150,61 @@ class DevRagSeedServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RAG_INVALID_REQUEST)
 
             assertThat(jdbcTemplate.updates).isEmpty()
+            assertThat(vectorStore.addCalls).isEqualTo(0)
         } finally {
+            Files.deleteIfExists(seedDirectory)
+        }
+    }
+
+    @Test
+    fun `seed does not write relational or vector data when pdf extraction fails`() {
+        val seedDirectory = Files.createTempDirectory("godsmove-rag-seed-dir-")
+        val pdf = Files.createTempFile(seedDirectory, "guide-", ".pdf")
+        val jdbcTemplate = RecordingJdbcTemplate()
+        val vectorStore = RecordingVectorStore()
+
+        try {
+            val service = service(
+                jdbcTemplate = jdbcTemplate,
+                vectorStore = vectorStore,
+                pdfTextExtractor = FailingPdfTextExtractor(),
+                seedDirectory = seedDirectory
+            )
+
+            assertThatThrownBy {
+                service.seed(
+                    DevRagSeedCommand(
+                        pdfPath = pdf.fileName.toString(),
+                        resetIndex = true,
+                        includePdf = true,
+                        includeFarmingRecords = true,
+                        maxPdfChunks = 1
+                    )
+                )
+            }
+                .isInstanceOf(BusinessException::class.java)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RAG_INVALID_REQUEST)
+
+            assertThat(jdbcTemplate.updates).isEmpty()
+            assertThat(vectorStore.addCalls).isEqualTo(0)
+        } finally {
+            Files.deleteIfExists(pdf)
             Files.deleteIfExists(seedDirectory)
         }
     }
 
     private fun service(
         jdbcTemplate: RecordingJdbcTemplate = RecordingJdbcTemplate(),
+        vectorStore: RecordingVectorStore = RecordingVectorStore(),
+        pdfTextExtractor: PdfTextExtractor = NoopPdfTextExtractor(),
         seedDirectory: Path? = null
     ): DevRagSeedService {
         return DevRagSeedService(
             jdbcTemplate = jdbcTemplate,
             ragProperties = RagProperties(),
-            vectorStore = NoopVectorStore(),
+            vectorStore = vectorStore,
             farmingRecordDocumentFactory = FarmingRecordDocumentFactory(),
-            pdfTextExtractor = NoopPdfTextExtractor(),
+            pdfTextExtractor = pdfTextExtractor,
             seedDirectory = seedDirectory?.toString() ?: ""
         )
     }
@@ -178,8 +223,12 @@ class DevRagSeedServiceTest {
         }
     }
 
-    private class NoopVectorStore : VectorStore {
-        override fun add(documents: List<Document>) = Unit
+    private class RecordingVectorStore : VectorStore {
+        var addCalls = 0
+
+        override fun add(documents: List<Document>) {
+            addCalls += 1
+        }
 
         override fun delete(idList: List<String>) = Unit
 
@@ -190,6 +239,12 @@ class DevRagSeedServiceTest {
 
     private class NoopPdfTextExtractor : PdfTextExtractor {
         override fun extract(path: Path): String = ""
+    }
+
+    private class FailingPdfTextExtractor : PdfTextExtractor {
+        override fun extract(path: Path): String {
+            throw BusinessException(ErrorCode.RAG_INVALID_REQUEST, detail = "extract failed")
+        }
     }
 }
 
