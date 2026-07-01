@@ -1,4 +1,4 @@
-# GodsMove Backend
+# GodsMove Backend Agent Guide
 
 GodsMove backend is a Spring Boot 3.x + Kotlin multi-module service.
 It provides the API layer, application use cases, domain model, and batch
