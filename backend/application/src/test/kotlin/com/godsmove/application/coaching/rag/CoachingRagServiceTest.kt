@@ -224,8 +224,9 @@ class CoachingRagServiceTest {
     @Test
     fun `answer rejects record auto durable feedback without record id`() {
         val feedbackRepository = mock(CoachingFeedbackRepository::class.java)
+        val vectorStore = FakeVectorStore(listOf(document("doc-1")))
         val service = service(
-            vectorStore = FakeVectorStore(listOf(document("doc-1"))),
+            vectorStore = vectorStore,
             chatClient = FakeChatClient(result = structuredResult(citationId = "doc-1")),
             feedbackRepository = feedbackRepository
         )
@@ -242,6 +243,32 @@ class CoachingRagServiceTest {
             .isInstanceOfSatisfying(BusinessException::class.java) {
                 assertThat(it.errorCode).isEqualTo(ErrorCode.RAG_INVALID_REQUEST)
             }
+        assertThat(vectorStore.searchCalls).isEqualTo(0)
+        verify(feedbackRepository, never()).save(any(CoachingFeedback::class.java))
+    }
+
+    @Test
+    fun `answer rejects record auto without record id before empty retrieval`() {
+        val feedbackRepository = mock(CoachingFeedbackRepository::class.java)
+        val vectorStore = FakeVectorStore(emptyList())
+        val service = service(
+            vectorStore = vectorStore,
+            feedbackRepository = feedbackRepository
+        )
+
+        assertThatThrownBy {
+            service.answer(
+                CoachingRagCommand(
+                    memberId = memberId,
+                    mode = CoachingMode.RECORD_AUTO,
+                    question = "자동 코칭"
+                )
+            )
+        }
+            .isInstanceOfSatisfying(BusinessException::class.java) {
+                assertThat(it.errorCode).isEqualTo(ErrorCode.RAG_INVALID_REQUEST)
+            }
+        assertThat(vectorStore.searchCalls).isEqualTo(0)
         verify(feedbackRepository, never()).save(any(CoachingFeedback::class.java))
     }
 
