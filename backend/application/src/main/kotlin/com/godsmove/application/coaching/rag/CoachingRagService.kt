@@ -39,6 +39,7 @@ class CoachingRagService(
         val normalizedQuestion = normalizeQuestion(command.question)
         val topK = normalizeTopK(command.topK)
         validatePeriod(command)
+        validateModeRequirements(command)
 
         val filterExpression = filterBuilder.build(command)
         val retrievedDocuments = vectorStore.similaritySearch(
@@ -116,10 +117,13 @@ class CoachingRagService(
         }
     }
 
-    private fun shouldSaveFeedback(command: CoachingRagCommand, audit: RagAuditResult): Boolean {
+    private fun validateModeRequirements(command: CoachingRagCommand) {
         if (command.mode == CoachingMode.RECORD_AUTO && command.recordId == null) {
             throw BusinessException(ErrorCode.RAG_INVALID_REQUEST)
         }
+    }
+
+    private fun shouldSaveFeedback(command: CoachingRagCommand, audit: RagAuditResult): Boolean {
         return persistencePolicy.shouldSave(command) && audit.status != RagAuditStatus.FAIL
     }
 
