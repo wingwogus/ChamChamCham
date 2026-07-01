@@ -10,6 +10,7 @@ import com.godsmove.application.exception.ErrorCode
 import com.godsmove.application.exception.business.BusinessException
 import com.godsmove.application.security.TokenProvider
 import jakarta.validation.Valid
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
@@ -26,7 +27,9 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController(
     private val authService: AuthService,
     private val kakaoLoginService: KakaoLoginService,
-    private val tokenProvider: TokenProvider
+    private val tokenProvider: TokenProvider,
+    @Value("\${app.auth.refresh-cookie-secure:true}")
+    private val refreshCookieSecure: Boolean
 ) {
 
     @PostMapping("/email/send-code")
@@ -97,7 +100,7 @@ class AuthController(
     private fun refreshTokenCookie(refreshToken: String): ResponseCookie {
         return ResponseCookie.from("refreshToken", refreshToken)
             .httpOnly(true)
-            .secure(false)
+            .secure(refreshCookieSecure)
             .path("/")
             .sameSite("Lax")
             .maxAge(tokenProvider.getRefreshTokenValiditySeconds())
@@ -107,7 +110,7 @@ class AuthController(
     private fun clearRefreshTokenCookie(): ResponseCookie {
         return ResponseCookie.from("refreshToken", "")
             .httpOnly(true)
-            .secure(false)
+            .secure(refreshCookieSecure)
             .path("/")
             .sameSite("Lax")
             .maxAge(0)

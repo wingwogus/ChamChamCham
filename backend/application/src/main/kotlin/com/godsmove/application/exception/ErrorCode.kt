@@ -23,6 +23,7 @@ enum class ErrorCode(
     KAKAO_NONCE_REPLAY("AUTH_011", "error.kakao_nonce_replay", 401),
     KAKAO_VERIFIED_EMAIL_REQUIRED("AUTH_012", "error.kakao_verified_email_required", 422),
     SOCIAL_ONLY_MEMBER_LOCAL_LOGIN_FORBIDDEN("AUTH_013", "error.social_only_member_local_login_forbidden", 400),
+    KAKAO_OIDC_UNAVAILABLE("AUTH_014", "error.kakao_oidc_unavailable", 503),
     UNAUTHORIZED("AUTH_001", "error.unauthorized", 401),
     FORBIDDEN("AUTH_002", "error.forbidden", 403),
 

@@ -17,7 +17,9 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.UUID
@@ -67,6 +69,28 @@ class AuthSecurityIntegrationTest(
     fun `protected endpoint rejects missing token`() {
         mockMvc.perform(get("/api/v1/test/me"))
             .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `cors preflight allows configured origin`() {
+        mockMvc.perform(
+            options("/api/v1/auth/login")
+                .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        )
+            .andExpect(status().isOk)
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+    }
+
+    @Test
+    fun `cors preflight rejects unconfigured origin`() {
+        mockMvc.perform(
+            options("/api/v1/auth/login")
+                .header(HttpHeaders.ORIGIN, "https://evil.example")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        )
+            .andExpect(status().isForbidden)
     }
 
     @Test

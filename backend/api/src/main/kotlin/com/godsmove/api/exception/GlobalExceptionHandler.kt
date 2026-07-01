@@ -50,8 +50,7 @@ class GlobalExceptionHandler {
         val detail = fieldError?.let {
             mapOf(
                 "field" to it.field,
-                "reason" to (it.defaultMessage ?: "Invalid value"),
-                "rejectedValue" to it.rejectedValue
+                "reason" to (it.defaultMessage ?: "Invalid value")
             )
         }
 
@@ -76,8 +75,7 @@ class GlobalExceptionHandler {
         val detail = fieldError?.let {
             mapOf(
                 "field" to it.field,
-                "reason" to (it.defaultMessage ?: "Invalid value"),
-                "rejectedValue" to it.rejectedValue
+                "reason" to (it.defaultMessage ?: "Invalid value")
             )
         }
 

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
+import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import java.security.KeyPair
 import java.security.KeyPairGenerator
@@ -85,6 +86,22 @@ class KakaoOidcTokenVerifierTest {
         }
 
         assertEquals(ErrorCode.INVALID_KAKAO_TOKEN, exception.errorCode)
+    }
+
+    @Test
+    fun `verify maps decoder infrastructure failure to oidc unavailable`() {
+        val unavailableVerifier = KakaoOidcTokenVerifier(
+            issuer = ISSUER,
+            audience = AUDIENCE,
+            allowedClockSkew = Duration.ofSeconds(30),
+            jwtDecoder = JwtDecoder { throw IllegalStateException("jwks unavailable") }
+        )
+
+        val exception = assertThrows(BusinessException::class.java) {
+            unavailableVerifier.verify(token(), NONCE)
+        }
+
+        assertEquals(ErrorCode.KAKAO_OIDC_UNAVAILABLE, exception.errorCode)
     }
 
     @Test

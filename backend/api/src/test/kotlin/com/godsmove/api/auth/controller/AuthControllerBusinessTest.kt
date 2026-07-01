@@ -19,6 +19,7 @@ import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @WebMvcTest(AuthController::class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler::class)
+@TestPropertySource(properties = ["app.auth.refresh-cookie-secure=true"])
 class AuthControllerBusinessTest(
     @Autowired private val mockMvc: MockMvc
 ) {
@@ -88,6 +90,7 @@ class AuthControllerBusinessTest(
             .andExpect(jsonPath("$.data.accessToken", equalTo("new-access-token")))
             .andExpect(jsonPath("$.data.refreshToken", equalTo("new-refresh-token")))
             .andExpect(header().string(HttpHeaders.SET_COOKIE, org.hamcrest.Matchers.containsString("refreshToken=new-refresh-token")))
+            .andExpect(header().string(HttpHeaders.SET_COOKIE, org.hamcrest.Matchers.containsString("Secure")))
     }
 
     @Test

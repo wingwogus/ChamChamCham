@@ -3,6 +3,7 @@ package com.godsmove.config
 import com.godsmove.api.security.CustomAccessDeniedHandler
 import com.godsmove.api.security.CustomAuthenticationEntryPoint
 import com.godsmove.api.security.JwtAuthenticationFilter
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -20,8 +21,20 @@ class SecurityConfig(
     private val accessDeniedHandler: CustomAccessDeniedHandler,
     private val authenticationEntryPoint: CustomAuthenticationEntryPoint,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
-    private val mdcLoggingFilter: MDCLoggingFilter
+    private val mdcLoggingFilter: MDCLoggingFilter,
+    @Value("\${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    allowedCorsOrigins: String
 ) {
+    private val corsAllowedOrigins = parseCorsOrigins(allowedCorsOrigins)
+
+    init {
+        require(corsAllowedOrigins.isNotEmpty()) {
+            "app.cors.allowed-origins must contain at least one origin"
+        }
+        require(corsAllowedOrigins.none { it == "*" || it.contains("*") }) {
+            "Credentialed CORS must use explicit origins, not wildcards"
+        }
+    }
 
     companion object {
         private val PUBLIC_ENDPOINTS = listOf(
@@ -48,8 +61,8 @@ class SecurityConfig(
             .cors {
                 it.configurationSource {
                     CorsConfiguration().apply {
-                        allowedOriginPatterns = listOf("*")
-                        allowedMethods = listOf("*")
+                        allowedOrigins = corsAllowedOrigins
+                        allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         allowedHeaders = listOf("*")
                         allowCredentials = true
                     }
@@ -91,6 +104,12 @@ class SecurityConfig(
             isEnabled = false
             addUrlPatterns("/*")
         }
+    }
+
+    private fun parseCorsOrigins(value: String): List<String> {
+        return value.split(",")
+            .map(String::trim)
+            .filter(String::isNotEmpty)
     }
 
 }

@@ -4,22 +4,27 @@ import com.godsmove.api.exception.GlobalExceptionHandler
 import com.godsmove.application.auth.AuthService
 import com.godsmove.application.auth.KakaoLoginService
 import com.godsmove.application.security.TokenProvider
+import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.junit.jupiter.api.extension.ExtendWith
 
 @WebMvcTest(AuthController::class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler::class)
+@ExtendWith(OutputCaptureExtension::class)
 class AuthControllerValidationTest(
     @Autowired private val mockMvc: MockMvc
 ) {
@@ -46,8 +51,8 @@ class AuthControllerValidationTest(
     }
 
     @Test
-    fun `signup rejects short password`() {
-        mockMvc.perform(
+    fun `signup rejects short password without echoing rejected value`(output: CapturedOutput) {
+        val result = mockMvc.perform(
             post("/api/v1/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"email":"user@example.com","password":"123"}""")
@@ -55,6 +60,11 @@ class AuthControllerValidationTest(
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+            .andExpect(jsonPath("$.error.detail.field", equalTo("password")))
+            .andReturn()
+
+        assertThat(result.response.contentAsString).doesNotContain("123")
+        assertThat(output.out + output.err).doesNotContain("123")
     }
 
     @Test

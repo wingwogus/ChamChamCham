@@ -5,6 +5,7 @@ import com.godsmove.application.exception.business.BusinessException
 import com.nimbusds.jose.util.DefaultResourceRetriever
 import com.nimbusds.jose.util.JSONObjectUtils
 import com.nimbusds.jwt.JWTParser
+import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.oauth2.jwt.Jwt
@@ -24,6 +25,7 @@ class KakaoOidcTokenVerifier private constructor(
     private val allowedClockSkew: Duration,
     jwtDecoderProvider: () -> JwtDecoder
 ) {
+    private val logger = KotlinLogging.logger {}
     private val jwtDecoder: JwtDecoder by lazy(jwtDecoderProvider)
 
     @Autowired
@@ -65,7 +67,8 @@ class KakaoOidcTokenVerifier private constructor(
         } catch (exception: JwtException) {
             throw BusinessException(ErrorCode.INVALID_KAKAO_TOKEN)
         } catch (exception: Exception) {
-            throw BusinessException(ErrorCode.INVALID_KAKAO_TOKEN)
+            logger.error(exception) { "Kakao OIDC decoder unavailable" }
+            throw BusinessException(ErrorCode.KAKAO_OIDC_UNAVAILABLE)
         }
 
         validateIssuer(jwt)

@@ -47,7 +47,7 @@ object LoggingUtil {
 
     fun logBusinessError(logger: KLogger, ex: Throwable): String {
         val eventId = MDC.get("eventId")
-        logger.warn("[BusinessError][$eventId] ${ex.message}")
+        logger.warn("[BusinessError][$eventId] type=${ex::class.simpleName}")
         return eventId ?: ""
     }
 }

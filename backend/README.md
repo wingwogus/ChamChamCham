@@ -91,6 +91,15 @@ openssl rand -hex 32
 Redis is used by authentication flows that require replay protection and token
 state. Keep Redis configuration aligned with the active Spring profile.
 
+Credentialed CORS requires explicit frontend origins. Set
+`app.cors.allowed-origins` to a comma-separated list such as
+`https://app.example.com,https://admin.example.com`; wildcard origins are
+rejected when credentials are enabled.
+
+Refresh-token cookies are `HttpOnly`. `app.auth.refresh-cookie-secure` defaults
+to `true` outside local/test profiles, and should remain true anywhere HTTPS is
+available.
+
 Swagger/OpenAPI metadata is configured in:
 
 ```text
