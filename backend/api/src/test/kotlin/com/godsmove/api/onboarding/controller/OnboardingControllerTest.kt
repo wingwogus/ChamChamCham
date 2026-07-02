@@ -104,33 +104,17 @@ class OnboardingControllerTest(
     }
 
     private fun memberProfile(): AuthResult.MemberProfile {
-        val managementTypeClass = Class.forName("com.godsmove.domain.member.ManagementType")
-        val managementType = managementTypeClass.enumConstants
-            .first { (it as Enum<*>).name == "REGISTERED" }
-
-        return AuthResult.MemberProfile::class.java
-            .getDeclaredConstructor(
-                UUID::class.java,
-                String::class.java,
-                String::class.java,
-                String::class.java,
-                LocalDate::class.java,
-                String::class.java,
-                String::class.java,
-                String::class.java,
-                managementTypeClass
-            )
-            .newInstance(
-                memberId,
-                "member@example.com",
-                "홍길동",
-                "010-1234-5678",
-                LocalDate.parse("1990-01-01"),
-                "길동",
-                "서울",
-                "BEGINNER",
-                managementType
-            )
+        return AuthResult.MemberProfile(
+            id = memberId,
+            email = "member@example.com",
+            name = "홍길동",
+            phone = "010-1234-5678",
+            birthDate = LocalDate.parse("1990-01-01"),
+            nickname = "길동",
+            region = "서울",
+            experienceLevel = "BEGINNER",
+            managementType = "REGISTERED"
+        )
     }
 
     private fun validRequestBody(): String {

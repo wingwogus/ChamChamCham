@@ -202,32 +202,16 @@ class AuthControllerBusinessTest(
     }
 
     private fun memberProfile(): AuthResult.MemberProfile {
-        val managementTypeClass = Class.forName("com.godsmove.domain.member.ManagementType")
-        val managementType = managementTypeClass.enumConstants
-            .first { (it as Enum<*>).name == "UNREGISTERED" }
-
-        return AuthResult.MemberProfile::class.java
-            .getDeclaredConstructor(
-                UUID::class.java,
-                String::class.java,
-                String::class.java,
-                String::class.java,
-                LocalDate::class.java,
-                String::class.java,
-                String::class.java,
-                String::class.java,
-                managementTypeClass
-            )
-            .newInstance(
-                UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                "social@example.com",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                managementType
-            )
+        return AuthResult.MemberProfile(
+            id = UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            email = "social@example.com",
+            name = null,
+            phone = null,
+            birthDate = null,
+            nickname = null,
+            region = null,
+            experienceLevel = null,
+            managementType = "UNREGISTERED"
+        )
     }
 }

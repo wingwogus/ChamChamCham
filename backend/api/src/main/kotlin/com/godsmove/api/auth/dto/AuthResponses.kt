@@ -73,10 +73,7 @@ object AuthResponses {
                     nickname = result.nickname,
                     region = result.region,
                     experienceLevel = result.experienceLevel,
-                    managementType = result.javaClass
-                        .getDeclaredMethod("getManagementType")
-                        .invoke(result)
-                        .toString()
+                    managementType = result.managementType
                 )
             }
         }

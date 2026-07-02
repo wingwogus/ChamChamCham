@@ -1,6 +1,5 @@
 package com.godsmove.application.auth
 
-import com.godsmove.domain.member.ManagementType
 import com.godsmove.domain.member.Member
 import java.time.LocalDate
 import java.util.UUID
@@ -32,7 +31,7 @@ object AuthResult {
         val nickname: String?,
         val region: String?,
         val experienceLevel: String?,
-        val managementType: ManagementType
+        val managementType: String
     ) {
         companion object {
             fun from(member: Member): MemberProfile {
@@ -45,7 +44,7 @@ object AuthResult {
                     nickname = member.nickname,
                     region = member.region,
                     experienceLevel = member.experienceLevel,
-                    managementType = member.managementType
+                    managementType = member.managementType.name
                 )
             }
         }
