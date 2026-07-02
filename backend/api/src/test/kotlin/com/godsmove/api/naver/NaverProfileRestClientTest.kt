@@ -16,8 +16,10 @@ import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import org.springframework.test.web.client.response.MockRestResponseCreators.withException
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.web.client.RestClient
+import java.io.IOException
 import java.time.LocalDate
 
 class NaverProfileRestClientTest {
@@ -101,6 +103,30 @@ class NaverProfileRestClientTest {
         }
 
         assertEquals(ErrorCode.INVALID_NAVER_TOKEN, exception.errorCode)
+    }
+
+    @Test
+    fun `fetch maps generic client error response to invalid naver token`() {
+        server.expect(requestTo(PROFILE_URI))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            client.fetch("access-token")
+        }
+
+        assertEquals(ErrorCode.INVALID_NAVER_TOKEN, exception.errorCode)
+    }
+
+    @Test
+    fun `fetch maps transport exception to unavailable`() {
+        server.expect(requestTo(PROFILE_URI))
+            .andRespond(withException(IOException("connection reset")))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            client.fetch("access-token")
+        }
+
+        assertEquals(ErrorCode.NAVER_PROFILE_UNAVAILABLE, exception.errorCode)
     }
 
     @Test
