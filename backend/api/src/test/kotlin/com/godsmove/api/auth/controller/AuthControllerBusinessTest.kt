@@ -1,12 +1,12 @@
 package com.godsmove.api.auth.controller
 
 import com.godsmove.api.exception.GlobalExceptionHandler
-import com.godsmove.application.auth.AppleLoginService
-import com.godsmove.application.auth.AuthCommand
-import com.godsmove.application.auth.AuthResult
-import com.godsmove.application.auth.AuthService
-import com.godsmove.application.auth.KakaoLoginService
-import com.godsmove.application.auth.NaverLoginService
+import com.godsmove.application.auth.social.AppleLoginService
+import com.godsmove.application.auth.common.AuthCommand
+import com.godsmove.application.auth.common.AuthResult
+import com.godsmove.application.auth.local.AuthService
+import com.godsmove.application.auth.social.KakaoLoginService
+import com.godsmove.application.auth.social.NaverLoginService
 import com.godsmove.application.exception.ErrorCode
 import com.godsmove.application.exception.business.BusinessException
 import com.godsmove.application.security.TokenProvider

@@ -1,6 +1,6 @@
 package com.godsmove.application.security
 
-import com.godsmove.application.auth.AuthResult
+import com.godsmove.application.auth.common.AuthResult
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException

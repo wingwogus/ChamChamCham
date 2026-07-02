@@ -1,6 +1,6 @@
 package com.godsmove.api.mail
 
-import com.godsmove.application.auth.EmailSender
+import com.godsmove.application.auth.local.EmailSender
 import jakarta.mail.internet.MimeMessage
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value

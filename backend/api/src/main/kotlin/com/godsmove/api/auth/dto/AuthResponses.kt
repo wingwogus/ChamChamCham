@@ -1,6 +1,6 @@
 package com.godsmove.api.auth.dto
 
-import com.godsmove.application.auth.AuthResult
+import com.godsmove.application.auth.common.AuthResult
 import java.time.LocalDate
 import java.util.UUID
 
