@@ -24,6 +24,13 @@ enum class ErrorCode(
     KAKAO_VERIFIED_EMAIL_REQUIRED("AUTH_012", "error.kakao_verified_email_required", 422),
     SOCIAL_ONLY_MEMBER_LOCAL_LOGIN_FORBIDDEN("AUTH_013", "error.social_only_member_local_login_forbidden", 400),
     KAKAO_OIDC_UNAVAILABLE("AUTH_014", "error.kakao_oidc_unavailable", 503),
+    INVALID_APPLE_TOKEN("AUTH_015", "error.invalid_apple_token", 401),
+    APPLE_NONCE_MISMATCH("AUTH_016", "error.apple_nonce_mismatch", 401),
+    APPLE_NONCE_REPLAY("AUTH_017", "error.apple_nonce_replay", 401),
+    APPLE_VERIFIED_EMAIL_REQUIRED("AUTH_018", "error.apple_verified_email_required", 422),
+    INVALID_NAVER_TOKEN("AUTH_019", "error.invalid_naver_token", 401),
+    NAVER_PROFILE_UNAVAILABLE("AUTH_020", "error.naver_profile_unavailable", 503),
+    NAVER_EMAIL_REQUIRED("AUTH_021", "error.naver_email_required", 422),
     UNAUTHORIZED("AUTH_001", "error.unauthorized", 401),
     FORBIDDEN("AUTH_002", "error.forbidden", 403),
 
