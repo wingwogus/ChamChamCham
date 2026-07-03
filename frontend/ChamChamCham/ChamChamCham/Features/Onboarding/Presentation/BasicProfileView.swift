@@ -100,9 +100,9 @@ struct BasicProfileView: View {
                                 .foregroundStyle(Color.appTextSecondary)
 
                             Picker("자격", selection: $viewModel.draft.managementType) {
-                                Text("일반").tag(ManagementType?.some(.general))
-                                Text("법인").tag(ManagementType?.some(.corporation))
-                                Text("미가입").tag(ManagementType?.some(.none))
+                                Text("일반").tag(ManagementType?.some(.agriculturalIndividual))
+                                Text("법인").tag(ManagementType?.some(.agriculturalCorporation))
+                                Text("미가입").tag(ManagementType?.some(.nonRegisteredFarmer))
                             }
                             .pickerStyle(.segmented)
 
@@ -158,11 +158,11 @@ struct BasicProfileView: View {
     private var guideText: String? {
         guard let managementType = viewModel.draft.managementType else { return nil }
         switch managementType {
-        case .general:
+        case .agriculturalIndividual:
             return "가장 일반적인 경우예요. 개인 자격의 농업경영체(농업인)라면 선택하세요."
-        case .corporation:
+        case .agriculturalCorporation:
             return "영농조합법인, 농업회사법인 등 법인 형태의 농업경영체라면 선택하세요."
-        case .none:
+        case .nonRegisteredFarmer:
             return "아직 농업경영체로 등록하지 않았다면 선택하세요. 등록 후 마이페이지에서 언제든 수정할 수 있어요."
         }
     }
@@ -189,5 +189,5 @@ struct BasicProfileView: View {
 
 #Preview {
     BasicProfileView()
-        .environment(OnboardingViewModel())
+        .environment(OnboardingViewModel.preview())
 }

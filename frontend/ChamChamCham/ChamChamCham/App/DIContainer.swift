@@ -11,13 +11,34 @@ import SwiftData
 final class DIContainer {
     let modelContainer: ModelContainer
     let authTokenStore: AuthTokenStore
+    let tokenRefreshCoordinator: TokenRefreshCoordinator
     let apiClient: APIClient
     let syncEngine: SyncEngine
 
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
-        self.authTokenStore = AuthTokenStore()
-        self.apiClient = APIClient(authTokenStore: authTokenStore)
+        let authTokenStore = AuthTokenStore()
+        self.authTokenStore = authTokenStore
+        let tokenRefreshCoordinator = TokenRefreshCoordinator(authTokenStore: authTokenStore)
+        self.tokenRefreshCoordinator = tokenRefreshCoordinator
+        self.apiClient = APIClient(
+            authTokenStore: authTokenStore,
+            tokenRefreshCoordinator: tokenRefreshCoordinator
+        )
         self.syncEngine = SyncEngine()
+    }
+}
+
+extension DIContainer {
+    func makeAuthRepository() -> some AuthRepository {
+        RemoteAuthRepository(apiClient: apiClient, authTokenStore: authTokenStore)
+    }
+
+    func makeOnboardingRepository() -> some OnboardingRepository {
+        RemoteOnboardingRepository(apiClient: apiClient)
+    }
+
+    func makeCropCatalogService() -> some CropCatalogService {
+        RemoteCropCatalogService(apiClient: apiClient)
     }
 }

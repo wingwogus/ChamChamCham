@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Crop: Identifiable, Hashable {
+struct Crop: Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
     let category: String

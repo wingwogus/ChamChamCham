@@ -27,8 +27,10 @@ struct OnboardingDraft: Codable {
     var farmAreaIsManualEntry: Bool = false
 }
 
-enum ManagementType: String, CaseIterable, Codable {
-    case general
-    case corporation
-    case none
+/// Raw values match the backend's `ManagementType` enum names exactly (`AuthRequests.CompleteOnboardingRequest.managementType`) —
+/// `rawValue` is the entire wire-format mapping, so there's one source of truth instead of a separate translation table.
+enum ManagementType: String, CaseIterable, Codable, Sendable {
+    case agriculturalIndividual = "AGRICULTURAL_INDIVIDUAL"
+    case agriculturalCorporation = "AGRICULTURAL_CORPORATION"
+    case nonRegisteredFarmer = "NON_REGISTERED_FARMER"
 }
