@@ -25,6 +25,10 @@ fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output/
 
+# Local API keys/secrets — never commit real values.
+# Checked-in counterpart is Secrets.example.swift (placeholders only).
+**/Secrets.swift
+
 # =========================================================
 # Node.js
 # =========================================================

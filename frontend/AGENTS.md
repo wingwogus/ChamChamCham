@@ -7,11 +7,28 @@ Common project rules still come from the root [AGENTS.md](../AGENTS.md).
 ## Stack
 
 - SwiftUI, iOS 17+ minimum deployment target.
+- Swift 6 language mode (strict concurrency). Data races are compile errors, not warnings — respect actor isolation instead of adding `@unchecked Sendable`/`nonisolated(unsafe)` escape hatches.
 - Observation framework (`@Observable`) for view models — not Combine or `ObservableObject`.
 - SwiftData for local persistence — not CoreData or Realm.
 - Native `URLSession` + async/await for networking — no Alamofire or other third-party networking library.
 - Swift Package Manager only. No local SPM packages at MVP stage.
 - Swift Testing (`@Test`) for new unit tests.
+
+## File Header Convention
+
+Every new Swift file must start with the standard Xcode header comment, matching the existing template files:
+
+```swift
+//
+//  <FileName>.swift
+//  ChamChamCham
+//
+//  Created by iyungui on <M/d/yy>.
+//
+
+```
+
+Do not omit this when creating files, including ones generated in an agentic session.
 
 ## Core Constraint: Offline-First
 
@@ -52,6 +69,14 @@ Use the IDE run button / Simulator for interactive development.
 ## Backend Integration
 
 The backend is Spring Boot Kotlin with a `member`-centric domain (UUID ids). See [backend/AGENTS.md](../backend/AGENTS.md). A draft API spec exists at `docs/API명세서(260702)/` (endpoint index + DTO name registry) covering auth (Kakao/Naver/Apple), crops, farms, farming records, voice sessions, community, and onboarding completion — but it is an unconfirmed work-in-progress export with no field-level DTO shapes yet. Do not scaffold networking code against exact field names from it; see the [Onboarding Flow Plan](../docs/superpowers/specs/2026-07-02-frontend-onboarding-flow-plan.md) for what's confirmed vs. still open.
+
+Production base URL is confirmed: `https://chamchamcham.jaehyuns.com` (see `Core/Networking/APIEnvironment.swift`).
+
+For farm-location/map work (address search, 지적도 parcel lookup, coordinate resolution), a throwaway spike at `/Users/user/Project/v-world-test/v-world-test` already validates the JUSO (주소 검색) + V-World (연속지적도/좌표변환/토지특성정보) API calls end-to-end — reuse its request shapes as a reference rather than re-deriving them, but treat its structure only as a spike, not as a pattern to copy file-for-file into this codebase.
+
+## Secrets / API Keys
+
+Real API keys never get committed. The convention: a gitignored `Secrets.swift` next to a checked-in `Secrets.example.swift` template with placeholder values (see `Core/Config/`). To work with real keys locally, copy the example file to `Secrets.swift` in the same folder and fill in real values — `**/Secrets.swift` is covered by the root `.gitignore`.
 
 ## Development Loop
 
