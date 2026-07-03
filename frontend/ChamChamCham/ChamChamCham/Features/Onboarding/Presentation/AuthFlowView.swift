@@ -8,17 +8,39 @@
 import SwiftUI
 
 struct AuthFlowView: View {
-    @State private var viewModel = OnboardingViewModel()
+    let container: DIContainer
+    @State private var viewModel: OnboardingViewModel
+    @State private var authViewModel: AuthViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppState.self) private var appState
+
+    init(container: DIContainer) {
+        self.container = container
+        _viewModel = State(
+            initialValue: OnboardingViewModel(
+                onboardingRepository: container.makeOnboardingRepository(),
+                cropCatalogService: container.makeCropCatalogService()
+            )
+        )
+        _authViewModel = State(initialValue: AuthViewModel(authRepository: container.makeAuthRepository()))
+    }
 
     var body: some View {
         NavigationStack {
             content
         }
         .environment(viewModel)
+        .environment(authViewModel)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 viewModel.persist()
+            }
+        }
+        .task {
+            // A refresh-token-authenticated user should never land back on the login buttons — this only
+            // happens if no draft snapshot was ever saved (e.g. Keychain survived an app delete+reinstall).
+            if appState.isAuthenticated, viewModel.currentStep == .landing {
+                viewModel.jump(to: .basicProfile)
             }
         }
     }
@@ -35,9 +57,7 @@ struct AuthFlowView: View {
         case .farmLocation:
             FarmLocationView()
         case .complete:
-            Text("다음 단계는 아직 준비 중입니다")
-                .font(.appBody)
-                .foregroundStyle(Color.appTextSecondary)
+            OnboardingCompleteView()
         }
     }
 }

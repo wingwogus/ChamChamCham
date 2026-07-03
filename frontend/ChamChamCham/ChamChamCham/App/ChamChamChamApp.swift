@@ -11,13 +11,23 @@ import SwiftData
 @main
 struct ChamChamChamApp: App {
     @State private var appState = AppState()
-    private let modelContainer = ModelContainer.makeApp()
+    private let container: DIContainer
+
+    init() {
+        container = DIContainer(modelContainer: .makeApp())
+        KakaoSDKBootstrap.initialize()
+        NaverSDKBootstrap.initialize()
+    }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(container: container)
                 .environment(appState)
+                .onOpenURL { url in
+                    if KakaoSDKBootstrap.handleOpenURL(url) { return }
+                    _ = NaverSDKBootstrap.handleOpenURL(url)
+                }
         }
-        .modelContainer(modelContainer)
+        .modelContainer(container.modelContainer)
     }
 }
