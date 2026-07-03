@@ -30,7 +30,9 @@ struct AuthFlowView: View {
             LandingView()
         case .basicProfile:
             BasicProfileView()
-        case .cropSelection, .farmLocation, .complete:
+        case .cropSelection:
+            CropSelectionView()
+        case .farmLocation, .complete:
             Text("다음 단계는 아직 준비 중입니다")
                 .font(.appBody)
                 .foregroundStyle(Color.appTextSecondary)
