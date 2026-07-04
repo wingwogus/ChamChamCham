@@ -1,13 +1,13 @@
 package com.chamchamcham.application.coaching.rag.record
 
-import com.chamchamcham.application.coaching.rag.CoachingRiskLevel
-import com.chamchamcham.application.coaching.rag.CoachingStructuredOutputValidator
-import com.chamchamcham.application.coaching.rag.CoachingStructuredResult
-import com.chamchamcham.application.coaching.rag.RagAuditResult
-import com.chamchamcham.application.coaching.rag.RagAuditStatus
-import com.chamchamcham.application.coaching.rag.RagModelInfo
-import com.chamchamcham.application.coaching.rag.RagProperties
-import com.chamchamcham.application.coaching.rag.RagSourceType
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredOutputValidator
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
+import com.chamchamcham.application.coaching.rag.common.RagModelInfo
+import com.chamchamcham.application.coaching.rag.common.RagProperties
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import org.springframework.ai.chat.client.ChatClient
@@ -75,7 +75,7 @@ class TodayRecordFeedbackService(
             throw BusinessException(ErrorCode.RAG_STRUCTURED_OUTPUT_INVALID)
         }
 
-        val allowedCitationIds = documents.map { it.id }.toSet()
+        val allowedCitationIds = documents.map { it.id }.toSet() + context.recordCitationId()
         val audit = outputValidator.validate(result, allowedCitationIds)
 
         return TodayRecordFeedbackResult(

@@ -35,8 +35,18 @@ class RecordFeedbackPromptBuilder {
             의학적 효능, 복용법, 질병 치료 효과를 소비자 건강 조언처럼 말하지 않는다.
             면적, 등록 라벨, 희석 기준이 없으면 정확한 비료량이나 농약량을 invent하지 않는다.
             근거가 부족하면 riskLevel은 UNKNOWN, confidence는 0.3 이하로 둔다.
+            귀농 청년도 바로 이해할 수 있는 쉬운 말로 짧고 구체적으로 쓴다.
+            불확실한 판단은 단정하지 않는다. "~일 수 있습니다"보다 "기록만으로는 단정하기 어렵고, 먼저 확인하세요"처럼 쓴다.
+            생육기간, 개화 후 일수, 수확 적기처럼 기준이 다른 값은 직접 비교하지 않는다.
+            수확 후 가공, 건조, 저장 조언은 보조 점검 수준으로만 다룬다.
+            예보는 확정된 날씨처럼 단정하지 않는다. "비가 올 예정이니"보다 "비 예보가 있으니"처럼 표현한다.
+            forecast7Days에 강우, 고온, 고습, 건조, 강풍 신호가 있으면 nextActions에 예보 기반 점검 행동을 포함한다.
             권장사항은 확인, 기록, 비교, 라벨 확인처럼 보수적인 행동으로 작성한다.
             document-supported advice와 record/weather inference를 구분해서 설명한다.
+            citationIds는 허용 citationIds에 명시된 값만 사용한다.
+            당일 영농기록, 날씨, 최근 기록, 작업 통계를 근거로 삼을 때는 record citation id를 사용한다.
+            공식문서를 근거로 삼을 때는 공식문서 근거의 [id]만 사용한다.
+            summary, diagnosis, observations, recommendations, nextActions에는 chunkId나 UUID를 직접 쓰지 않는다.
             응답은 CoachingStructuredResult JSON schema만 따른다.
         """.trimIndent()
     }
@@ -52,6 +62,9 @@ class RecordFeedbackPromptBuilder {
 
             검색 쿼리:
             ${queries.joinToString("\n") { "- ${it.query} (${it.reason})" }}
+
+            허용 citationIds:
+            ${formatAllowedCitationIds(context, evidence)}
 
             공식문서 근거:
             ${formatEvidence(evidence)}
@@ -86,10 +99,25 @@ class RecordFeedbackPromptBuilder {
                     "고온일수: ${recentWeather.hotDaysCount ?: "미상"}, " +
                     "건조일수: ${recentWeather.dryDaysCount ?: "미상"}"
             )
+            appendLine("- 예보: ${formatForecast(context.weather.forecast7Days)}")
             appendLine("- 최근 기록: ${formatRecentRecords(context.recentRecords)}")
             appendLine("- 주기별 작업 횟수: ${formatMap(context.workTypeStats.cycleCounts)}")
             appendLine("- 최근 30일 작업 횟수: ${formatMap(context.workTypeStats.recent30DayCounts)}")
         }.trim()
+    }
+
+    private fun formatForecast(forecast: List<RecordFeedbackForecastDayWeather>): String {
+        if (forecast.isEmpty()) {
+            return "없음"
+        }
+        return forecast.joinToString(" | ") {
+            "${it.date} 강수 ${it.rainfallMm ?: "미상"}mm, " +
+                "강수확률 ${it.rainProbabilityPct ?: "미상"}%, " +
+                "최고 ${it.maxTemperatureC ?: "미상"}C, " +
+                "습도 ${it.humidityPct ?: "미상"}%, " +
+                "풍속 ${it.windSpeedMs ?: "미상"}m/s, " +
+                "riskFlags=${it.riskFlags.joinToString(",").ifBlank { "없음" }}"
+        }
     }
 
     private fun formatRecentRecords(records: List<RecordFeedbackRecentRecordContext>): String {
@@ -109,6 +137,18 @@ class RecordFeedbackPromptBuilder {
             val page = it.page?.let { page -> " p.$page" } ?: ""
             "[${it.id}] ${it.title}$page\n${it.content}"
         }
+    }
+
+    private fun formatAllowedCitationIds(
+        context: TodayRecordFeedbackContext,
+        evidence: List<RecordFeedbackEvidence>
+    ): String {
+        return buildString {
+            appendLine("- ${context.recordCitationId()} : 당일 영농기록 context")
+            evidence.forEach {
+                appendLine("- ${it.id} : ${it.title}")
+            }
+        }.trim()
     }
 
     private fun formatMap(map: Map<*, *>): String {

@@ -3,7 +3,7 @@ package com.chamchamcham.api.coaching.controller
 import com.chamchamcham.api.coaching.dto.CoachingRagRequests
 import com.chamchamcham.api.coaching.dto.CoachingRagResponses
 import com.chamchamcham.api.common.ApiResponse
-import com.chamchamcham.application.coaching.rag.CoachingRagService
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagService
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import jakarta.validation.Valid

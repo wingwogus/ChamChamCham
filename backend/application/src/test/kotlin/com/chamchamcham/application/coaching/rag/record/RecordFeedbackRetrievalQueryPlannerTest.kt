@@ -16,7 +16,8 @@ class RecordFeedbackRetrievalQueryPlannerTest {
         assertThat(queries).contains(
             "참당귀 물주기 재배 관리 약용작물",
             "참당귀 76일차 생육 관리",
-            "참당귀 고온 건조 관수 병해충"
+            "참당귀 고온 건조 관수 병해충",
+            "참당귀 강우 예보 배수 과습 병해충"
         )
     }
 

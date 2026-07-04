@@ -1,6 +1,6 @@
 package com.chamchamcham.api.coaching.dto
 
-import com.chamchamcham.application.coaching.rag.CoachingRagCommand
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagCommand
 import com.chamchamcham.domain.coaching.CoachingMode
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

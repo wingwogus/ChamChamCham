@@ -22,6 +22,9 @@ class TodayRecordFeedbackContextTest {
         assertThat(context.targetRecord.workType).isEqualTo(TodayRecordWorkType.WATERING)
         assertThat(context.targetRecord.fieldText("wateringMethod")).isEqualTo("점적")
         assertThat(context.weather.recent7Days.dryDaysCount).isEqualTo(5)
+        assertThat(context.weather.forecast7Days).hasSize(3)
+        assertThat(context.weather.forecast7Days[0].date.toString()).isEqualTo("2026-07-04")
+        assertThat(context.weather.forecast7Days[0].riskFlags).contains("HEAVY_RAIN")
         assertThat(context.workTypeStats.cycleCounts[TodayRecordWorkType.WATERING]).isEqualTo(8)
     }
 

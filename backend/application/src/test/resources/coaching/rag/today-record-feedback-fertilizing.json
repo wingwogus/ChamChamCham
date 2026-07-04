@@ -51,6 +51,33 @@
       "hotDaysCount": 0,
       "dryDaysCount": 1
     },
+    "forecast7Days": [
+      {
+        "date": "2026-07-04",
+        "rainfallMm": 35.0,
+        "rainProbabilityPct": 85,
+        "maxTemperatureC": 27.2,
+        "minTemperatureC": 20.6,
+        "humidityPct": 90.0,
+        "windSpeedMs": 4.1,
+        "riskFlags": [
+          "HEAVY_RAIN",
+          "HIGH_HUMIDITY"
+        ]
+      },
+      {
+        "date": "2026-07-05",
+        "rainfallMm": 12.0,
+        "rainProbabilityPct": 70,
+        "maxTemperatureC": 28.0,
+        "minTemperatureC": 21.1,
+        "humidityPct": 86.0,
+        "windSpeedMs": 3.5,
+        "riskFlags": [
+          "RAIN"
+        ]
+      }
+    ],
     "source": "SERVER_WEATHER_SNAPSHOT"
   },
   "recentRecords": [

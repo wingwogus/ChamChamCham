@@ -1,5 +1,17 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.CoachingActionDue
+import com.chamchamcham.application.coaching.rag.common.CoachingCitationRef
+import com.chamchamcham.application.coaching.rag.common.CoachingNextAction
+import com.chamchamcham.application.coaching.rag.common.CoachingObservation
+import com.chamchamcham.application.coaching.rag.common.CoachingPriority
+import com.chamchamcham.application.coaching.rag.common.CoachingRecommendation
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredOutputValidator
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
+import com.chamchamcham.application.coaching.rag.common.RagProperties
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.domain.coaching.CoachingFeedback

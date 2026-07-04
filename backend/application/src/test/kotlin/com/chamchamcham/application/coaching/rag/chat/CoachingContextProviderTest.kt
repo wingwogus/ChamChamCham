@@ -1,4 +1,4 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException

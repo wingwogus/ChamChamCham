@@ -1,5 +1,6 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
 import java.math.RoundingMode
