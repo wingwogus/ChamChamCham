@@ -1,4 +1,4 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.common
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

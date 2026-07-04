@@ -1,5 +1,6 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.indexing
 
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import org.springframework.ai.document.Document
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime

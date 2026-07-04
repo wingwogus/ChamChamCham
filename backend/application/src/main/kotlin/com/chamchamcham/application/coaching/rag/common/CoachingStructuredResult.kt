@@ -1,4 +1,4 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.common
 
 enum class CoachingRiskLevel {
     LOW,

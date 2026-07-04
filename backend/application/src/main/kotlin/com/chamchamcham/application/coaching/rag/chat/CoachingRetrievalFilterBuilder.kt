@@ -1,5 +1,6 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import org.springframework.stereotype.Component
 
 @Component

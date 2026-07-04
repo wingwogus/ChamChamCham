@@ -1,11 +1,14 @@
 package com.chamchamcham.api.coaching.dto
 
-import com.chamchamcham.application.coaching.rag.CoachingActionDue
-import com.chamchamcham.application.coaching.rag.CoachingPriority
-import com.chamchamcham.application.coaching.rag.CoachingRagResult
-import com.chamchamcham.application.coaching.rag.CoachingRiskLevel
-import com.chamchamcham.application.coaching.rag.RagAuditStatus
-import com.chamchamcham.application.coaching.rag.RagSourceType
+import com.chamchamcham.application.coaching.rag.common.CoachingActionDue
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.CoachingPriority
+import com.chamchamcham.application.coaching.rag.common.CoachingRecordQuality
+import com.chamchamcham.application.coaching.rag.common.CoachingRecordQualityScore
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagResult
 import java.util.UUID
 
 object CoachingRagResponses {
@@ -36,23 +39,69 @@ object CoachingRagResponses {
         val recommendations: List<RecommendationResponse>,
         val nextActions: List<NextActionResponse>,
         val followUpQuestions: List<String>,
-        val citations: List<CitationResponse>
+        val citations: List<CitationResponse>,
+        val recordQuality: RecordQualityResponse,
+        val limitations: List<String>
     ) {
         companion object {
-            fun from(result: com.chamchamcham.application.coaching.rag.CoachingStructuredResult): StructuredResultResponse {
+            fun from(result: CoachingStructuredResult): StructuredResultResponse {
+                val citationLabelsById = result.citations
+                    .mapIndexed { index, citation ->
+                        citation.chunkId to "${displayLabel(index)}: ${citation.label}"
+                    }
+                    .toMap()
+
                 return StructuredResultResponse(
                     summary = result.summary,
                     riskLevel = result.riskLevel,
                     confidence = result.confidence,
-                    observations = result.observations.map { ObservationResponse(it.title, it.detail, it.citationIds) },
+                    observations = result.observations.map {
+                        ObservationResponse(
+                            title = it.title,
+                            detail = it.detail,
+                            citationIds = it.citationIds,
+                            citationLabels = it.citationIds.toCitationLabels(citationLabelsById)
+                        )
+                    },
                     diagnosis = result.diagnosis,
                     recommendations = result.recommendations.map {
-                        RecommendationResponse(it.priority, it.action, it.reason, it.caution, it.citationIds)
+                        RecommendationResponse(
+                            priority = it.priority,
+                            action = it.action,
+                            reason = it.reason,
+                            caution = it.caution,
+                            citationIds = it.citationIds,
+                            citationLabels = it.citationIds.toCitationLabels(citationLabelsById)
+                        )
                     },
-                    nextActions = result.nextActions.map { NextActionResponse(it.due, it.action, it.citationIds) },
+                    nextActions = result.nextActions.map {
+                        NextActionResponse(
+                            due = it.due,
+                            action = it.action,
+                            citationIds = it.citationIds,
+                            citationLabels = it.citationIds.toCitationLabels(citationLabelsById)
+                        )
+                    },
                     followUpQuestions = result.followUpQuestions,
-                    citations = result.citations.map { CitationResponse(it.chunkId, it.label, it.sourceType) }
+                    citations = result.citations.mapIndexed { index, citation ->
+                        CitationResponse(
+                            chunkId = citation.chunkId,
+                            label = citation.label,
+                            sourceType = citation.sourceType,
+                            displayLabel = displayLabel(index)
+                        )
+                    },
+                    recordQuality = RecordQualityResponse.from(result.recordQuality),
+                    limitations = result.limitations
                 )
+            }
+
+            private fun displayLabel(index: Int): String {
+                return "근거 ${index + 1}"
+            }
+
+            private fun List<String>.toCitationLabels(citationLabelsById: Map<String, String>): List<String> {
+                return map { citationLabelsById[it] ?: "근거 확인 필요" }
             }
         }
     }
@@ -60,7 +109,8 @@ object CoachingRagResponses {
     data class ObservationResponse(
         val title: String,
         val detail: String,
-        val citationIds: List<String>
+        val citationIds: List<String>,
+        val citationLabels: List<String>
     )
 
     data class RecommendationResponse(
@@ -68,20 +118,39 @@ object CoachingRagResponses {
         val action: String,
         val reason: String,
         val caution: String?,
-        val citationIds: List<String>
+        val citationIds: List<String>,
+        val citationLabels: List<String>
     )
 
     data class NextActionResponse(
         val due: CoachingActionDue,
         val action: String,
-        val citationIds: List<String>
+        val citationIds: List<String>,
+        val citationLabels: List<String>
     )
 
     data class CitationResponse(
         val chunkId: String,
         val label: String,
-        val sourceType: RagSourceType
+        val sourceType: RagSourceType,
+        val displayLabel: String
     )
+
+    data class RecordQualityResponse(
+        val score: CoachingRecordQualityScore,
+        val missingOrWeakFields: List<String>,
+        val comment: String
+    ) {
+        companion object {
+            fun from(recordQuality: CoachingRecordQuality): RecordQualityResponse {
+                return RecordQualityResponse(
+                    score = recordQuality.score,
+                    missingOrWeakFields = recordQuality.missingOrWeakFields,
+                    comment = recordQuality.comment
+                )
+            }
+        }
+    }
 
     data class AuditResponse(
         val status: RagAuditStatus,

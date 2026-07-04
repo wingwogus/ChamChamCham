@@ -66,6 +66,7 @@ data class RecordFeedbackTargetRecordContext @JsonCreator constructor(
 data class RecordFeedbackWeatherContext @JsonCreator constructor(
     @JsonProperty("recordDay") val recordDay: RecordFeedbackRecordDayWeather,
     @JsonProperty("recent7Days") val recent7Days: RecordFeedbackRecentWeatherSummary,
+    @JsonProperty("forecast7Days") val forecast7Days: List<RecordFeedbackForecastDayWeather> = emptyList(),
     @JsonProperty("source") val source: String
 )
 
@@ -83,6 +84,17 @@ data class RecordFeedbackRecentWeatherSummary @JsonCreator constructor(
     @JsonProperty("dryDaysCount") val dryDaysCount: Int?
 )
 
+data class RecordFeedbackForecastDayWeather @JsonCreator constructor(
+    @JsonProperty("date") val date: LocalDate,
+    @JsonProperty("rainfallMm") val rainfallMm: Double?,
+    @JsonProperty("rainProbabilityPct") val rainProbabilityPct: Int?,
+    @JsonProperty("maxTemperatureC") val maxTemperatureC: Double?,
+    @JsonProperty("minTemperatureC") val minTemperatureC: Double?,
+    @JsonProperty("humidityPct") val humidityPct: Double?,
+    @JsonProperty("windSpeedMs") val windSpeedMs: Double?,
+    @JsonProperty("riskFlags") val riskFlags: List<String> = emptyList()
+)
+
 data class RecordFeedbackRecentRecordContext @JsonCreator constructor(
     @JsonProperty("recordId") val recordId: String,
     @JsonProperty("recordedOn") val recordedOn: LocalDate,
@@ -95,6 +107,10 @@ data class RecordFeedbackWorkTypeStatsContext @JsonCreator constructor(
     @JsonProperty("lastWorkedOnByType") val lastWorkedOnByType: Map<TodayRecordWorkType, LocalDate> = emptyMap(),
     @JsonProperty("recent30DayCounts") val recent30DayCounts: Map<TodayRecordWorkType, Int> = emptyMap()
 )
+
+fun TodayRecordFeedbackContext.recordCitationId(): String {
+    return "record:$feedbackRequestId"
+}
 
 enum class TodayRecordWorkType(
     val label: String

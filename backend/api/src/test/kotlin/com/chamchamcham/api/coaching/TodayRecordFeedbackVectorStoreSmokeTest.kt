@@ -1,7 +1,7 @@
 package com.chamchamcham.api.coaching
 
 import com.chamchamcham.ApiApplication
-import com.chamchamcham.application.coaching.rag.RagSourceType
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.application.coaching.rag.record.RecordFeedbackRetrievalQueryPlanner
 import com.chamchamcham.application.coaching.rag.record.TodayRecordFeedbackContext
 import com.fasterxml.jackson.databind.ObjectMapper

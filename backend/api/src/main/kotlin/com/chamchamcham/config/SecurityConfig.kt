@@ -56,6 +56,7 @@ class SecurityConfig(
 
         private val LOCAL_PUBLIC_ENDPOINTS = listOf(
             "/api/v1/dev/rag/seed",
+            "/api/v1/dev/coaching/record-feedback",
         )
     }
 

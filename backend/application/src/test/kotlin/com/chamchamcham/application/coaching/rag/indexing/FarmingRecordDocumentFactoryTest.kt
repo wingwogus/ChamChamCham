@@ -1,4 +1,4 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.indexing
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

@@ -1,5 +1,9 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.CoachingCitationRef
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.domain.coaching.CoachingMode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

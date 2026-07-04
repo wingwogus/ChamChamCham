@@ -1,14 +1,21 @@
 package com.chamchamcham.api.coaching.controller
 
 import com.chamchamcham.api.exception.GlobalExceptionHandler
-import com.chamchamcham.application.coaching.rag.CoachingRagCommand
-import com.chamchamcham.application.coaching.rag.CoachingRagResult
-import com.chamchamcham.application.coaching.rag.CoachingRagService
-import com.chamchamcham.application.coaching.rag.CoachingRiskLevel
-import com.chamchamcham.application.coaching.rag.CoachingStructuredResult
-import com.chamchamcham.application.coaching.rag.RagAuditResult
-import com.chamchamcham.application.coaching.rag.RagAuditStatus
-import com.chamchamcham.application.coaching.rag.RagModelInfo
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagCommand
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagResult
+import com.chamchamcham.application.coaching.rag.chat.CoachingRagService
+import com.chamchamcham.application.coaching.rag.common.CoachingActionDue
+import com.chamchamcham.application.coaching.rag.common.CoachingCitationRef
+import com.chamchamcham.application.coaching.rag.common.CoachingNextAction
+import com.chamchamcham.application.coaching.rag.common.CoachingObservation
+import com.chamchamcham.application.coaching.rag.common.CoachingPriority
+import com.chamchamcham.application.coaching.rag.common.CoachingRecommendation
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
+import com.chamchamcham.application.coaching.rag.common.RagModelInfo
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.application.security.TokenProvider
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
@@ -59,6 +66,10 @@ class CoachingRagControllerTest(
             .andExpect(jsonPath("$.data.audit.status", equalTo("PASS")))
             .andExpect(jsonPath("$.data.model.embedding", equalTo("bge-m3")))
             .andExpect(jsonPath("$.data.model.chat", equalTo("openclaw/agri-rag-coach")))
+            .andExpect(jsonPath("$.data.result.observations[0].citationLabels[0]", equalTo("근거 1: 농업기술길잡이 007 약용작물")))
+            .andExpect(jsonPath("$.data.result.recommendations[0].citationLabels[0]", equalTo("근거 1: 농업기술길잡이 007 약용작물")))
+            .andExpect(jsonPath("$.data.result.nextActions[0].citationLabels[0]", equalTo("근거 1: 농업기술길잡이 007 약용작물")))
+            .andExpect(jsonPath("$.data.result.citations[0].displayLabel", equalTo("근거 1")))
             .andExpect(jsonPath("$.data.savedFeedbackId").doesNotExist())
     }
 
@@ -81,12 +92,16 @@ class CoachingRagControllerTest(
                 summary = "요약",
                 riskLevel = CoachingRiskLevel.LOW,
                 confidence = 0.8,
-                observations = emptyList(),
+                observations = listOf(CoachingObservation("관수", "토양 수분 확인", listOf("doc-1"))),
                 diagnosis = "진단",
-                recommendations = emptyList(),
-                nextActions = emptyList(),
+                recommendations = listOf(
+                    CoachingRecommendation(CoachingPriority.MEDIUM, "토양 확인", "공식문서 근거", null, listOf("doc-1"))
+                ),
+                nextActions = listOf(CoachingNextAction(CoachingActionDue.TODAY, "기록 보완", listOf("doc-1"))),
                 followUpQuestions = emptyList(),
-                citations = emptyList()
+                citations = listOf(
+                    CoachingCitationRef("doc-1", "농업기술길잡이 007 약용작물", RagSourceType.TECH_DOCUMENT)
+                )
             ),
             audit = RagAuditResult(RagAuditStatus.PASS, emptyList(), emptyList()),
             model = RagModelInfo(

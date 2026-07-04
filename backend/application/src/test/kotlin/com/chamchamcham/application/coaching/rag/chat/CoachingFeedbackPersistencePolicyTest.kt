@@ -1,4 +1,4 @@
-package com.chamchamcham.application.coaching.rag
+package com.chamchamcham.application.coaching.rag.chat
 
 import com.chamchamcham.domain.coaching.CoachingMode
 import org.assertj.core.api.Assertions.assertThat

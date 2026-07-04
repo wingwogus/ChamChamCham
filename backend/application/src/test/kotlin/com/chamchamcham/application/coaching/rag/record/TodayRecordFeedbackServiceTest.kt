@@ -1,16 +1,17 @@
 package com.chamchamcham.application.coaching.rag.record
 
-import com.chamchamcham.application.coaching.rag.CoachingActionDue
-import com.chamchamcham.application.coaching.rag.CoachingCitationRef
-import com.chamchamcham.application.coaching.rag.CoachingNextAction
-import com.chamchamcham.application.coaching.rag.CoachingObservation
-import com.chamchamcham.application.coaching.rag.CoachingPriority
-import com.chamchamcham.application.coaching.rag.CoachingRecommendation
-import com.chamchamcham.application.coaching.rag.CoachingRiskLevel
-import com.chamchamcham.application.coaching.rag.CoachingStructuredOutputValidator
-import com.chamchamcham.application.coaching.rag.CoachingStructuredResult
-import com.chamchamcham.application.coaching.rag.RagProperties
-import com.chamchamcham.application.coaching.rag.RagSourceType
+import com.chamchamcham.application.coaching.rag.common.CoachingActionDue
+import com.chamchamcham.application.coaching.rag.common.CoachingCitationRef
+import com.chamchamcham.application.coaching.rag.common.CoachingNextAction
+import com.chamchamcham.application.coaching.rag.common.CoachingObservation
+import com.chamchamcham.application.coaching.rag.common.CoachingPriority
+import com.chamchamcham.application.coaching.rag.common.CoachingRecommendation
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredOutputValidator
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
+import com.chamchamcham.application.coaching.rag.common.RagProperties
+import com.chamchamcham.application.coaching.rag.common.RagSourceType
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -84,6 +85,21 @@ class TodayRecordFeedbackServiceTest {
         assertThat(chatClient.requestSpec.userText).contains("오전 흙 표면이 말라 보여 점적 관수함.")
     }
 
+    @Test
+    fun `generate allows synthetic record citation from feedback request id`() {
+        val context = readFixture("today-record-feedback-harvest.json")
+        val recordCitationId = context.recordCitationId()
+        val vectorStore = FakeVectorStore(listOf(officialDocument("doc-1")))
+        val chatClient = FakeChatClient(structuredResultWithRecordCitation("doc-1", recordCitationId))
+
+        val result = service(vectorStore = vectorStore, chatClient = chatClient)
+            .generate(context, topK = 2)
+
+        assertThat(result.audit.status).isEqualTo(RagAuditStatus.PASS)
+        assertThat(result.audit.citations).contains(recordCitationId, "doc-1")
+        assertThat(chatClient.requestSpec.userText).contains("$recordCitationId : 당일 영농기록 context")
+    }
+
     private fun service(
         vectorStore: FakeVectorStore,
         chatClient: ChatClient = FakeChatClient(structuredResult("doc-1"))
@@ -133,6 +149,38 @@ class TodayRecordFeedbackServiceTest {
             nextActions = listOf(CoachingNextAction(CoachingActionDue.NEXT_CHECK, "잎 처짐과 토양 상태 기록", listOf(citationId))),
             followUpQuestions = listOf("배수가 잘 되지 않는 구역이 있나요?"),
             citations = listOf(CoachingCitationRef(citationId, "농업기술길잡이 007 약용작물", RagSourceType.TECH_DOCUMENT))
+        )
+    }
+
+    private fun structuredResultWithRecordCitation(
+        documentCitationId: String,
+        recordCitationId: String
+    ): CoachingStructuredResult {
+        return CoachingStructuredResult(
+            summary = "수확 기록과 공식문서 근거를 함께 확인했습니다.",
+            riskLevel = CoachingRiskLevel.MEDIUM,
+            confidence = 0.68,
+            observations = listOf(
+                CoachingObservation("수확 기록", "오늘 기록에 수확량과 메모가 있습니다.", listOf(recordCitationId))
+            ),
+            diagnosis = "기록 기반 판단은 가능하지만 공식문서 기준과 함께 확인해야 합니다.",
+            recommendations = listOf(
+                CoachingRecommendation(
+                    CoachingPriority.MEDIUM,
+                    "수확물 상태를 다시 기록",
+                    "당일 기록과 공식문서 근거를 함께 확인",
+                    null,
+                    listOf(recordCitationId, documentCitationId)
+                )
+            ),
+            nextActions = listOf(
+                CoachingNextAction(CoachingActionDue.TODAY, "수확물 외관 점검", listOf(recordCitationId))
+            ),
+            followUpQuestions = emptyList(),
+            citations = listOf(
+                CoachingCitationRef(recordCitationId, "당일 영농기록", RagSourceType.FARMING_RECORD),
+                CoachingCitationRef(documentCitationId, "농업기술길잡이 007 약용작물", RagSourceType.TECH_DOCUMENT)
+            )
         )
     }
 
