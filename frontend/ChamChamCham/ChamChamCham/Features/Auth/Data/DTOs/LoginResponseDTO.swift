@@ -13,13 +13,3 @@ struct LoginResponseDTO: Decodable, Sendable {
     let member: MemberProfileResponseDTO
     let onboarding: OnboardingResponseDTO
 }
-
-enum OnboardingStatusDTO: String, Decodable, Sendable {
-    case required = "REQUIRED"
-    case complete = "COMPLETE"
-}
-
-struct OnboardingResponseDTO: Decodable, Sendable {
-    let status: OnboardingStatusDTO
-    let missingFields: [String]
-}

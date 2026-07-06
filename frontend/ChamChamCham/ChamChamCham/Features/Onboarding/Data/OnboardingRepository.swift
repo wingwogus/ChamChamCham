@@ -14,6 +14,6 @@ struct RemoteOnboardingRepository: OnboardingRepository {
 
     func completeOnboarding(_ draft: OnboardingDraft) async throws -> OnboardingCompleteResponseDTO {
         let requestDTO = try OnboardingCompleteRequestDTO(draft: draft)
-        return try await apiClient.send(AuthEndpoint.completeOnboarding(requestDTO))
+        return try await apiClient.send(OnboardingEndpoint.completeOnboarding(requestDTO))
     }
 }

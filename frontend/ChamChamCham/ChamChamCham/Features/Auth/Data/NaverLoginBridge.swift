@@ -45,7 +45,14 @@ enum NaverSDKBootstrap {
 enum NaverLoginBridge {
     static func login() async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
+            // NidOAuth's in-app-browser fallback uses ASWebAuthenticationSession under the hood,
+            // whose completion handler can fire twice on cancellation — same risk as
+            // KakaoLoginBridge. Guard against the repeat call.
+            var didResume = false
             NidOAuth.shared.requestLogin { result in
+                guard !didResume else { return }
+                didResume = true
+
                 switch result {
                 case .success(let loginResult):
                     continuation.resume(returning: loginResult.accessToken.tokenString)

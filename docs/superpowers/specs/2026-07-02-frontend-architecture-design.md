@@ -37,6 +37,9 @@ ChamChamCham/
       AuthTokenStore.swift       (Keychain-backed)
       TokenRefreshCoordinator.swift
       APIError.swift
+      DTOs/                      (DTOs consumed by Core itself, e.g. MemberProfileResponseDTO,
+                                    OnboardingResponseDTO — a DTO used by Core code must live
+                                    here, not inside a Feature folder, even if a feature also uses it)
     Persistence/
       ModelContainer+App.swift
       SchemaV1.swift
@@ -49,6 +52,7 @@ ChamChamCham/
       Route.swift
       ScreenPathRouter.swift
   Features/
+    Auth/{Data,Presentation}
     Onboarding/{Data,Domain,Presentation}
     Home/{Data,Domain,Presentation}
     FarmingRecord/{Data,Domain,Presentation}
@@ -59,13 +63,17 @@ ChamChamCham/
     MyPage/{Data,Domain,Presentation}
 ```
 
+`Auth` (login for all providers, logout, token-exchange bridges) is its own feature, separate from `Onboarding` — it's a session-lifetime concern reused wherever a member signs in or out (e.g. `MyPage`'s future logout action calls `Auth`'s `AuthRepository` directly), not something scoped to the first-run wizard. `Onboarding` depends on `Auth` for login (its `LandingView` triggers `Auth`'s login methods before jumping into its own steps) — the dependency is one-directional; `Auth` never depends on `Onboarding`. `Auth` has no `Domain` folder — create a layer folder only once it actually holds files, not to complete the three-folder pattern.
+
 Each feature keeps three kinds of models distinct:
 
 - SwiftData `@Model` types (persistence).
 - Network `Codable` DTOs (wire format).
 - Plain-struct domain models (what ViewModels actually consume).
 
-This mirrors the layering discipline the backend already uses (`api` / `application` / `domain`, see `backend/AGENTS.md`), reapplied per-feature so it stays navigable across the nine feature areas (온보딩, 홈, 영농기록, 리포트, 커뮤니티, 마이페이지, 검색, 정책추천, 알림). Keeping the domain layer free of SwiftUI/SwiftData imports also means a future package extraction is a pure move, not a rewrite.
+This mirrors the layering discipline the backend already uses (`api` / `application` / `domain`, see `backend/AGENTS.md`), reapplied per-feature so it stays navigable across the ten feature areas (인증, 온보딩, 홈, 영농기록, 리포트, 커뮤니티, 마이페이지, 검색, 정책추천, 알림). Keeping the domain layer free of SwiftUI/SwiftData imports also means a future package extraction is a pure move, not a rewrite.
+
+Within `Presentation`, split into `Views/` and `ViewModels/` subfolders once a feature has more than a couple of screens (every feature built so far qualifies) — flat `Presentation/` was fine at zero-to-one-screen but stopped scaling immediately. A file that's neither (e.g. `PreviewOnboardingDependencies.swift`, DEBUG-only preview stand-ins) goes wherever it's most tightly coupled — that one lives in `ViewModels/` since its main export is `OnboardingViewModel.preview()`. A login-bridge/coordinator class (e.g. `KakaoLoginBridge`, `AppleSignInCoordinator`) is not a View or a ViewModel — it belongs in `Data`, even if (like `AppleSignInCoordinator`) it needs a `UIWindow` to present from.
 
 ## Offline-First Data Flow
 

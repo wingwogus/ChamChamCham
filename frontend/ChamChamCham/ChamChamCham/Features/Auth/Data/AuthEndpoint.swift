@@ -13,7 +13,6 @@ enum AuthEndpoint: Endpoint {
     case kakaoLogin(idToken: String, nonce: String, kakaoAccessToken: String?)
     case appleLogin(identityToken: String, nonce: String, authorizationCode: String?, userIdentifier: String?)
     case naverLogin(accessToken: String)
-    case completeOnboarding(OnboardingCompleteRequestDTO)
     case logout
 
     var path: String {
@@ -21,7 +20,6 @@ enum AuthEndpoint: Endpoint {
         case .kakaoLogin: "api/v1/auth/kakao/login"
         case .appleLogin: "api/v1/auth/apple/login"
         case .naverLogin: "api/v1/auth/naver/login"
-        case .completeOnboarding: "api/v1/auth/onboarding/complete"
         case .logout: "api/v1/auth/logout"
         }
     }
@@ -30,7 +28,7 @@ enum AuthEndpoint: Endpoint {
 
     var requiresAuth: Bool {
         switch self {
-        case .completeOnboarding, .logout: true
+        case .logout: true
         case .kakaoLogin, .appleLogin, .naverLogin: false
         }
     }
@@ -48,8 +46,6 @@ enum AuthEndpoint: Endpoint {
             )
         case let .naverLogin(accessToken):
             NaverLoginRequestBody(accessToken: accessToken)
-        case let .completeOnboarding(requestDTO):
-            requestDTO
         case .logout:
             nil
         }
