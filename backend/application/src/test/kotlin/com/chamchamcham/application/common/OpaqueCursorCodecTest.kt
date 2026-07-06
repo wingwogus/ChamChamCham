@@ -24,6 +24,9 @@ class OpaqueCursorCodecTest {
         val decoded = codec.decode(encoded, TestCursorPayload::class.java)
 
         assertThat(encoded).doesNotContain("{")
+        assertThat(encoded).doesNotContain("=")
+        assertThat(encoded).doesNotContain("+")
+        assertThat(encoded).doesNotContain("/")
         assertThat(decoded).isEqualTo(payload)
     }
 
