@@ -180,7 +180,7 @@ class CommunityCommentServiceTest {
         setCreatedAt(older, LocalDateTime.of(2026, 6, 12, 10, 0))
         setCreatedAt(overflow, LocalDateTime.of(2026, 6, 12, 9, 0))
         setCreatedAt(reply, LocalDateTime.of(2026, 6, 12, 11, 1))
-        `when`(communityCommentRepository.findRootPage(postId, null, null, PageRequest.of(0, 3)))
+        `when`(communityCommentRepository.findRootFirstPage(postId, PageRequest.of(0, 3)))
             .thenReturn(listOf(newest, older, overflow))
         `when`(communityCommentRepository.findRepliesByParentIds(listOf(rootCommentId, requireNotNull(older.id))))
             .thenReturn(listOf(reply))
@@ -199,7 +199,7 @@ class CommunityCommentServiceTest {
             id = rootCommentId
         )
         val cursor = cursorCodec.encode(payload)
-        `when`(communityCommentRepository.findRootPage(postId, payload.createdAt, payload.id, PageRequest.of(0, 21)))
+        `when`(communityCommentRepository.findRootPageAfter(postId, payload.createdAt, payload.id, PageRequest.of(0, 21)))
             .thenReturn(emptyList())
 
         val page = service.list(postId = postId, cursor = cursor, size = 20)
@@ -237,7 +237,7 @@ class CommunityCommentServiceTest {
             media = media,
             isDeleted = true
         )
-        `when`(communityCommentRepository.findRootPage(postId, null, null, PageRequest.of(0, 21)))
+        `when`(communityCommentRepository.findRootFirstPage(postId, PageRequest.of(0, 21)))
             .thenReturn(listOf(deleted))
         `when`(communityCommentRepository.findRepliesByParentIds(listOf(rootCommentId)))
             .thenReturn(emptyList())

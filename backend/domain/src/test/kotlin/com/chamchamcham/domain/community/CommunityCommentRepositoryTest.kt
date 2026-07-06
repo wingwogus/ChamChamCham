@@ -36,13 +36,11 @@ class CommunityCommentRepositoryTest @Autowired constructor(
         entityManager.flush()
         entityManager.clear()
 
-        val firstPage = repository.findRootPage(
+        val firstPage = repository.findRootFirstPage(
             postId = requireNotNull(fixture.post.id),
-            cursorCreatedAt = null,
-            cursorId = null,
             pageable = PageRequest.of(0, 2)
         )
-        val secondPage = repository.findRootPage(
+        val secondPage = repository.findRootPageAfter(
             postId = requireNotNull(fixture.post.id),
             cursorCreatedAt = firstPage.last().createdAt,
             cursorId = requireNotNull(firstPage.last().id),

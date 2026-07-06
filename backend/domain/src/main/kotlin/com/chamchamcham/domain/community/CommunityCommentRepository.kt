@@ -17,18 +17,34 @@ interface CommunityCommentRepository : JpaRepository<CommunityComment, UUID> {
         left join fetch c.media
         where c.post.id = :postId
           and c.parentComment is null
+        order by c.createdAt desc, c.id desc
+        """
+    )
+    fun findRootFirstPage(
+        @Param("postId") postId: UUID,
+        pageable: Pageable
+    ): List<CommunityComment>
+
+    @Query(
+        """
+        select c
+        from CommunityComment c
+        join fetch c.author a
+        left join fetch a.profileMedia
+        left join fetch c.media
+        where c.post.id = :postId
+          and c.parentComment is null
           and (
-            :cursorCreatedAt is null
-            or c.createdAt < :cursorCreatedAt
+            c.createdAt < :cursorCreatedAt
             or (c.createdAt = :cursorCreatedAt and c.id < :cursorId)
           )
         order by c.createdAt desc, c.id desc
         """
     )
-    fun findRootPage(
+    fun findRootPageAfter(
         @Param("postId") postId: UUID,
-        @Param("cursorCreatedAt") cursorCreatedAt: LocalDateTime?,
-        @Param("cursorId") cursorId: UUID?,
+        @Param("cursorCreatedAt") cursorCreatedAt: LocalDateTime,
+        @Param("cursorId") cursorId: UUID,
         pageable: Pageable
     ): List<CommunityComment>
 

@@ -64,12 +64,17 @@ class CommunityCommentService(
     fun list(postId: UUID, cursor: String?, size: Int): CommunityCommentResult.Page {
         validatePageSize(size)
         val decodedCursor = decodeCursor(cursor)
-        val rootComments = communityCommentRepository.findRootPage(
-            postId = postId,
-            cursorCreatedAt = decodedCursor?.createdAt,
-            cursorId = decodedCursor?.id,
-            pageable = PageRequest.of(0, size + 1)
-        )
+        val pageable = PageRequest.of(0, size + 1)
+        val rootComments = if (decodedCursor == null) {
+            communityCommentRepository.findRootFirstPage(postId, pageable)
+        } else {
+            communityCommentRepository.findRootPageAfter(
+                postId = postId,
+                cursorCreatedAt = decodedCursor.createdAt,
+                cursorId = decodedCursor.id,
+                pageable = pageable
+            )
+        }
         val visibleRoots = rootComments.take(size)
         val rootIds = visibleRoots.map { requireNotNull(it.id) { "Persisted comment id is required" } }
         val repliesByParentId = if (rootIds.isEmpty()) {
