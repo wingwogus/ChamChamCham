@@ -94,8 +94,9 @@ extension Color {
         static let secondary = Lime.c200
         static let secondarySubtle = Lime.c50
         static let disabled = Gray.c200
-        static let error = Red.c500
-        static let errorSubtle = Red.c100
+        static let disabledSubtle = Gray.c100
+        static let red = Red.c500
+        static let redSubtle = Red.c100
     }
 
     enum Text {
@@ -104,18 +105,15 @@ extension Color {
         static let muted = Gray.c500
         static let disabled = Gray.c400
         static let inverse = Gray.c0
-        static let onPrimary = Gray.c0
         static let primary = Green.c800
         static let secondary = Lime.c800
-        static let required = Red.c500
-        static let error = Red.c600
+        static let red = Red.c500
     }
 
     enum Icon {
-        static let `default` = Gray.c900
+        static let `default` = Gray.c800
         static let subtle = Gray.c600
-        static let muted = Gray.c400
-        static let disabled = Gray.c300
+        static let disabled = Gray.c400
         static let inverse = Gray.c0
         static let primary = Green.c700
         static let error = Red.c500
