@@ -57,6 +57,7 @@ class CommunityPostService(
 
     @Transactional(readOnly = true)
     fun search(condition: CommunityPostSearchCondition): CommunityPostResult.Page {
+        validatePageSize(condition.size)
         val cursor = decodeCursor(condition.sort, condition.cursor)
         val result = communityPostQueryRepository.search(
             CommunityPostQueryRepository.SearchCondition(
@@ -81,6 +82,12 @@ class CommunityPostService(
             items = visibleRows.map(::toSummary),
             nextCursor = nextCursor
         )
+    }
+
+    private fun validatePageSize(size: Int) {
+        if (size <= 0 || size == Int.MAX_VALUE) {
+            throw BusinessException(ErrorCode.INVALID_INPUT)
+        }
     }
 
     @Transactional(readOnly = true)
@@ -280,10 +287,15 @@ class CommunityPostService(
         row: CommunityPostQueryRepository.Row
     ): String {
         val post = row.post
+        val score = if (sort == CommunityPostSort.LATEST) {
+            null
+        } else {
+            requireNotNull(row.score) { "Cursor score is required for $sort sort" }
+        }
         return cursorCodec.encode(
             CommunityPostCursorPayload(
                 sort = sort,
-                score = if (sort == CommunityPostSort.LATEST) null else row.score,
+                score = score,
                 createdAt = post.createdAt,
                 id = requireNotNull(post.id) { "Persisted post id is required" }
             )

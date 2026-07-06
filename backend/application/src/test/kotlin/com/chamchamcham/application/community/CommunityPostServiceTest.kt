@@ -317,6 +317,81 @@ class CommunityPostServiceTest {
     }
 
     @Test
+    fun `search encodes count based next cursor with score`() {
+        val requestedSize = 1
+        val overflowPost = existingPost(member, crop, secondPostId).also {
+            setCreatedAt(it, postCreatedAt.minusMinutes(1))
+        }
+        setCreatedAt(existingPost, postCreatedAt)
+        `when`(
+            communityPostQueryRepository.search(
+                CommunityPostQueryRepository.SearchCondition(
+                    memberId = memberId,
+                    cropId = cropId,
+                    postType = CommunityPostType.QUESTION,
+                    keyword = "발아",
+                    likedOnly = false,
+                    mineOnly = false,
+                    sort = CommunityPostSort.LIKE,
+                    cursor = null,
+                    size = requestedSize + 1
+                )
+            )
+        ).thenReturn(
+            CommunityPostQueryRepository.SearchResult(
+                rows = listOf(
+                    queryRow(existingPost, thumbnailUrl = "https://example.test/1.jpg", score = 8),
+                    queryRow(overflowPost, thumbnailUrl = "https://example.test/2.jpg", score = 7)
+                )
+            )
+        )
+
+        val page = service.search(searchCondition(sort = CommunityPostSort.LIKE, size = requestedSize))
+
+        assertThat(page.items).hasSize(1)
+        val nextCursor = cursorCodec.decode(page.nextCursor!!, CommunityPostCursorPayload::class.java)
+        assertEquals(CommunityPostSort.LIKE, nextCursor.sort)
+        assertEquals(8L, nextCursor.score)
+        assertEquals(postCreatedAt, nextCursor.createdAt)
+        assertEquals(postId, nextCursor.id)
+    }
+
+    @Test
+    fun `search fails when count based next cursor row has null score`() {
+        val requestedSize = 1
+        val overflowPost = existingPost(member, crop, secondPostId).also {
+            setCreatedAt(it, postCreatedAt.minusMinutes(1))
+        }
+        setCreatedAt(existingPost, postCreatedAt)
+        `when`(
+            communityPostQueryRepository.search(
+                CommunityPostQueryRepository.SearchCondition(
+                    memberId = memberId,
+                    cropId = cropId,
+                    postType = CommunityPostType.QUESTION,
+                    keyword = "발아",
+                    likedOnly = false,
+                    mineOnly = false,
+                    sort = CommunityPostSort.LIKE,
+                    cursor = null,
+                    size = requestedSize + 1
+                )
+            )
+        ).thenReturn(
+            CommunityPostQueryRepository.SearchResult(
+                rows = listOf(
+                    queryRow(existingPost, thumbnailUrl = "https://example.test/1.jpg", score = null),
+                    queryRow(overflowPost, thumbnailUrl = "https://example.test/2.jpg", score = 7)
+                )
+            )
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            service.search(searchCondition(sort = CommunityPostSort.LIKE, size = requestedSize))
+        }
+    }
+
+    @Test
     fun `search decodes valid incoming cursor for query repository`() {
         val cursor = cursorCodec.encode(
             CommunityPostCursorPayload(
@@ -352,6 +427,36 @@ class CommunityPostServiceTest {
 
         assertThat(page.items).isEmpty()
         assertEquals(null, page.nextCursor)
+    }
+
+    @Test
+    fun `search rejects zero size`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.search(searchCondition(size = 0))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(communityPostQueryRepository)
+    }
+
+    @Test
+    fun `search rejects negative size`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.search(searchCondition(size = -1))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(communityPostQueryRepository)
+    }
+
+    @Test
+    fun `search rejects max integer size`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.search(searchCondition(size = Int.MAX_VALUE))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(communityPostQueryRepository)
     }
 
     @Test
