@@ -129,11 +129,25 @@ object CommunityResponses {
         }
     }
 
+    data class CommentPageResponse(
+        val items: List<CommentResponse>,
+        val nextCursor: String?
+    ) {
+        companion object {
+            fun from(result: CommunityCommentResult.Page): CommentPageResponse =
+                CommentPageResponse(
+                    items = result.items.map(CommentResponse::from),
+                    nextCursor = result.nextCursor
+                )
+        }
+    }
+
     data class CommentResponse(
         val id: UUID,
         val parentCommentId: UUID?,
         val author: AuthorResponse,
         val body: String,
+        val imageUrl: String?,
         val deleted: Boolean,
         val createdAt: LocalDateTime,
         val replies: List<CommentResponse>
@@ -145,6 +159,7 @@ object CommunityResponses {
                     parentCommentId = result.parentCommentId,
                     author = AuthorResponse.from(result.author),
                     body = result.body,
+                    imageUrl = result.imageUrl,
                     deleted = result.deleted,
                     createdAt = result.createdAt,
                     replies = result.replies.map(::from)

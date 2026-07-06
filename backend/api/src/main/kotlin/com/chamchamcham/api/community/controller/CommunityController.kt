@@ -128,10 +128,12 @@ class CommunityController(
 
     @GetMapping("/posts/{postId}/comments")
     fun listComments(
-        @PathVariable postId: UUID
-    ): ResponseEntity<ApiResponse<List<CommunityResponses.CommentResponse>>> {
-        val comments = communityCommentService.list(postId)
-        return ResponseEntity.ok(ApiResponse.ok(comments.map(CommunityResponses.CommentResponse::from)))
+        @PathVariable postId: UUID,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ResponseEntity<ApiResponse<CommunityResponses.CommentPageResponse>> {
+        val page = communityCommentService.list(postId, cursor, size)
+        return ResponseEntity.ok(ApiResponse.ok(CommunityResponses.CommentPageResponse.from(page)))
     }
 
     @PostMapping("/posts/{postId}/comments")
@@ -145,7 +147,8 @@ class CommunityController(
                 memberId = parseMemberId(memberId),
                 postId = postId,
                 parentCommentId = request.parentCommentId,
-                body = request.body
+                body = request.body,
+                mediaId = request.mediaId
             )
         )
         return ResponseEntity.ok(ApiResponse.ok(CommunityResponses.CommentIdResponse.from(result)))

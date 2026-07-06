@@ -12,6 +12,7 @@ import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.domain.community.CommunityPostSort
 import com.chamchamcham.domain.community.CommunityPostType
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
@@ -171,22 +172,38 @@ class CommunityControllerTest(
             post("/api/v1/community/posts/{postId}/comments", postId)
                 .with(authenticatedMember(memberId.toString()))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"body":"저도 궁금해요"}""")
+                .content("""{"body":"저도 궁금해요","mediaId":"$mediaId"}""")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.id", equalTo(commentId.toString())))
     }
 
     @Test
-    fun `list comments returns deleted comment body from service result`() {
-        `when`(communityCommentService.list(postId)).thenReturn(listOf(deletedCommentResult()))
+    fun `list comments returns cursor page with deleted comment body from service result`() {
+        `when`(communityCommentService.list(postId, null, 20)).thenReturn(commentPageResult())
 
         mockMvc.perform(
             get("/api/v1/community/posts/{postId}/comments", postId)
                 .with(authenticatedMember(memberId.toString()))
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].body", equalTo("삭제된 댓글입니다.")))
+            .andExpect(jsonPath("$.data.items[0].body", equalTo("삭제된 댓글입니다.")))
+            .andExpect(jsonPath("$.data.items[0].imageUrl", nullValue()))
+            .andExpect(jsonPath("$.data.nextCursor", equalTo("comment-cursor-1")))
+    }
+
+    @Test
+    fun `list comments maps cursor and size parameters`() {
+        `when`(communityCommentService.list(postId, "comment-cursor-1", 10)).thenReturn(commentPageResult(nextCursor = null))
+
+        mockMvc.perform(
+            get("/api/v1/community/posts/{postId}/comments", postId)
+                .with(authenticatedMember(memberId.toString()))
+                .param("cursor", "comment-cursor-1")
+                .param("size", "10")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.nextCursor", nullValue()))
     }
 
     @Test
@@ -256,7 +273,8 @@ class CommunityControllerTest(
             memberId = memberId,
             postId = postId,
             parentCommentId = null,
-            body = "저도 궁금해요"
+            body = "저도 궁금해요",
+            mediaId = mediaId
         )
 
     private fun postPageResult(): CommunityPostResult.Page =
@@ -298,12 +316,19 @@ class CommunityControllerTest(
             createdAt = createdAt
         )
 
+    private fun commentPageResult(nextCursor: String? = "comment-cursor-1"): CommunityCommentResult.Page =
+        CommunityCommentResult.Page(
+            items = listOf(deletedCommentResult()),
+            nextCursor = nextCursor
+        )
+
     private fun deletedCommentResult(): CommunityCommentResult.Comment =
         CommunityCommentResult.Comment(
             id = commentId,
             parentCommentId = null,
             author = authorResult(),
             body = "삭제된 댓글입니다.",
+            imageUrl = null,
             deleted = true,
             createdAt = createdAt
         )
