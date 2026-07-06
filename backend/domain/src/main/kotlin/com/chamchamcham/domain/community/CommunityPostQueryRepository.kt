@@ -13,9 +13,16 @@ interface CommunityPostQueryRepository {
         val keyword: String?,
         val likedOnly: Boolean,
         val mineOnly: Boolean,
-        val cursorCreatedAt: LocalDateTime?,
-        val cursorId: UUID?,
+        val sort: CommunityPostSort,
+        val cursor: Cursor?,
         val size: Int
+    )
+
+    data class Cursor(
+        val sort: CommunityPostSort,
+        val score: Long?,
+        val createdAt: LocalDateTime,
+        val id: UUID
     )
 
     data class Row(
@@ -23,7 +30,8 @@ interface CommunityPostQueryRepository {
         val thumbnailUrl: String?,
         val commentCount: Long,
         val likeCount: Long,
-        val likedByMe: Boolean
+        val likedByMe: Boolean,
+        val score: Long?
     )
 
     data class SearchResult(

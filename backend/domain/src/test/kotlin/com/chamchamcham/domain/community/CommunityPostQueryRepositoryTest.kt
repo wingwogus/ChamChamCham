@@ -63,8 +63,12 @@ class CommunityPostQueryRepositoryTest @Autowired constructor(
         val secondPage = queryRepository.search(
             condition(
                 size = 2,
-                cursorCreatedAt = firstPage.rows.last().post.createdAt,
-                cursorId = requireNotNull(firstPage.rows.last().post.id)
+                cursor = CommunityPostQueryRepository.Cursor(
+                    sort = CommunityPostSort.LATEST,
+                    score = null,
+                    createdAt = firstPage.rows.last().post.createdAt,
+                    id = requireNotNull(firstPage.rows.last().post.id)
+                )
             )
         )
 
@@ -108,6 +112,21 @@ class CommunityPostQueryRepositoryTest @Autowired constructor(
         assertThat(liked.rows.map { it.post.title }).containsExactly("내가 좋아요한 글")
         assertThat(liked.rows.first().likedByMe).isTrue()
         assertThat(mine.rows.map { it.post.author.id }).containsOnly(memberId)
+    }
+
+    @Test
+    fun `search condition supports sort and structured cursor`() {
+        val cursor = CommunityPostQueryRepository.Cursor(
+            sort = CommunityPostSort.LIKE,
+            score = 3,
+            createdAt = LocalDateTime.of(2026, 6, 12, 9, 0),
+            id = UUID.fromString("00000000-0000-0000-0000-000000000101")
+        )
+
+        val condition = condition(sort = CommunityPostSort.LIKE, cursor = cursor)
+
+        assertThat(condition.sort).isEqualTo(CommunityPostSort.LIKE)
+        assertThat(condition.cursor).isEqualTo(cursor)
     }
 
     private fun persistPost(
@@ -172,8 +191,8 @@ class CommunityPostQueryRepositoryTest @Autowired constructor(
         keyword: String? = null,
         likedOnly: Boolean = false,
         mineOnly: Boolean = false,
-        cursorCreatedAt: LocalDateTime? = null,
-        cursorId: UUID? = null,
+        sort: CommunityPostSort = CommunityPostSort.LATEST,
+        cursor: CommunityPostQueryRepository.Cursor? = null,
         size: Int = 20
     ): CommunityPostQueryRepository.SearchCondition =
         CommunityPostQueryRepository.SearchCondition(
@@ -183,8 +202,8 @@ class CommunityPostQueryRepositoryTest @Autowired constructor(
             keyword = keyword,
             likedOnly = likedOnly,
             mineOnly = mineOnly,
-            cursorCreatedAt = cursorCreatedAt,
-            cursorId = cursorId,
+            sort = sort,
+            cursor = cursor,
             size = size
         )
 
