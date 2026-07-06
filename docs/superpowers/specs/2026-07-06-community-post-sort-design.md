@@ -25,6 +25,9 @@ existing backend boundaries:
   decoded by the server on the next request.
 - The client treats the cursor as an opaque value and does not calculate or
   inspect score values.
+- Cursor encoding and decoding use a small common codec so future infinite
+  scroll APIs can reuse the transport format without inheriting community sort
+  rules.
 
 ## API Contract
 
@@ -104,6 +107,38 @@ Rules:
 - Cursor manipulation is not treated as a security boundary in this iteration.
   A manipulated valid cursor can only change the list position.
 
+### Common Cursor Codec
+
+Cursor serialization belongs in a small common application component:
+
+```kotlin
+class OpaqueCursorCodec {
+    fun encode(payload: Any): String
+    fun <T : Any> decode(cursor: String, payloadType: Class<T>): T
+}
+```
+
+The codec is responsible only for:
+
+- JSON serialization and deserialization.
+- Base64 URL-safe encoding and decoding.
+- Converting malformed cursor input into a consistent application error.
+
+Community keeps its own payload and validation:
+
+```kotlin
+data class CommunityPostCursorPayload(
+    val sort: CommunityPostSort,
+    val score: Long?,
+    val createdAt: LocalDateTime,
+    val id: UUID
+)
+```
+
+This keeps the reusable part small. Other infinite scroll APIs can define their
+own payload classes and reuse `OpaqueCursorCodec`, but they do not share
+community-specific sort names, score rules, or query predicates.
+
 Cursor predicates:
 
 ```text
@@ -136,6 +171,10 @@ val nextCursor: String?
 The application service decodes the request cursor, validates that it matches
 the requested sort, passes structured cursor values into the domain query
 repository, and encodes the next cursor from the last returned row.
+
+The application service uses the common `OpaqueCursorCodec` for the raw string
+conversion, then applies community-specific validation to the decoded
+`CommunityPostCursorPayload`.
 
 ## Domain Query Boundary
 
@@ -203,4 +242,5 @@ Controller tests:
 - Time-decayed ranking.
 - Persisted ranking snapshots.
 - Signed cursor payloads.
+- Generic pagination framework or shared query predicate builder.
 - Admin-only moderation sort modes.
