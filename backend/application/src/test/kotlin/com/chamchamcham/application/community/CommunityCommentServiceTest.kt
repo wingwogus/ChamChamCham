@@ -1,5 +1,6 @@
 package com.chamchamcham.application.community
 
+import com.chamchamcham.application.common.OpaqueCursorCodec
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.domain.common.BaseTimeEntity
@@ -10,8 +11,14 @@ import com.chamchamcham.domain.community.CommunityPostRepository
 import com.chamchamcham.domain.community.CommunityPostType
 import com.chamchamcham.domain.crop.Crop
 import com.chamchamcham.domain.crop.CropUsePartCategory
+import com.chamchamcham.domain.media.UploadedMedia
+import com.chamchamcham.domain.media.UploadedMediaRepository
+import com.chamchamcham.domain.media.UploadedMediaStatus
+import com.chamchamcham.domain.media.UploadedMediaType
+import com.chamchamcham.domain.media.UploadedMediaUsageType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.member.MemberRepository
+import org.springframework.data.domain.PageRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -37,10 +44,14 @@ class CommunityCommentServiceTest {
     private val postId = UUID.fromString("00000000-0000-0000-0000-000000000101")
     private val rootCommentId = UUID.fromString("00000000-0000-0000-0000-000000000201")
     private val replyCommentId = UUID.fromString("00000000-0000-0000-0000-000000000202")
+    private val mediaId = UUID.fromString("00000000-0000-0000-0000-000000000601")
 
     @Mock private lateinit var memberRepository: MemberRepository
     @Mock private lateinit var communityPostRepository: CommunityPostRepository
     @Mock private lateinit var communityCommentRepository: CommunityCommentRepository
+    @Mock private lateinit var uploadedMediaRepository: UploadedMediaRepository
+
+    private val cursorCodec = OpaqueCursorCodec()
 
     private lateinit var service: CommunityCommentService
     private lateinit var member: Member
@@ -72,7 +83,9 @@ class CommunityCommentServiceTest {
         service = CommunityCommentService(
             memberRepository = memberRepository,
             communityPostRepository = communityPostRepository,
-            communityCommentRepository = communityCommentRepository
+            communityCommentRepository = communityCommentRepository,
+            uploadedMediaRepository = uploadedMediaRepository,
+            cursorCodec = cursorCodec
         )
     }
 
@@ -148,17 +161,168 @@ class CommunityCommentServiceTest {
     }
 
     @Test
-    fun `list returns deleted comment body as deleted message`() {
-        rootComment.softDelete()
-        setCreatedAt(rootComment, LocalDateTime.of(2026, 6, 12, 9, 0))
-        setCreatedAt(replyComment, LocalDateTime.of(2026, 6, 12, 9, 1))
-        `when`(communityCommentRepository.findByPost_IdOrderByCreatedAtAscIdAsc(postId))
-            .thenReturn(listOf(rootComment, replyComment))
+    fun `list returns root comment page with replies and next cursor`() {
+        val newest = comment(id = rootCommentId, parent = null, author = member, body = "newest")
+        val older = comment(
+            id = UUID.fromString("00000000-0000-0000-0000-000000000203"),
+            parent = null,
+            author = member,
+            body = "older"
+        )
+        val overflow = comment(
+            id = UUID.fromString("00000000-0000-0000-0000-000000000204"),
+            parent = null,
+            author = member,
+            body = "overflow"
+        )
+        val reply = comment(id = replyCommentId, parent = newest, author = otherMember, body = "reply")
+        setCreatedAt(newest, LocalDateTime.of(2026, 6, 12, 11, 0))
+        setCreatedAt(older, LocalDateTime.of(2026, 6, 12, 10, 0))
+        setCreatedAt(overflow, LocalDateTime.of(2026, 6, 12, 9, 0))
+        setCreatedAt(reply, LocalDateTime.of(2026, 6, 12, 11, 1))
+        `when`(communityCommentRepository.findRootPage(postId, null, null, PageRequest.of(0, 3)))
+            .thenReturn(listOf(newest, older, overflow))
+        `when`(communityCommentRepository.findRepliesByParentIds(listOf(rootCommentId, requireNotNull(older.id))))
+            .thenReturn(listOf(reply))
 
-        val comments = service.list(postId)
+        val page = service.list(postId = postId, cursor = null, size = 2)
 
-        assertEquals("삭제된 댓글입니다.", comments.first { it.id == rootCommentId }.body)
-        assertTrue(comments.first { it.id == rootCommentId }.deleted)
+        assertEquals(listOf("newest", "older"), page.items.map { it.body })
+        assertEquals(listOf("reply"), page.items.first().replies.map { it.body })
+        assertTrue(page.nextCursor?.isNotBlank() == true)
+    }
+
+    @Test
+    fun `list passes decoded cursor to repository`() {
+        val payload = CommunityCommentCursorPayload(
+            createdAt = LocalDateTime.of(2026, 6, 12, 10, 0),
+            id = rootCommentId
+        )
+        val cursor = cursorCodec.encode(payload)
+        `when`(communityCommentRepository.findRootPage(postId, payload.createdAt, payload.id, PageRequest.of(0, 21)))
+            .thenReturn(emptyList())
+
+        val page = service.list(postId = postId, cursor = cursor, size = 20)
+
+        assertTrue(page.items.isEmpty())
+        assertNull(page.nextCursor)
+    }
+
+    @Test
+    fun `list rejects invalid page size`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.list(postId = postId, cursor = null, size = 0)
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+    }
+
+    @Test
+    fun `list rejects malformed cursor`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.list(postId = postId, cursor = "not-a-valid-cursor", size = 20)
+        }
+
+        assertEquals(ErrorCode.INVALID_CURSOR, exception.errorCode)
+    }
+
+    @Test
+    fun `deleted comment hides image url`() {
+        val media = uploadedMedia(id = mediaId, owner = member)
+        val deleted = comment(
+            id = rootCommentId,
+            parent = null,
+            author = member,
+            body = "before delete",
+            media = media,
+            isDeleted = true
+        )
+        `when`(communityCommentRepository.findRootPage(postId, null, null, PageRequest.of(0, 21)))
+            .thenReturn(listOf(deleted))
+        `when`(communityCommentRepository.findRepliesByParentIds(listOf(rootCommentId)))
+            .thenReturn(emptyList())
+
+        val page = service.list(postId = postId, cursor = null, size = 20)
+
+        assertEquals("삭제된 댓글입니다.", page.items.single().body)
+        assertNull(page.items.single().imageUrl)
+    }
+
+    @Test
+    fun `create comment attaches optional media`() {
+        val media = uploadedMedia(id = mediaId, owner = member)
+        stubCreate()
+        `when`(uploadedMediaRepository.findById(mediaId)).thenReturn(Optional.of(media))
+        `when`(communityCommentRepository.save(any(CommunityComment::class.java))).thenAnswer { invocation ->
+            val comment = invocation.arguments[0] as CommunityComment
+            comment(
+                id = rootCommentId,
+                parent = comment.parentComment,
+                author = comment.author,
+                body = comment.body,
+                media = comment.media
+            )
+        }
+
+        service.create(createCommand(mediaId = mediaId))
+
+        val savedComment = capturedComment()
+        assertEquals(mediaId, savedComment.media?.id)
+        assertEquals(UploadedMediaStatus.ATTACHED, media.status)
+    }
+
+    @Test
+    fun `create comment rejects missing media`() {
+        stubCreate()
+        `when`(uploadedMediaRepository.findById(mediaId)).thenReturn(Optional.empty())
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.create(createCommand(mediaId = mediaId))
+        }
+
+        assertEquals(ErrorCode.MEDIA_NOT_FOUND, exception.errorCode)
+        verify(communityCommentRepository, never()).save(any(CommunityComment::class.java))
+    }
+
+    @Test
+    fun `create comment rejects media owned by another member`() {
+        stubCreate()
+        `when`(uploadedMediaRepository.findById(mediaId)).thenReturn(Optional.of(uploadedMedia(id = mediaId, owner = otherMember)))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.create(createCommand(mediaId = mediaId))
+        }
+
+        assertEquals(ErrorCode.MEDIA_NOT_OWNED, exception.errorCode)
+        verify(communityCommentRepository, never()).save(any(CommunityComment::class.java))
+    }
+
+    @Test
+    fun `create comment rejects media with wrong usage type`() {
+        val media = uploadedMedia(id = mediaId, owner = member, usageType = UploadedMediaUsageType.PROFILE)
+        stubCreate()
+        `when`(uploadedMediaRepository.findById(mediaId)).thenReturn(Optional.of(media))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.create(createCommand(mediaId = mediaId))
+        }
+
+        assertEquals(ErrorCode.MEDIA_USAGE_MISMATCH, exception.errorCode)
+        verify(communityCommentRepository, never()).save(any(CommunityComment::class.java))
+    }
+
+    @Test
+    fun `create comment rejects already attached media`() {
+        val media = uploadedMedia(id = mediaId, owner = member, status = UploadedMediaStatus.ATTACHED)
+        stubCreate()
+        `when`(uploadedMediaRepository.findById(mediaId)).thenReturn(Optional.of(media))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.create(createCommand(mediaId = mediaId))
+        }
+
+        assertEquals(ErrorCode.MEDIA_NOT_ATTACHABLE, exception.errorCode)
+        verify(communityCommentRepository, never()).save(any(CommunityComment::class.java))
     }
 
     private fun stubCreate() {
@@ -168,13 +332,15 @@ class CommunityCommentServiceTest {
 
     private fun createCommand(
         parentCommentId: UUID? = null,
-        body: String = "저도 궁금해요"
+        body: String = "저도 궁금해요",
+        mediaId: UUID? = null
     ): CommunityCommentCommand.Create =
         CommunityCommentCommand.Create(
             memberId = memberId,
             postId = postId,
             parentCommentId = parentCommentId,
-            body = body
+            body = body,
+            mediaId = mediaId
         )
 
     private fun comment(
@@ -182,6 +348,7 @@ class CommunityCommentServiceTest {
         parent: CommunityComment?,
         author: Member,
         body: String,
+        media: UploadedMedia? = null,
         isDeleted: Boolean = false
     ): CommunityComment =
         CommunityComment(
@@ -190,7 +357,24 @@ class CommunityCommentServiceTest {
             parentComment = parent,
             author = author,
             body = body,
+            media = media,
             isDeleted = isDeleted
+        )
+
+    private fun uploadedMedia(
+        id: UUID,
+        owner: Member,
+        usageType: UploadedMediaUsageType = UploadedMediaUsageType.COMMUNITY_POST,
+        status: UploadedMediaStatus = UploadedMediaStatus.TEMP
+    ): UploadedMedia =
+        UploadedMedia(
+            id = id,
+            owner = owner,
+            mediaType = UploadedMediaType.IMAGE,
+            usageType = usageType,
+            fileUrl = "https://example.test/comment.jpg",
+            cloudinaryPublicId = "community/comment",
+            status = status
         )
 
     private fun capturedComment(): CommunityComment {

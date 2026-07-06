@@ -7,7 +7,8 @@ object CommunityCommentCommand {
         val memberId: UUID,
         val postId: UUID,
         val parentCommentId: UUID?,
-        val body: String
+        val body: String,
+        val mediaId: UUID?
     )
 
     data class Delete(
