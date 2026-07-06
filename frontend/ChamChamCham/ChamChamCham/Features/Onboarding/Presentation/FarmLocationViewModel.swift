@@ -56,6 +56,8 @@ final class FarmLocationViewModel {
         defer { isSearching = false }
         do {
             searchResults = try await addressSearch.search(keyword: keyword)
+        } catch is CancellationError {
+            // A newer keystroke already superseded this search — leave state to the task that replaces it.
         } catch {
             searchResults = []
             lookupState = .failed("주소 검색 중 오류가 발생했어요")

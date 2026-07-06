@@ -67,51 +67,46 @@ struct BasicProfileView: View {
                     .font(.appTitle)
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.lg) {
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        HStack {
-                            Spacer()
-                            PhotosPicker(selection: $pickerItem, matching: .images) {
-                                profileImageThumbnail
-                            }
-                            Spacer()
-                        }
-
-                        AppTextField(label: "*이름", placeholder: "이름(실명)을 입력하세요", text: $viewModel.draft.name)
-                        AppTextField(label: "닉네임", placeholder: "예) 이랑이", text: $viewModel.draft.nickname)
-                        AppTextField(label: "*연락처", placeholder: "010-0000-0000", text: $viewModel.draft.phone, keyboardType: .phonePad)
-
-                        VStack(alignment: .leading, spacing: Spacing.sm) {
-                            Text("*생년월일")
-                                .font(.appCaption)
-                                .foregroundStyle(Color.appTextSecondary)
-
-                            DatePicker("생년월일", selection: birthDateBinding, displayedComponents: .date)
-                                .datePickerStyle(.compact)
-                                .labelsHidden()
-                        }
-
-                        AppTextField(label: "*영농 경력(년차)", placeholder: "숫자만 입력하세요 (예: 5)", text: experienceYearsText, keyboardType: .numberPad)
-
-                        VStack(alignment: .leading, spacing: Spacing.sm) {
-                            Text("*자격")
-                                .font(.appCaption)
-                                .foregroundStyle(Color.appTextSecondary)
-
-                            Picker("자격", selection: $viewModel.draft.managementType) {
-                                Text("일반").tag(ManagementType?.some(.agriculturalIndividual))
-                                Text("법인").tag(ManagementType?.some(.agriculturalCorporation))
-                                Text("미가입").tag(ManagementType?.some(.nonRegisteredFarmer))
-                            }
-                            .pickerStyle(.segmented)
-
-                            guideBanner
-                        }
-                    }
+            HStack {
+                Spacer()
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    profileImageThumbnail
                 }
-                .padding(.vertical, Spacing.sm)
+                Spacer()
             }
+
+            AppTextField(label: "*이름", placeholder: "이름(실명)을 입력하세요", text: $viewModel.draft.name)
+            AppTextField(label: "닉네임", placeholder: "예) 이랑이", text: $viewModel.draft.nickname)
+            AppTextField(label: "*연락처", placeholder: "010-0000-0000", text: $viewModel.draft.phone, keyboardType: .phonePad)
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("*생년월일")
+                    .font(.appCaption)
+                    .foregroundStyle(Color.appTextSecondary)
+
+                DatePicker("생년월일", selection: birthDateBinding, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+            }
+
+            AppTextField(label: "*영농 경력(년차)", placeholder: "숫자만 입력하세요 (예: 5)", text: experienceYearsText, keyboardType: .numberPad)
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("*자격")
+                    .font(.appCaption)
+                    .foregroundStyle(Color.appTextSecondary)
+
+                Picker("자격", selection: $viewModel.draft.managementType) {
+                    Text("일반").tag(ManagementType?.some(.agriculturalIndividual))
+                    Text("법인").tag(ManagementType?.some(.agriculturalCorporation))
+                    Text("미가입").tag(ManagementType?.some(.nonRegisteredFarmer))
+                }
+                .pickerStyle(.segmented)
+
+                guideBanner
+            }
+
+            Spacer(minLength: 0)
 
             PrimaryButton(title: "다음") {
                 viewModel.goNext()

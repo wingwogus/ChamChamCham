@@ -12,6 +12,9 @@ struct AppTextField: View {
     let placeholder: String
     @Binding var text: String
     var keyboardType: UIKeyboardType = .default
+    var autoFocus: Bool = false
+
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -22,9 +25,14 @@ struct AppTextField: View {
             }
             TextField(placeholder, text: $text)
                 .keyboardType(keyboardType)
+                .focused($isFocused)
                 .padding(Spacing.md)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .onAppear {
+            guard autoFocus else { return }
+            isFocused = true
         }
     }
 }

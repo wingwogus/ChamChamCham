@@ -43,19 +43,16 @@ struct FarmLocationView: View {
                     .font(.appTitle)
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    AppTextField(label: "*농장 이름", placeholder: "예) 이랑농장", text: $viewModel.draft.farmName)
+            AppTextField(label: "*농장 이름", placeholder: "예) 이랑농장", text: $viewModel.draft.farmName)
 
-                    addressSection
+            addressSection
 
-                    if farmLocationViewModel.resolvedCoordinate != nil {
-                        mapSection
-                        parcelInfoSection
-                    }
-                }
-                .padding(.vertical, Spacing.sm)
+            if farmLocationViewModel.resolvedCoordinate != nil {
+                mapSection
+                parcelInfoSection
             }
+
+            Spacer(minLength: 0)
 
             PrimaryButton(title: "다음") {
                 applySelectionToDraft()
@@ -124,7 +121,7 @@ struct FarmLocationView: View {
                 Task { await farmLocationViewModel.handleMapTap(at: coordinate) }
             }
         }
-        .frame(height: 220)
+        .frame(height: 300)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
