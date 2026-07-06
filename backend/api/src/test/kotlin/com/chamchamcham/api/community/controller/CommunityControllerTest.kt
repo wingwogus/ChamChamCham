@@ -115,6 +115,18 @@ class CommunityControllerTest(
     }
 
     @Test
+    fun `list posts returns invalid input for invalid sort parameter`() {
+        mockMvc.perform(
+            get("/api/v1/community/posts")
+                .with(authenticatedMember(memberId.toString()))
+                .param("sort", "BAD_VALUE")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+            .andExpect(jsonPath("$.error.detail.field", equalTo("sort")))
+    }
+
+    @Test
     fun `get post detail returns detail`() {
         `when`(communityPostService.getDetail(memberId, postId)).thenReturn(postDetailResult())
 
