@@ -11,9 +11,9 @@
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
 	<!--
-	  카카오 로그인 SDK 리다이렉트용 URL scheme. "REPLACE_ME"를 Secrets.kakaoNativeAppKey와
-	  동일한 실제 네이티브 앱 키로 바꿔야 한다 (예: kakaoNativeAppKey가 "abcd1234"면
-	  "kakaoabcd1234"). 값이 REPLACE_ME인 동안 카카오톡 앱으로의 로그인 콜백은 동작하지 않는다.
+	  카카오 로그인 SDK 리다이렉트용 URL scheme. Secrets.kakaoNativeAppKey와 동일한 네이티브 앱
+	  키를 "kakao" 뒤에 이어붙인 값이어야 한다 (KakaoSDKCommon.scheme(): "kakao\(appKey)").
+	  이 값이 Secrets.kakaoNativeAppKey와 어긋나면 카카오 로그인 콜백이 앱으로 돌아오지 않는다.
 	-->
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -22,7 +22,7 @@
 			<string>kakao-login</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kakaoREPLACE_ME</string>
+				<string>kakaoaf1570d11aacfb30d95cc9f6b13d7965</string>
 			</array>
 		</dict>
 		<!--
@@ -34,7 +34,7 @@
 			<string>naver-login</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>chamchamcham</string>
+				<string>chamchamchamauth</string>
 			</array>
 		</dict>
 	</array>

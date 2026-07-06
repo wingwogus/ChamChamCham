@@ -41,7 +41,14 @@ enum KakaoLoginBridge {
     /// or `idToken` stays nil and this throws `.missingIDToken`.
     static func login(nonce: String) async throws -> (idToken: String, accessToken: String?) {
         try await withCheckedThrowingContinuation { continuation in
+            // ASWebAuthenticationSession's completion handler can fire twice on cancellation
+            // (an iOS race between session dismissal and the cancel callback); Kakao SDK forwards
+            // it as-is. A CheckedContinuation may only resume once, so guard against the repeat call.
+            var didResume = false
             let completion: (OAuthToken?, Error?) -> Void = { token, error in
+                guard !didResume else { return }
+                didResume = true
+
                 if let error {
                     continuation.resume(throwing: error)
                     return
