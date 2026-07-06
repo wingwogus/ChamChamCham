@@ -7,6 +7,9 @@
 		<string>Pretendard-Medium.otf</string>
 		<string>Pretendard-Bold.otf</string>
 	</array>
+	<!-- 다크모드 미지원 — 앱 전체를 라이트 모드로 고정한다. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 	<!--
 	  카카오 로그인 SDK 리다이렉트용 URL scheme. "REPLACE_ME"를 Secrets.kakaoNativeAppKey와
 	  동일한 실제 네이티브 앱 키로 바꿔야 한다 (예: kakaoNativeAppKey가 "abcd1234"면
