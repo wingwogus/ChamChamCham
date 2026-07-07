@@ -1,6 +1,6 @@
 package com.chamchamcham.batch.policy
 
-import com.chamchamcham.application.policy.PolicySyncService
+import com.chamchamcham.application.policy.sync.PolicySyncService
 import mu.KotlinLogging
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component

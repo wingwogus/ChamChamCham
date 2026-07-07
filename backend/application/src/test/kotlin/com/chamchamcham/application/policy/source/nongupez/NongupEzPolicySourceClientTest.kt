@@ -1,7 +1,5 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.source.nongupez
 
-import com.chamchamcham.application.policy.source.NongupEzHttpTransport
-import com.chamchamcham.application.policy.source.NongupEzPolicySourceClient
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.nio.charset.StandardCharsets

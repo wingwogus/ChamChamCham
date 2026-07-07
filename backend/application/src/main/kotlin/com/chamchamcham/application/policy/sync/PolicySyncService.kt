@@ -1,9 +1,12 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.sync
 
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
-import com.chamchamcham.application.policy.source.NongupEzPolicyListItem
-import com.chamchamcham.application.policy.source.NongupEzPolicySourceClient
+import com.chamchamcham.application.policy.source.nongupez.NongupEzPolicyListItem
+import com.chamchamcham.application.policy.source.nongupez.NongupEzPolicySourceClient
+import com.chamchamcham.application.policy.support.NongupEzPolicyTagExtractor
+import com.chamchamcham.application.policy.support.PolicyCardTextGenerator
+import com.chamchamcham.application.policy.support.TextListJsonCodec
 import com.chamchamcham.domain.policy.PolicyProgram
 import com.chamchamcham.domain.policy.PolicyProgramRepository
 import com.chamchamcham.domain.policy.PolicySource

@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.support
 
 import org.springframework.stereotype.Component
 import java.time.LocalDate

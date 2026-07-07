@@ -1,7 +1,7 @@
 package com.chamchamcham.batch.policy
 
-import com.chamchamcham.application.policy.PolicySyncService
-import com.chamchamcham.application.policy.PolicySyncResult
+import com.chamchamcham.application.policy.sync.PolicySyncService
+import com.chamchamcham.application.policy.sync.PolicySyncResult
 import com.chamchamcham.domain.policy.PolicySyncJobStatus
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock

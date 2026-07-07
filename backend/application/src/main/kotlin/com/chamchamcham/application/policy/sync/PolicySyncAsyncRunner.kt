@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.sync
 
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component

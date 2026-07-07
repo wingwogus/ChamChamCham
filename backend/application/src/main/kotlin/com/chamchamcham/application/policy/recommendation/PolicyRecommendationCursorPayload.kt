@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.recommendation
 
 import java.math.BigDecimal
 import java.time.LocalDate

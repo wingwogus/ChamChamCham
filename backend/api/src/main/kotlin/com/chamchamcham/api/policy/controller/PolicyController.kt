@@ -1,10 +1,11 @@
 package com.chamchamcham.api.policy.controller
 
 import com.chamchamcham.api.common.ApiResponse
-import com.chamchamcham.api.policy.dto.PolicyResponses
+import com.chamchamcham.api.policy.dto.program.PolicyProgramDetailResponse
+import com.chamchamcham.api.policy.dto.recommendation.PolicyRecommendationPageResponse
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
-import com.chamchamcham.application.policy.PolicyRecommendationService
+import com.chamchamcham.application.policy.recommendation.PolicyRecommendationService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
@@ -25,18 +26,18 @@ class PolicyController(
         @AuthenticationPrincipal principal: Any?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(defaultValue = "20") size: Int
-    ): ResponseEntity<ApiResponse<PolicyResponses.RecommendationPageResponse>> {
+    ): ResponseEntity<ApiResponse<PolicyRecommendationPageResponse>> {
         val result = policyRecommendationService.listRecommendations(parseMemberId(principal), cursor, size)
-        return ResponseEntity.ok(ApiResponse.ok(PolicyResponses.RecommendationPageResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(PolicyRecommendationPageResponse.from(result)))
     }
 
     @GetMapping("/policy-programs/{policyProgramId}")
     fun getProgramDetail(
         @AuthenticationPrincipal principal: Any?,
         @PathVariable policyProgramId: UUID
-    ): ResponseEntity<ApiResponse<PolicyResponses.PolicyDetailResponse>> {
+    ): ResponseEntity<ApiResponse<PolicyProgramDetailResponse>> {
         val result = policyRecommendationService.getProgramDetail(parseMemberId(principal), policyProgramId)
-        return ResponseEntity.ok(ApiResponse.ok(PolicyResponses.PolicyDetailResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(PolicyProgramDetailResponse.from(result)))
     }
 
     private fun parseMemberId(principal: Any?): UUID {

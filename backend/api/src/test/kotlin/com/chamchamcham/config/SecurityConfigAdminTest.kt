@@ -4,9 +4,9 @@ import com.chamchamcham.api.exception.GlobalExceptionHandler
 import com.chamchamcham.api.policy.controller.AdminPolicySyncController
 import com.chamchamcham.api.security.CustomAccessDeniedHandler
 import com.chamchamcham.api.security.CustomAuthenticationEntryPoint
-import com.chamchamcham.application.policy.PolicySyncAsyncRunner
-import com.chamchamcham.application.policy.PolicySyncResult
-import com.chamchamcham.application.policy.PolicySyncService
+import com.chamchamcham.application.policy.sync.PolicySyncAsyncRunner
+import com.chamchamcham.application.policy.sync.PolicySyncResult
+import com.chamchamcham.application.policy.sync.PolicySyncService
 import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.domain.policy.PolicySyncJobStatus
 import org.hamcrest.Matchers.equalTo

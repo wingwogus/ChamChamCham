@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy.source
+package com.chamchamcham.application.policy.source.nongupez
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

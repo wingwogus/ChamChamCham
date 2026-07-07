@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy.source
+package com.chamchamcham.application.policy.source.nongupez
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component

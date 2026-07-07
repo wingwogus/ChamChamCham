@@ -1,11 +1,12 @@
 package com.chamchamcham.api.policy.controller
 
 import com.chamchamcham.api.common.ApiResponse
-import com.chamchamcham.api.policy.dto.PolicyResponses
+import com.chamchamcham.api.policy.dto.sync.PolicySyncJobDetailResponse
+import com.chamchamcham.api.policy.dto.sync.PolicySyncJobSummaryResponse
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
-import com.chamchamcham.application.policy.PolicySyncAsyncRunner
-import com.chamchamcham.application.policy.PolicySyncService
+import com.chamchamcham.application.policy.sync.PolicySyncAsyncRunner
+import com.chamchamcham.application.policy.sync.PolicySyncService
 import com.chamchamcham.domain.policy.PolicySyncJobStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -26,20 +27,20 @@ class AdminPolicySyncController(
     @PostMapping
     fun createJob(
         @AuthenticationPrincipal principal: Any?
-    ): ResponseEntity<ApiResponse<PolicyResponses.PolicySyncJobSummaryResponse>> {
+    ): ResponseEntity<ApiResponse<PolicySyncJobSummaryResponse>> {
         val result = policySyncService.createAdminSyncJob(parseMemberId(principal))
         if (result.status == PolicySyncJobStatus.RUNNING) {
             policySyncAsyncRunner.run(result.jobId)
         }
-        return ResponseEntity.ok(ApiResponse.ok(PolicyResponses.PolicySyncJobSummaryResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(PolicySyncJobSummaryResponse.from(result)))
     }
 
     @GetMapping("/{jobId}")
     fun getJob(
         @PathVariable jobId: UUID
-    ): ResponseEntity<ApiResponse<PolicyResponses.PolicySyncJobDetailResponse>> {
+    ): ResponseEntity<ApiResponse<PolicySyncJobDetailResponse>> {
         val result = policySyncService.getJob(jobId)
-        return ResponseEntity.ok(ApiResponse.ok(PolicyResponses.PolicySyncJobDetailResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(PolicySyncJobDetailResponse.from(result)))
     }
 
     private fun parseMemberId(principal: Any?): UUID {

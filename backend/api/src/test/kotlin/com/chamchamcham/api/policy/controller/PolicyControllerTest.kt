@@ -1,8 +1,8 @@
 package com.chamchamcham.api.policy.controller
 
 import com.chamchamcham.api.exception.GlobalExceptionHandler
-import com.chamchamcham.application.policy.PolicyRecommendationResult
-import com.chamchamcham.application.policy.PolicyRecommendationService
+import com.chamchamcham.application.policy.recommendation.PolicyRecommendationResult
+import com.chamchamcham.application.policy.recommendation.PolicyRecommendationService
 import com.chamchamcham.application.security.TokenProvider
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test

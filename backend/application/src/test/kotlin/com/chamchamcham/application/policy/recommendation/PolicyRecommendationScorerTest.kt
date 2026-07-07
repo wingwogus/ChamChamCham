@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.recommendation
 
 import com.chamchamcham.domain.member.ManagementType
 import org.assertj.core.api.Assertions.assertThat

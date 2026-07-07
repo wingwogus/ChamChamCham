@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.sync
 
 import com.chamchamcham.domain.policy.PolicySource
 import com.chamchamcham.domain.policy.PolicySyncJob

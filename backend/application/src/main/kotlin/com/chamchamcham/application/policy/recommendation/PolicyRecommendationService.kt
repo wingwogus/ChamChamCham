@@ -1,8 +1,9 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.recommendation
 
 import com.chamchamcham.application.common.OpaqueCursorCodec
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
+import com.chamchamcham.application.policy.support.TextListJsonCodec
 import com.chamchamcham.domain.member.MemberRepository
 import com.chamchamcham.domain.policy.PolicyProgram
 import com.chamchamcham.domain.policy.PolicyProgramRepository

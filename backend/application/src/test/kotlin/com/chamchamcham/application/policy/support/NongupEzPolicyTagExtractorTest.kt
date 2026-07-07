@@ -1,6 +1,6 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.support
 
-import com.chamchamcham.application.policy.source.NongupEzPolicyDetail
+import com.chamchamcham.application.policy.source.nongupez.NongupEzPolicyDetail
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

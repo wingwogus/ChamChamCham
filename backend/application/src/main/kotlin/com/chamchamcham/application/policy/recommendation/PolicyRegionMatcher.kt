@@ -1,4 +1,4 @@
-package com.chamchamcham.application.policy
+package com.chamchamcham.application.policy.recommendation
 
 import org.springframework.stereotype.Component
 
