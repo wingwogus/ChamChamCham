@@ -119,7 +119,7 @@ class FarmingRecordServiceTest {
     @Test
     fun `create saves planting detail when workType is PLANTING`() {
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
-        `when`(farmRepository.findByIdAndOwner_Id(farmId, memberId)).thenReturn(farm)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
         `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
         stubFarmingRecordSave()
 
@@ -146,7 +146,7 @@ class FarmingRecordServiceTest {
     @Test
     fun `create saves harvest detail when workType is HARVEST`() {
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
-        `when`(farmRepository.findByIdAndOwner_Id(farmId, memberId)).thenReturn(farm)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
         `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
         stubFarmingRecordSave()
 
@@ -171,7 +171,7 @@ class FarmingRecordServiceTest {
     @Test
     fun `create saves no detail row when workType is PRUNING`() {
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
-        `when`(farmRepository.findByIdAndOwner_Id(farmId, memberId)).thenReturn(farm)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
         `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
         stubFarmingRecordSave()
 
@@ -216,7 +216,7 @@ class FarmingRecordServiceTest {
     @Test
     fun `create throws when farm is not owned by member`() {
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
-        `when`(farmRepository.findByIdAndOwner_Id(farmId, memberId)).thenReturn(null)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(null)
 
         val command = baseCommand(workType = WorkType.PRUNING)
 
@@ -229,7 +229,7 @@ class FarmingRecordServiceTest {
     @Test
     fun `create throws BusinessException not IllegalArgumentException when detail is missing despite validator passing`() {
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
-        `when`(farmRepository.findByIdAndOwner_Id(farmId, memberId)).thenReturn(farm)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
         `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
         stubFarmingRecordSave()
         // detailValidator is a mock that does not throw here, simulating a validator/service drift

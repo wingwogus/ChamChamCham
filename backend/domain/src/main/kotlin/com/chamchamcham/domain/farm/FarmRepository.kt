@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface FarmRepository : JpaRepository<Farm, UUID> {
     fun findByOwnerId(ownerId: UUID): List<Farm>
+    fun findByIdAndOwnerId(id: UUID, ownerId: UUID): Farm?
 }
