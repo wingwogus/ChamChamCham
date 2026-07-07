@@ -39,8 +39,10 @@ struct OnboardingCompleteView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     OnboardingCompleteView()
         .environment(OnboardingViewModel.preview())
         .environment(AppState())
 }
+#endif

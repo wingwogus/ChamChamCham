@@ -206,7 +206,9 @@ struct FarmLocationView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     FarmLocationView()
         .environment(OnboardingViewModel.preview())
 }
+#endif

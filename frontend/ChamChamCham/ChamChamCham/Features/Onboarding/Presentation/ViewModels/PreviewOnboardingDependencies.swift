@@ -7,7 +7,7 @@
 
 import Foundation
 
-#if DEBUG
+//#if DEBUG
 /// SwiftUI preview-only stand-ins — `OnboardingViewModel` takes its repositories as required init parameters
 /// (no default) so production call sites can never silently fall back to fake data; previews use these instead.
 struct PreviewOnboardingRepository: OnboardingRepository {
@@ -79,4 +79,4 @@ extension OnboardingViewModel {
         )
     }
 }
-#endif
+//#endif

@@ -2,19 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Pretendard-Medium.otf</string>
-		<string>Pretendard-Bold.otf</string>
-	</array>
-	<!-- 다크모드 미지원 — 앱 전체를 라이트 모드로 고정한다. -->
-	<key>UIUserInterfaceStyle</key>
-	<string>Light</string>
-	<!--
-	  카카오 로그인 SDK 리다이렉트용 URL scheme. Secrets.kakaoNativeAppKey와 동일한 네이티브 앱
-	  키를 "kakao" 뒤에 이어붙인 값이어야 한다 (KakaoSDKCommon.scheme(): "kakao\(appKey)").
-	  이 값이 Secrets.kakaoNativeAppKey와 어긋나면 카카오 로그인 콜백이 앱으로 돌아오지 않는다.
-	-->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -25,10 +12,6 @@
 				<string>kakaoaf1570d11aacfb30d95cc9f6b13d7965</string>
 			</array>
 		</dict>
-		<!--
-		  네이버 로그인 콜백용 커스텀 스킴. NaverLoginBridge.swift의 NidOAuth.initialize(urlScheme:)와
-		  동일한 값이어야 하고, 네이버 개발자센터에 등록한 콜백 URL과도 일치해야 한다.
-		-->
 		<dict>
 			<key>CFBundleURLName</key>
 			<string>naver-login</string>
@@ -40,10 +23,13 @@
 	</array>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<!-- kakao-ios-sdk's UserApi.isKakaoTalkLoginAvailable() checks exactly this scheme (Urls.swift: talkAuth) -->
 		<string>kakaokompassauth</string>
-		<!-- naveridlogin-sdk-ios-swift's isNaverAppInstalled() checks exactly this scheme (Constant.swift) -->
 		<string>naversearchthirdlogin</string>
+	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Pretendard-Medium.otf</string>
+		<string>Pretendard-Bold.otf</string>
 	</array>
 </dict>
 </plist>

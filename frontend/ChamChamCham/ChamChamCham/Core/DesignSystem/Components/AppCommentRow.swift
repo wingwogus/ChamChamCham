@@ -63,7 +63,7 @@ struct AppCommentRow<AvatarContent: View>: View {
                     }
 
                     Text(bodyText)
-                        .appTypography(.bodyMediumEmphasized)
+                        .appTypography(.bodyMedium)
                         .foregroundStyle(Color.Text.default)
                         .lineLimit(lineLimit)
                         .fixedSize(horizontal: false, vertical: true)

@@ -69,7 +69,7 @@ struct BasicProfileView: View {
 
             HStack {
                 Spacer()
-                PhotosPicker(selection: $pickerItem, matching: .images) {
+                PhotosPicker(selection: $pickerItem, matching: .images) { [profileImageThumbnail] in
                     profileImageThumbnail
                 }
                 Spacer()
@@ -182,7 +182,9 @@ struct BasicProfileView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     BasicProfileView()
         .environment(OnboardingViewModel.preview())
 }
+#endif

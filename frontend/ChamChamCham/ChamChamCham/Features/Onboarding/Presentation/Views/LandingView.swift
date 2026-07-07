@@ -49,9 +49,11 @@ struct LandingView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     LandingView()
         .environment(OnboardingViewModel.preview())
         .environment(AuthViewModel(authRepository: PreviewAuthRepository(), memberProfileCache: PreviewMemberProfileCache()))
         .environment(AppState())
 }
+#endif

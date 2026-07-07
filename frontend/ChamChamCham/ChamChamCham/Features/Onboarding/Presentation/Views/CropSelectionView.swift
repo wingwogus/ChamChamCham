@@ -181,7 +181,9 @@ struct CropSelectionView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     CropSelectionView()
         .environment(OnboardingViewModel.preview())
 }
+#endif
