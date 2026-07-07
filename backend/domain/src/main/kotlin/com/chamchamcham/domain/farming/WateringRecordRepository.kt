@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface WateringRecordRepository : JpaRepository<WateringRecord, UUID> {
     fun findByRecord_Id(recordId: UUID): WateringRecord?
+    fun deleteByRecord(record: FarmingRecord)
 }

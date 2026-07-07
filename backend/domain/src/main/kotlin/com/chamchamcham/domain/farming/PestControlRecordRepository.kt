@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface PestControlRecordRepository : JpaRepository<PestControlRecord, UUID> {
     fun findByRecord_Id(recordId: UUID): PestControlRecord?
+    fun deleteByRecord(record: FarmingRecord)
 }
