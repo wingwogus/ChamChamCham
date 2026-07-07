@@ -6,4 +6,5 @@ import java.util.UUID
 interface MemberCropRepository : JpaRepository<MemberCrop, UUID> {
     fun countByMember_Id(memberId: UUID): Long
     fun findByMember_Id(memberId: UUID): List<MemberCrop>
+    fun deleteByMember_IdAndFarm_Id(memberId: UUID, farmId: UUID)
 }
