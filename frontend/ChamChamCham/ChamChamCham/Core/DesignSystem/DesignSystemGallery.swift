@@ -57,16 +57,16 @@ import SwiftUI
 
 #Preview("AppChip") {
     @Previewable @State var selected = true
-    VStack(spacing: Spacing.md) {
+    VStack(alignment: .leading, spacing: Spacing.md) {
         HStack(spacing: Spacing.sm) {
-            AppChip(label: "레이블", isSelected: true)
-            AppChip(label: "레이블", isSelected: false)
+            AppChip(label: "레이블", isSelected: true, style: .solid)
+            AppChip(label: "레이블", isSelected: true, style: .solid, systemImage: "checkmark")
         }
         HStack(spacing: Spacing.sm) {
-            AppChip(label: "레이블", isSelected: true, systemImage: "checkmark")
-            AppChip(label: "레이블", isSelected: false, systemImage: "checkmark")
+            AppChip(label: "레이블", isSelected: true, style: .solidPastel)
+            AppChip(label: "레이블", isSelected: false, style: .solidPastel)
         }
-        AppChip(label: "토글되는 칩", isSelected: selected) { selected.toggle() }
+        AppChip(label: "토글되는 칩", isSelected: selected, style: .solid) { selected.toggle() }
     }
     .padding()
 }
@@ -269,18 +269,21 @@ import SwiftUI
 // MARK: - List / Comment
 
 #Preview("AppListItem") {
-    VStack(spacing: 0) {
-        AppListItem(title: "타이틀", reservesThumbnailSpace: true)
-        AppListItem(title: "타이틀") {
-            AppImagePlaceholder(cornerRadius: 8, squareSize: 12)
+    ScrollView {
+        VStack(spacing: 0) {
+            AppListItem(size: .xsmall, title: "타이틀")
+            AppListItem(size: .small, title: "타이틀", caption: "캡션", badges: ["레이블", "레이블"])
+            AppListItem(size: .medium, title: "타이틀", badges: ["레이블", "레이블"])
+            AppListItem(
+                size: .large,
+                title: "타이틀",
+                organization: "기관",
+                infoRows: [("대상자", "캡션"), ("지원금액", "캡션"), ("접수기간", "캡션")]
+            )
+            AppListItem(size: .xlarge, title: "타이틀", caption: "캡션...", badges: ["레이블", "레이블"])
         }
-        AppInfoListItem(
-            title: "타이틀",
-            organization: "기관",
-            rows: [("대상자", "캡션"), ("지원금액", "캡션"), ("접수기간", "캡션")]
-        )
+        .padding(.horizontal, Spacing.lg)
     }
-    .padding()
     .background(Color.Background.subtle)
 }
 
@@ -303,14 +306,11 @@ import SwiftUI
 
 // MARK: - Cards
 
-#Preview("AppContentCards") {
+#Preview("AppCard") {
     ScrollView {
-        VStack(spacing: Spacing.md) {
-            AppImageCard(label: "레이블", title: "타이틀", caption: "캡션이 들어갑니다.", secondaryCaption: "캡션이 들어갑니다.")
-                .frame(width: 258)
-            AppPostCard(title: "타이틀", caption: "캡션이 들어갑니다.")
-            AppSummaryCard(label: "레이블", primaryCaption: "캡션", secondaryCaption: "캡션")
-            AppActionCard(label: "레이블", title: "타이틀")
+        VStack(spacing: Spacing.lg) {
+            AppCard(size: .small, title: "타이틀", captions: ["캡션...", "캡션..."], badges: ["레이블"])
+            AppCard(size: .medium, title: "타이틀", captions: ["캡션..."], badges: ["레이블", "레이블"])
         }
         .padding()
         .background(Color.Background.subtle)

@@ -7,11 +7,21 @@
 
 import SwiftUI
 
-/// Figma `chip`. A selectable pill: selected shows a soft green fill with a green border and text;
-/// unselected is a neutral grey fill. Pass `systemImage` for the optional trailing icon.
+/// Figma `chip`. A selectable pill in one of two styles:
+/// - `solidPastel`: selected = soft green fill + green border + green text.
+/// - `solid`: selected = bold dark fill + white text.
+///
+/// Unselected is a neutral grey fill in both styles. Pass `systemImage` for the optional trailing
+/// icon. (Figma spells the token "soild"/"soild-pastel".)
 struct AppChip: View {
+    enum Style {
+        case solid
+        case solidPastel
+    }
+
     let label: String
     var isSelected: Bool = false
+    var style: Style = .solidPastel
     var systemImage: String? = nil
     var action: () -> Void = {}
 
@@ -34,7 +44,7 @@ struct AppChip: View {
             .frame(minWidth: 48, minHeight: 32)
             .background(backgroundColor)
             .overlay {
-                if isSelected {
+                if hasBorder {
                     Capsule().stroke(Color.Border.primary, lineWidth: 1)
                 }
             }
@@ -44,23 +54,39 @@ struct AppChip: View {
     }
 
     private var backgroundColor: Color {
-        isSelected ? Color.Object.primarySubtle : Color.Object.muted
+        guard isSelected else { return Color.Object.muted }
+        switch style {
+        case .solid: return Color.Object.bold
+        case .solidPastel: return Color.Object.primarySubtle
+        }
     }
 
     private var textColor: Color {
-        isSelected ? Color.Text.primary : Color.Text.subtle
+        guard isSelected else { return Color.Text.subtle }
+        switch style {
+        case .solid: return Color.Text.inverse
+        case .solidPastel: return Color.Text.primary
+        }
+    }
+
+    private var hasBorder: Bool {
+        isSelected && style == .solidPastel
     }
 }
 
 #Preview {
-    VStack(spacing: Spacing.md) {
+    VStack(alignment: .leading, spacing: Spacing.md) {
         HStack(spacing: Spacing.sm) {
-            AppChip(label: "레이블", isSelected: true)
-            AppChip(label: "레이블", isSelected: false)
+            AppChip(label: "레이블", isSelected: true, style: .solid)
+            AppChip(label: "레이블", isSelected: true, style: .solid, systemImage: "checkmark")
         }
         HStack(spacing: Spacing.sm) {
-            AppChip(label: "레이블", isSelected: true, systemImage: "checkmark")
-            AppChip(label: "레이블", isSelected: false, systemImage: "checkmark")
+            AppChip(label: "레이블", isSelected: true, style: .solidPastel)
+            AppChip(label: "레이블", isSelected: true, style: .solidPastel, systemImage: "checkmark")
+        }
+        HStack(spacing: Spacing.sm) {
+            AppChip(label: "레이블", isSelected: false, style: .solid)
+            AppChip(label: "레이블", isSelected: false, style: .solid, systemImage: "checkmark")
         }
     }
     .padding()
