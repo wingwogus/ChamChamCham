@@ -131,3 +131,61 @@ Probe coverage:
 - The focused JUnit tests are present but cannot be executed through Gradle until the unrelated `DevRagSeedServiceTest.kt` compilation issues are fixed.
 - Detail raw payload parsing is intentionally best effort. It supports `bizPicList` / `bizAtchFileList` and generic `contacts` / `attachments`, but malformed JSON returns empty lists rather than failing detail reads.
 - Exact token usage was unavailable in this execution surface.
+
+---
+
+## Review Fix: Latest-Job Partial Recommendation Freshness
+
+Date: 2026-07-07
+
+### Reviewer Finding
+
+- HIGH: `PolicyRecommendationService.listRecommendations` treated any existing latest-job recommendation row as fresh, so a member with only a partial latest-job recommendation set skipped regeneration.
+
+### Fix
+
+- Changed freshness validation to compare the current recommendable candidate policy IDs for the latest successful NongupEZ job/year/today with the member's saved recommendation policy IDs for that same job.
+- Regeneration now runs when those sets differ, including partial latest-job recommendation sets.
+- Existing member recommendation rows are still deleted before recreate.
+- Reused the loaded candidate list during regeneration to avoid a second candidate query.
+- Added `PolicyRecommendationRepository.findPolicyProgramIdsByMemberIdAndSourceSyncJobId`.
+- Added a regression JUnit test: `list recommendations regenerates when latest sync recommendation set is partial`.
+
+### Verification
+
+Command:
+
+```bash
+cd backend
+./gradlew :application:compileKotlin
+```
+
+Result:
+
+- PASS.
+- `BUILD SUCCESSFUL in 379ms`
+
+Command:
+
+```bash
+cd backend
+./gradlew :application:test --tests "com.chamchamcham.application.policy.PolicyRecommendationScorerTest" --tests "com.chamchamcham.application.policy.PolicyRecommendationServiceTest"
+```
+
+Result:
+
+- BLOCKED at `:application:compileTestKotlin` by the same unrelated existing RAG/dev test compilation failures in `DevRagSeedServiceTest.kt`.
+- Representative errors remained `Unresolved reference: FarmingRecordDocumentFactory`, `RagProperties`, `DevRagSeedService`, `DevRagSeedCommand`, `VectorStore`, and `PdfTextExtractor`.
+
+Command:
+
+```bash
+cd backend
+./gradlew -I /private/tmp/cham-task5-probe/task5-probe.init.gradle :application:runTask5Probe
+```
+
+Result:
+
+- PASS.
+- `TASK5_PROBE_OK`
+- Probe now covers partial latest-job regeneration: one saved latest-job recommendation policy ID versus two current candidate policy IDs causes delete and recreate for both candidates.

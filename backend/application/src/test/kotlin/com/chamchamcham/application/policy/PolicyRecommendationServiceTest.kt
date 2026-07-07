@@ -110,7 +110,14 @@ class PolicyRecommendationServiceTest {
                 PolicySyncJobStatus.SUCCEEDED
             )
         ).thenReturn(latestJob)
-        `when`(policyRecommendationRepository.existsByMember_IdAndSourceSyncJob_Id(memberId, latestJobId)).thenReturn(false)
+        `when`(policyProgramRepository.findRecommendableCandidates(latestJobId, "2026", LocalDate.of(2026, 4, 1)))
+            .thenReturn(listOf(program))
+        `when`(
+            policyRecommendationRepository.findPolicyProgramIdsByMemberIdAndSourceSyncJobId(
+                memberId,
+                latestJobId
+            )
+        ).thenReturn(emptyList())
         `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
         `when`(memberProfileReader.read(memberId)).thenReturn(
             PolicyMemberProfile(
@@ -122,8 +129,6 @@ class PolicyRecommendationServiceTest {
                 farmRegionTokens = setOf("충청북도")
             )
         )
-        `when`(policyProgramRepository.findRecommendableCandidates(latestJobId, "2026", LocalDate.of(2026, 4, 1)))
-            .thenReturn(listOf(program))
         `when`(policyRecommendationQueryRepository.findPage(any()))
             .thenReturn(PolicyRecommendationQueryRepository.SearchResult(listOf(row)))
 
@@ -142,6 +147,54 @@ class PolicyRecommendationServiceTest {
     }
 
     @Test
+    fun `list recommendations regenerates when latest sync recommendation set is partial`() {
+        val secondPolicyProgramId = UUID.fromString("00000000-0000-0000-0000-000000000302")
+        val firstProgram = recommendableProgram()
+        val secondProgram = recommendableProgram(
+            id = secondPolicyProgramId,
+            title = "청년 특용작물 지원",
+            cropTagsJson = """["SPECIAL_CROP"]"""
+        )
+        val row = recommendation(firstProgram)
+        `when`(
+            policySyncJobRepository.findFirstBySourceAndStatusOrderByTargetYearDescFinishedAtDesc(
+                PolicySource.NONGUP_EZ,
+                PolicySyncJobStatus.SUCCEEDED
+            )
+        ).thenReturn(latestJob)
+        `when`(policyProgramRepository.findRecommendableCandidates(latestJobId, "2026", LocalDate.of(2026, 4, 1)))
+            .thenReturn(listOf(firstProgram, secondProgram))
+        `when`(
+            policyRecommendationRepository.findPolicyProgramIdsByMemberIdAndSourceSyncJobId(
+                memberId,
+                latestJobId
+            )
+        ).thenReturn(listOf(policyProgramId))
+        `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
+        `when`(memberProfileReader.read(memberId)).thenReturn(
+            PolicyMemberProfile(
+                birthDate = member.birthDate,
+                experienceLevel = member.experienceLevel,
+                managementType = member.managementType,
+                cropNames = setOf("참당귀"),
+                cropUsePartCategories = setOf("ROOT_BARK"),
+                farmRegionTokens = setOf("충청북도")
+            )
+        )
+        `when`(policyRecommendationQueryRepository.findPage(any()))
+            .thenReturn(PolicyRecommendationQueryRepository.SearchResult(listOf(row)))
+
+        service.listRecommendations(memberId, cursor = null, size = 20)
+
+        verify(policyRecommendationRepository).deleteByMember_Id(memberId)
+        val savedRecommendations = capturedSavedRecommendations()
+        assertThat(savedRecommendations.map { it.policyProgram.id }).containsExactlyInAnyOrder(
+            policyProgramId,
+            secondPolicyProgramId
+        )
+    }
+
+    @Test
     fun `list recommendations rejects cursor from stale sync job as invalid input`() {
         val staleCursor = cursorCodec.encode(
             PolicyRecommendationCursorPayload(
@@ -157,7 +210,14 @@ class PolicyRecommendationServiceTest {
                 PolicySyncJobStatus.SUCCEEDED
             )
         ).thenReturn(latestJob)
-        `when`(policyRecommendationRepository.existsByMember_IdAndSourceSyncJob_Id(memberId, latestJobId)).thenReturn(true)
+        `when`(policyProgramRepository.findRecommendableCandidates(latestJobId, "2026", LocalDate.of(2026, 4, 1)))
+            .thenReturn(listOf(recommendableProgram()))
+        `when`(
+            policyRecommendationRepository.findPolicyProgramIdsByMemberIdAndSourceSyncJobId(
+                memberId,
+                latestJobId
+            )
+        ).thenReturn(listOf(policyProgramId))
 
         val exception = assertThrows(BusinessException::class.java) {
             service.listRecommendations(memberId, cursor = staleCursor, size = 20)
@@ -224,10 +284,15 @@ class PolicyRecommendationServiceTest {
             finishedAt = LocalDateTime.of(2026, 4, 1, 0, 1)
         )
 
-    private fun recommendableProgram(rawPayload: String = "{}"): PolicyProgram =
+    private fun recommendableProgram(
+        id: UUID = policyProgramId,
+        title: String = "청년 약용작물 지원",
+        cropTagsJson: String = """["MEDICINAL_CROP"]""",
+        rawPayload: String = "{}"
+    ): PolicyProgram =
         PolicyProgram(
-            id = policyProgramId,
-            title = "청년 약용작물 지원",
+            id = id,
+            title = title,
             body = "약용작물 재배 청년농 지원",
             region = "충청북도",
             targetManagementType = ManagementType.AGRICULTURAL_INDIVIDUAL,
@@ -254,7 +319,7 @@ class PolicyRecommendationServiceTest {
             detailSynced = true,
             recommendable = true,
             targetTagsJson = """["YOUNG_FARMER","REGISTERED_FARMER"]""",
-            cropTagsJson = """["MEDICINAL_CROP"]""",
+            cropTagsJson = cropTagsJson,
             regionTagsJson = """["충청북도"]""",
             lastSyncedJob = latestJob,
             rawPayload = rawPayload

@@ -45,9 +45,15 @@ class PolicyRecommendationService(
             PolicySyncJobStatus.SUCCEEDED
         ) ?: return PolicyRecommendationResult.Page(emptyList(), null)
         val latestJobId = requireNotNull(latestJob.id)
+        val today = LocalDate.now(clock)
+        val candidates = policyProgramRepository.findRecommendableCandidates(
+            latestJobId,
+            latestJob.targetYear,
+            today
+        )
 
-        if (!policyRecommendationRepository.existsByMember_IdAndSourceSyncJob_Id(memberId, latestJobId)) {
-            regenerate(memberId, latestJob)
+        if (recommendationsAreStale(memberId, latestJobId, candidates)) {
+            regenerate(memberId, latestJob, candidates, today)
         }
 
         val decodedCursor = decodeCursor(cursor, latestJobId)
@@ -93,20 +99,30 @@ class PolicyRecommendationService(
         )
     }
 
-    private fun regenerate(memberId: UUID, latestJob: PolicySyncJob) {
+    private fun recommendationsAreStale(
+        memberId: UUID,
+        latestJobId: UUID,
+        candidates: List<PolicyProgram>
+    ): Boolean {
+        val candidatePolicyIds = candidates.map { requireNotNull(it.id) }.toSet()
+        val recommendationPolicyIds = policyRecommendationRepository
+            .findPolicyProgramIdsByMemberIdAndSourceSyncJobId(memberId, latestJobId)
+            .toSet()
+        return candidatePolicyIds != recommendationPolicyIds
+    }
+
+    private fun regenerate(
+        memberId: UUID,
+        latestJob: PolicySyncJob,
+        candidates: List<PolicyProgram>,
+        today: LocalDate
+    ) {
         val member = memberRepository.findById(memberId).orElseThrow {
             BusinessException(ErrorCode.MEMBER_NOT_FOUND)
         }
         val profile = memberProfileReader.read(memberId)
         policyRecommendationRepository.deleteByMember_Id(memberId)
 
-        val today = LocalDate.now(clock)
-        val latestJobId = requireNotNull(latestJob.id)
-        val candidates = policyProgramRepository.findRecommendableCandidates(
-            latestJobId,
-            latestJob.targetYear,
-            today
-        )
         val recommendations = candidates.map { program ->
             val score = scorer.score(
                 profile = profile,
