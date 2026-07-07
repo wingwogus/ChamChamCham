@@ -56,9 +56,10 @@
 | 341-1160 | image-upload / 이미지 슬롯 | `Components/AppImageUploadSlot.swift` |
 | 341-1161 | avatar | `Components/AppAvatar.swift` |
 | 341-1970 | toast / message | `Components/AppToast.swift` |
-| 341-2611 | card variants | `Components/AppContentCards.swift` |
-| 341-2440 | list / info row | `Components/AppListItem.swift` |
+| 450-6528 | card (size small/medium) | `Components/AppCard.swift` |
+| 341-2440 | list (size xsmall~xlarge) | `Components/AppListItem.swift` |
 | 341-4561 / 341-4551 | comment row | `Components/AppCommentRow.swift` |
+| 515-2653 | sort | `Components/AppSortButton.swift` |
 | (공용) | 입력 필드 공통 chrome | `Components/AppFieldContainer.swift` |
 | (공용) | 이미지 체크보드 placeholder | `Components/AppImagePlaceholder.swift` |
 

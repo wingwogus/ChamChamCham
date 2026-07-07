@@ -77,6 +77,16 @@ import SwiftUI
         .padding()
 }
 
+#Preview("AppSortButton") {
+    @Previewable @State var expanded = false
+    VStack(alignment: .leading, spacing: Spacing.lg) {
+        AppSortButton(title: "최신순", isExpanded: false)
+        AppSortButton(title: "최신순", isExpanded: true)
+        AppSortButton(title: "최신순", isExpanded: expanded) { expanded.toggle() }
+    }
+    .padding()
+}
+
 // MARK: - Badges
 
 #Preview("AppBadge") {
