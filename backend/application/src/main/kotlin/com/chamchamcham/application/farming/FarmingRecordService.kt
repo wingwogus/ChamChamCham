@@ -432,7 +432,7 @@ class FarmingRecordService(
         }
 
     private fun findFarm(farmId: UUID, memberId: UUID): Farm =
-        farmRepository.findByIdAndOwner_Id(farmId, memberId)
+        farmRepository.findByIdAndOwnerId(farmId, memberId)
             ?: throw BusinessException(ErrorCode.FARM_NOT_FOUND)
 
     private fun findCrop(cropId: UUID): Crop =
