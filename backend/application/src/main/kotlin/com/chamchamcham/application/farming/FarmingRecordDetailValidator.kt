@@ -20,10 +20,15 @@ class DefaultFarmingRecordDetailValidator : FarmingRecordDetailValidator {
                     throw BusinessException(ErrorCode.FARMING_RECORD_INVALID_DETAIL)
                 }
             }
-            WorkType.FERTILIZING -> payload.fertilizing ?: throw BusinessException(ErrorCode.FARMING_RECORD_DETAIL_REQUIRED)
-            WorkType.PEST_CONTROL -> payload.pestControl ?: throw BusinessException(ErrorCode.FARMING_RECORD_DETAIL_REQUIRED)
-            WorkType.HARVEST -> payload.harvest ?: throw BusinessException(ErrorCode.FARMING_RECORD_DETAIL_REQUIRED)
+            WorkType.FERTILIZING -> requireDetail(payload.workType, payload.fertilizing)
+            WorkType.PEST_CONTROL -> requireDetail(payload.workType, payload.pestControl)
+            WorkType.HARVEST -> requireDetail(payload.workType, payload.harvest)
             WorkType.WATERING, WorkType.WEEDING, WorkType.PRUNING -> Unit
         }
+    }
+
+    private fun requireDetail(workType: WorkType, detail: Any?) {
+        check(workType.detailRequired) { "WorkType $workType is not marked as detailRequired" }
+        detail ?: throw BusinessException(ErrorCode.FARMING_RECORD_DETAIL_REQUIRED)
     }
 }
