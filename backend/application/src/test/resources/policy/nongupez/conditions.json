@@ -1,9 +1,22 @@
 {
-  "result": {
-    "SRCH_BIZ_YR": [
-      { "cd": "0000", "cdNm": "전체" },
-      { "cd": "2025", "cdNm": "2025년" },
-      { "cd": "2026", "cdNm": "2026년" }
-    ]
-  }
+  "dsBizSrchCndList": [
+    {
+      "srchCndKywd": "SRCH_BIZ_YR",
+      "srchCndNm": "사업연도",
+      "srchCndDtlCd": "0000",
+      "srchCndDtlNm": "전체"
+    },
+    {
+      "srchCndKywd": "SRCH_BIZ_YR",
+      "srchCndNm": "사업연도",
+      "srchCndDtlCd": "2025",
+      "srchCndDtlNm": "2025"
+    },
+    {
+      "srchCndKywd": "SRCH_BIZ_YR",
+      "srchCndNm": "사업연도",
+      "srchCndDtlCd": "2026",
+      "srchCndDtlNm": "2026"
+    }
+  ]
 }

@@ -18,8 +18,12 @@ class NongupEzPolicySourceClientTest {
 
     @Test
     fun `fetchPrograms parses list page into source list item`() {
+        var capturedBody: Map<String, Any?>? = null
         val client = NongupEzPolicySourceClient(
-            fakeTransport(LIST_PATH to fixture("list-page.json"))
+            NongupEzHttpTransport { path, body ->
+                capturedBody = body
+                if (path == LIST_PATH) fixture("list-page.json") else error("No fixture response for $path")
+            }
         )
 
         val programs = client.fetchPrograms("2026")
@@ -27,7 +31,15 @@ class NongupEzPolicySourceClientTest {
         assertThat(programs).hasSize(1)
         assertThat(programs.first().externalId).isEqualTo("AB000009")
         assertThat(programs.first().title).isEqualTo("친환경농업직불")
+        assertThat(programs.first().agencyName).isEqualTo("농림축산식품부")
         assertThat(programs.first().applyEndsOn?.toString()).isEqualTo("2026-06-30")
+
+        val srchCnd = capturedBody?.get("srchCnd") as Map<*, *>
+        val paging = capturedBody?.get("paging") as Map<*, *>
+        assertThat(srchCnd["srchBizYr"]).isEqualTo("2026")
+        assertThat(srchCnd["sortCnd"]).isEqualTo("M")
+        assertThat(paging["curPage"]).isEqualTo(1)
+        assertThat(paging["pageSize"]).isEqualTo(1000)
     }
 
     @Test

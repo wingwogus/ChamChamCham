@@ -204,10 +204,13 @@ class PolicyRecommendationService(
     private fun parseContacts(rawPayload: String): List<PolicyRecommendationResult.Contact> {
         val root = parseRawPayload(rawPayload) ?: return emptyList()
         return root.arrayField("bizPicList", "contacts").mapNotNull { contact ->
-            val agencyName = contact.nullableText("instNm") ?: contact.nullableText("agencyName")
-            val departmentName = contact.nullableText("deptNm") ?: contact.nullableText("departmentName")
+            val agencyName = contact.nullableText("bizTkcgInstCdNm") ?: contact.nullableText("instNm")
+                ?: contact.nullableText("agencyName")
+            val departmentName = contact.nullableText("bizTkcgDeptInstCdNm") ?: contact.nullableText("deptNm")
+                ?: contact.nullableText("departmentName")
                 ?: contact.nullableText("department")
-            val phoneNumber = contact.nullableText("telno") ?: contact.nullableText("phoneNumber")
+            val phoneNumber = contact.nullableText("bizPicTelno") ?: contact.nullableText("telno")
+                ?: contact.nullableText("phoneNumber")
                 ?: contact.nullableText("phone")
             if (agencyName == null && departmentName == null && phoneNumber == null) {
                 null
@@ -224,10 +227,12 @@ class PolicyRecommendationService(
     private fun parseAttachments(rawPayload: String): List<PolicyRecommendationResult.Attachment> {
         val root = parseRawPayload(rawPayload) ?: return emptyList()
         return root.arrayField("bizAtchFileList", "attachments").mapNotNull { attachment ->
-            val fileName = attachment.nullableText("atchFileNm") ?: attachment.nullableText("fileName")
+            val fileName = attachment.nullableText("originalName") ?: attachment.nullableText("atchFileNm")
+                ?: attachment.nullableText("fileName")
                 ?: attachment.nullableText("name")
-            val extension = attachment.nullableText("fileExtnNm") ?: attachment.nullableText("extension")
-            val sizeBytes = attachment.path("fileSz").takeIf { it.isNumber }?.asLong()
+            val extension = attachment.nullableText("extension") ?: attachment.nullableText("fileExtnNm")
+            val sizeBytes = attachment.path("size").takeIf { it.isNumber }?.asLong()
+                ?: attachment.path("fileSz").takeIf { it.isNumber }?.asLong()
                 ?: attachment.path("sizeBytes").takeIf { it.isNumber }?.asLong()
             val url = attachment.nullableText("url")
             if (fileName == null && extension == null && sizeBytes == null && url == null) {

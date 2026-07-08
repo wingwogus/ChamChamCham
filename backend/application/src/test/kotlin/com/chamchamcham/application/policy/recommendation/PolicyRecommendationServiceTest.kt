@@ -294,10 +294,10 @@ class PolicyRecommendationServiceTest {
             rawPayload = """
                 {
                   "bizPicList": [
-                    {"instNm": "농림축산식품부", "deptNm": "친환경농업과", "telno": "044-201-2434"}
+                    {"bizTkcgInstCdNm": "농림축산식품부", "bizTkcgDeptInstCdNm": "친환경농업과", "bizPicTelno": "044-201-2434"}
                   ],
                   "bizAtchFileList": [
-                    {"atchFileNm": "시행지침.pdf", "fileExtnNm": "pdf", "fileSz": 1537272, "url": "https://example.test/file.pdf"}
+                    {"originalName": "시행지침.pdf", "extension": "pdf", "size": 1537272, "url": "https://example.test/file.pdf"}
                   ]
                 }
             """.trimIndent()
