@@ -72,7 +72,7 @@ class FarmingRecordService(
                 weatherCondition = command.weatherCondition,
                 weatherTemperature = command.weatherTemperature,
                 memo = command.memo,
-                entryMode = "MANUAL",
+                entryMode = command.entryMode,
             )
         )
 

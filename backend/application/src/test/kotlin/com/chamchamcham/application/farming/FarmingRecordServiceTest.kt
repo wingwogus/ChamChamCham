@@ -9,6 +9,7 @@ import com.chamchamcham.domain.crop.CropRepository
 import com.chamchamcham.domain.crop.CropUsePartCategory
 import com.chamchamcham.domain.farm.Farm
 import com.chamchamcham.domain.farm.FarmRepository
+import com.chamchamcham.domain.farming.EntryMode
 import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.farming.FarmingRecordMedia
 import com.chamchamcham.domain.farming.FarmingRecordMediaRepository
@@ -173,7 +174,7 @@ class FarmingRecordServiceTest {
         weatherCondition = "맑음",
         weatherTemperature = 20,
         memo = "memo",
-        entryMode = "MANUAL",
+        entryMode = EntryMode.MANUAL,
     )
 
     private fun uploadedMedia(

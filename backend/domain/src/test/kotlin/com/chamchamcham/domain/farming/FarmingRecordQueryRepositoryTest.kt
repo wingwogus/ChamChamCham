@@ -166,7 +166,7 @@ class FarmingRecordQueryRepositoryTest @Autowired constructor(
             weatherCondition = "맑음",
             weatherTemperature = 20,
             memo = "memo",
-            entryMode = "MANUAL",
+            entryMode = EntryMode.MANUAL,
             isDeleted = isDeleted,
         )
         return persist(record, now)

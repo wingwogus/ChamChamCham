@@ -1,5 +1,6 @@
 package com.chamchamcham.application.farming
 
+import com.chamchamcham.domain.farming.EntryMode
 import com.chamchamcham.domain.farming.FertilizerAmountUnit
 import com.chamchamcham.domain.farming.FertilizingMethod
 import com.chamchamcham.domain.farming.GrowthPeriodUnit
@@ -35,6 +36,7 @@ object FarmingRecordCommand {
         override val weeding: WeedingDetail? = null,
         override val harvest: HarvestDetail? = null,
         val mediaIds: List<UUID> = emptyList(),
+        val entryMode: EntryMode = EntryMode.MANUAL,
     ) : FarmingRecordDetailPayload
 
     data class Update(
