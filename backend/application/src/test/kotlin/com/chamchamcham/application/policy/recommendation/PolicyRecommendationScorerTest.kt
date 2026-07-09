@@ -59,6 +59,30 @@ class PolicyRecommendationScorerTest {
     }
 
     @Test
+    fun `returns zero score when youth policy also matches registered farmer but member is not young`() {
+        val profile = PolicyMemberProfile(
+            birthDate = LocalDate.of(1960, 10, 1),
+            experienceLevel = 20,
+            managementType = ManagementType.AGRICULTURAL_INDIVIDUAL,
+            cropNames = setOf("참당귀"),
+            cropUsePartCategories = setOf("ROOT_BARK"),
+            farmRegionTokens = setOf("전북특별자치도", "전주시")
+        )
+
+        val scored = scorer.score(
+            profile = profile,
+            policyTargetTags = setOf("YOUNG_FARMER", "REGISTERED_FARMER"),
+            policyCropTags = setOf("MEDICINAL_CROP"),
+            policyRegionTags = setOf("전북특별자치도"),
+            onlineApplyAvailable = true,
+            today = LocalDate.of(2026, 4, 1)
+        )
+
+        assertThat(scored.score).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(scored.eligible).isFalse()
+    }
+
+    @Test
     fun `returns zero score when a required region group does not match`() {
         val profile = PolicyMemberProfile(
             birthDate = LocalDate.of(1995, 1, 1),

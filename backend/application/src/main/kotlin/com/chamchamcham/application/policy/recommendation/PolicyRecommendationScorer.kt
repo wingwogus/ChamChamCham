@@ -108,7 +108,16 @@ class PolicyRecommendationScorer(
         if (!hasMeaningfulRequirement) {
             return false
         }
-        if (targetRequirements.isNotEmpty() && targetRequirements.none { matchesTargetTag(profile, it, today) }) {
+        val strictTargetRequirements = targetRequirements.intersect(strictTargetTags)
+        val alternativeTargetRequirements = targetRequirements - strictTargetRequirements
+
+        if (strictTargetRequirements.any { !matchesTargetTag(profile, it, today) }) {
+            return false
+        }
+        if (
+            alternativeTargetRequirements.isNotEmpty() &&
+            alternativeTargetRequirements.none { matchesTargetTag(profile, it, today) }
+        ) {
             return false
         }
         if (cropRequirements.isNotEmpty() && cropRequirements.none { matchesCropTag(profile, it) }) {
@@ -160,6 +169,10 @@ class PolicyRecommendationScorer(
             "YOUNG_FARMER",
             "REGISTERED_FARMER",
             "AGRICULTURAL_CORPORATION",
+            "RETURNING_FARMER"
+        )
+        val strictTargetTags = setOf(
+            "YOUNG_FARMER",
             "RETURNING_FARMER"
         )
         val matchableCropTags = setOf(

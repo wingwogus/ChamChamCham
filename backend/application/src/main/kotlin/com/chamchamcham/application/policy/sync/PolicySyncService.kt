@@ -60,11 +60,12 @@ class PolicySyncService(
             val listItems = sourceClient.fetchPrograms(targetYear)
                 .distinctBy { item -> SourceIdentity(item.externalId, item.sourceYear) }
             val currentIdentities = listItems.map { SourceIdentity(it.externalId, it.sourceYear) }.toSet()
-            var synced = 0
             var detailSuccess = 0
             var detailFailure = 0
 
+            val detailFieldsByIdentity = mutableMapOf<SourceIdentity, DetailFields?>()
             listItems.forEach { item ->
+                val identity = SourceIdentity(item.externalId, item.sourceYear)
                 val detailFields = try {
                     val detail = sourceClient.fetchDetail(item.externalId, item.sourceYear)
                     val tags = tagExtractor.extract(detail)
@@ -101,17 +102,15 @@ class PolicySyncService(
                     null
                 }
 
-                if (upsertProgram(item, detailFields)) {
-                    synced += 1
-                }
                 if (detailFields == null) {
                     detailFailure += 1
                 } else {
                     detailSuccess += 1
                 }
+                detailFieldsByIdentity[identity] = detailFields
             }
 
-            deactivateMissingSourcePolicies(targetYear, currentIdentities)
+            val synced = persistPrograms(targetYear, listItems, detailFieldsByIdentity, currentIdentities)
             succeedJob(jobId, listItems.size, synced, detailSuccess, detailFailure)
         } catch (exception: Exception) {
             failJob(jobId, exception)
@@ -157,109 +156,129 @@ class PolicySyncService(
         }
     }
 
+    private fun persistPrograms(
+        sourceYear: String,
+        listItems: List<NongupEzPolicyListItem>,
+        detailFieldsByIdentity: Map<SourceIdentity, DetailFields?>,
+        currentIdentities: Set<SourceIdentity>
+    ): Int {
+        return transactionTemplate.execute {
+            val existingPrograms = policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, sourceYear)
+            val existingProgramsByIdentity = existingPrograms
+                .associateBy { program -> SourceIdentity(program.externalId, program.sourceYear) }
+            var synced = 0
+
+            listItems.forEach { item ->
+                val identity = SourceIdentity(item.externalId, item.sourceYear)
+                if (upsertProgram(item, detailFieldsByIdentity[identity], existingProgramsByIdentity[identity])) {
+                    synced += 1
+                }
+            }
+
+            synced + deactivateMissingSourcePolicies(currentIdentities, existingPrograms)
+        } ?: 0
+    }
+
     private fun upsertProgram(
         item: NongupEzPolicyListItem,
-        detailFields: DetailFields?
+        detailFields: DetailFields?,
+        existing: PolicyProgram?
     ): Boolean {
-        return transactionTemplate.execute {
-            val existing = policyProgramRepository.findBySourceAndExternalIdAndSourceYear(
-                PolicySource.NONGUP_EZ,
-                item.externalId,
-                item.sourceYear
-            )
-            val isNew = existing == null
-            val program = existing ?: PolicyProgram(
-                title = item.title,
-                body = item.summary ?: item.title,
-                region = DEFAULT_REGION,
-                targetManagementType = null
-            )
+        val isNew = existing == null
+        val program = existing ?: PolicyProgram(
+            title = item.title,
+            body = item.summary ?: item.title,
+            region = DEFAULT_REGION,
+            targetManagementType = null
+        )
 
-            var changed = isNew
-            changed = program.applyListFields(
-                source = PolicySource.NONGUP_EZ,
-                externalId = item.externalId,
-                sourceYear = item.sourceYear,
-                title = item.title,
-                summary = item.summary,
-                region = DEFAULT_REGION,
-                sourceUrl = detailUrl(item.externalId, item.sourceYear),
-                agencyName = item.agencyName
+        var changed = isNew
+        changed = program.applyListFields(
+            source = PolicySource.NONGUP_EZ,
+            externalId = item.externalId,
+            sourceYear = item.sourceYear,
+            title = item.title,
+            summary = item.summary,
+            region = DEFAULT_REGION,
+            sourceUrl = detailUrl(item.externalId, item.sourceYear),
+            agencyName = item.agencyName
+        ) || changed
+
+        if (detailFields == null) {
+            if (isNew || !program.detailSynced) {
+                changed = program.markDetailSyncFailed(rawPayload = item.rawJson) || changed
+            }
+        } else {
+            changed = program.applyDetailFields(
+                body = detailFields.body,
+                purpose = detailFields.purpose,
+                eligibilityOriginal = detailFields.eligibilityOriginal,
+                eligibilitySummary = detailFields.eligibilitySummary,
+                benefitOriginal = detailFields.benefitOriginal,
+                benefitSummary = detailFields.benefitSummary,
+                applyStartsOn = detailFields.applyStartsOn,
+                applyEndsOn = detailFields.applyEndsOn,
+                applicationPeriodLabel = detailFields.applicationPeriodLabel,
+                applicationPeriodNotice = detailFields.applicationPeriodNotice,
+                applicationMethod = detailFields.applicationMethod,
+                requiredDocuments = detailFields.requiredDocuments,
+                selectionCriteria = detailFields.selectionCriteria,
+                departmentName = detailFields.departmentName,
+                onlineApplyAvailable = detailFields.onlineApplyAvailable,
+                applicationUrl = detailFields.applicationUrl,
+                targetTagsJson = detailFields.targetTagsJson,
+                cropTagsJson = detailFields.cropTagsJson,
+                regionTagsJson = detailFields.regionTagsJson,
+                rawPayload = detailFields.rawPayload,
+                recommendable = true
             ) || changed
+        }
 
-            if (detailFields == null) {
-                if (isNew || !program.detailSynced) {
-                    changed = program.markDetailSyncFailed(rawPayload = item.rawJson) || changed
-                }
-            } else {
-                changed = program.applyDetailFields(
-                    body = detailFields.body,
-                    purpose = detailFields.purpose,
-                    eligibilityOriginal = detailFields.eligibilityOriginal,
-                    eligibilitySummary = detailFields.eligibilitySummary,
-                    benefitOriginal = detailFields.benefitOriginal,
-                    benefitSummary = detailFields.benefitSummary,
-                    applyStartsOn = detailFields.applyStartsOn,
-                    applyEndsOn = detailFields.applyEndsOn,
-                    applicationPeriodLabel = detailFields.applicationPeriodLabel,
-                    applicationPeriodNotice = detailFields.applicationPeriodNotice,
-                    applicationMethod = detailFields.applicationMethod,
-                    requiredDocuments = detailFields.requiredDocuments,
-                    selectionCriteria = detailFields.selectionCriteria,
-                    departmentName = detailFields.departmentName,
-                    onlineApplyAvailable = detailFields.onlineApplyAvailable,
-                    applicationUrl = detailFields.applicationUrl,
-                    targetTagsJson = detailFields.targetTagsJson,
-                    cropTagsJson = detailFields.cropTagsJson,
-                    regionTagsJson = detailFields.regionTagsJson,
-                    rawPayload = detailFields.rawPayload,
-                    recommendable = true
-                ) || changed
-            }
-
-            if (changed) {
-                policyProgramRepository.save(program)
-            }
-            changed
-        } ?: false
+        if (changed) {
+            policyProgramRepository.save(program)
+        }
+        return changed
     }
 
     private fun deactivateMissingSourcePolicies(
-        sourceYear: String,
-        currentIdentities: Set<SourceIdentity>
-    ) {
-        transactionTemplate.executeWithoutResult {
-            policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, sourceYear)
-                .filter { program ->
-                    SourceIdentity(program.externalId, program.sourceYear) !in currentIdentities && program.recommendable
-                }
-                .forEach { program ->
-                    program.applyDetailFields(
-                        body = program.body,
-                        purpose = program.purpose,
-                        eligibilityOriginal = program.eligibilityOriginal,
-                        eligibilitySummary = program.eligibilitySummary,
-                        benefitOriginal = program.benefitOriginal,
-                        benefitSummary = program.benefitSummary,
-                        applyStartsOn = program.applyStartsOn,
-                        applyEndsOn = program.applyEndsOn,
-                        applicationPeriodLabel = program.applicationPeriodLabel,
-                        applicationPeriodNotice = program.applicationPeriodNotice,
-                        applicationMethod = program.applicationMethod,
-                        requiredDocuments = program.requiredDocuments,
-                        selectionCriteria = program.selectionCriteria,
-                        departmentName = program.departmentName,
-                        onlineApplyAvailable = program.onlineApplyAvailable,
-                        applicationUrl = program.applicationUrl,
-                        targetTagsJson = program.targetTagsJson,
-                        cropTagsJson = program.cropTagsJson,
-                        regionTagsJson = program.regionTagsJson,
-                        rawPayload = program.rawPayload,
-                        recommendable = false
-                    )
+        currentIdentities: Set<SourceIdentity>,
+        existingPrograms: Collection<PolicyProgram>
+    ): Int {
+        var changedCount = 0
+        existingPrograms
+            .filter { program ->
+                SourceIdentity(program.externalId, program.sourceYear) !in currentIdentities && program.recommendable
+            }
+            .forEach { program ->
+                val changed = program.applyDetailFields(
+                    body = program.body,
+                    purpose = program.purpose,
+                    eligibilityOriginal = program.eligibilityOriginal,
+                    eligibilitySummary = program.eligibilitySummary,
+                    benefitOriginal = program.benefitOriginal,
+                    benefitSummary = program.benefitSummary,
+                    applyStartsOn = program.applyStartsOn,
+                    applyEndsOn = program.applyEndsOn,
+                    applicationPeriodLabel = program.applicationPeriodLabel,
+                    applicationPeriodNotice = program.applicationPeriodNotice,
+                    applicationMethod = program.applicationMethod,
+                    requiredDocuments = program.requiredDocuments,
+                    selectionCriteria = program.selectionCriteria,
+                    departmentName = program.departmentName,
+                    onlineApplyAvailable = program.onlineApplyAvailable,
+                    applicationUrl = program.applicationUrl,
+                    targetTagsJson = program.targetTagsJson,
+                    cropTagsJson = program.cropTagsJson,
+                    regionTagsJson = program.regionTagsJson,
+                    rawPayload = program.rawPayload,
+                    recommendable = false
+                )
+                if (changed) {
                     policyProgramRepository.save(program)
+                    changedCount += 1
                 }
-        }
+            }
+        return changedCount
     }
 
     private fun succeedJob(

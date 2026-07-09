@@ -7,12 +7,6 @@ import java.time.LocalDate
 import java.util.UUID
 
 interface PolicyProgramRepository : JpaRepository<PolicyProgram, UUID> {
-    fun findBySourceAndExternalIdAndSourceYear(
-        source: PolicySource,
-        externalId: String,
-        sourceYear: String
-    ): PolicyProgram?
-
     @Query(
         """
         select p

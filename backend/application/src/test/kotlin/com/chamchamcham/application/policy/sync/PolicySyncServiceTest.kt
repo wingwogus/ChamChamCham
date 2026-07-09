@@ -24,6 +24,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.transaction.support.AbstractPlatformTransactionManager
@@ -74,13 +75,6 @@ class PolicySyncServiceTest {
             assertFalse(TransactionSynchronizationManager.isActualTransactionActive())
             detail()
         }
-        `when`(
-            policyProgramRepository.findBySourceAndExternalIdAndSourceYear(
-                PolicySource.NONGUP_EZ,
-                "AB000009",
-                "2026"
-            )
-        ).thenReturn(null)
         `when`(policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, "2026"))
             .thenReturn(emptyList())
         stubJobSaveAndFind()
@@ -99,17 +93,42 @@ class PolicySyncServiceTest {
     }
 
     @Test
+    fun `sync loads existing policies once for source year instead of per policy`() {
+        val existing = existingSyncedProgram()
+        val newItem = listItem(
+            externalId = "AB000010",
+            title = "특용작물 시설 지원",
+            summary = "특용작물 재배 시설을 지원합니다.",
+            rawJson = """{"afbzCd":"AB000010"}"""
+        )
+        `when`(sourceClient.detectLatestYear()).thenReturn("2026")
+        `when`(sourceClient.fetchPrograms("2026")).thenReturn(listOf(listItem(), newItem))
+        `when`(sourceClient.fetchDetail("AB000009", "2026")).thenReturn(detail())
+        `when`(sourceClient.fetchDetail("AB000010", "2026")).thenReturn(
+            detail(
+                externalId = "AB000010",
+                title = "특용작물 시설 지원",
+                summary = "특용작물 재배 시설 지원",
+                eligibility = "농업경영정보를 등록한 특용작물 재배 농업인",
+                benefit = "시설 설치비 지원",
+                rawJson = """{"afbzCd":"AB000010","bizYr":"2026"}"""
+            )
+        )
+        `when`(policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, "2026"))
+            .thenReturn(listOf(existing))
+        stubJobSaveAndFind()
+
+        service.runScheduledSync()
+
+        verify(policyProgramRepository, times(1))
+            .findBySourceAndSourceYear(PolicySource.NONGUP_EZ, "2026")
+    }
+
+    @Test
     fun `detail failure keeps job succeeded and policy non recommendable`() {
         `when`(sourceClient.detectLatestYear()).thenReturn("2026")
         `when`(sourceClient.fetchPrograms("2026")).thenReturn(listOf(listItem()))
         `when`(sourceClient.fetchDetail("AB000009", "2026")).thenThrow(RuntimeException("detail down"))
-        `when`(
-            policyProgramRepository.findBySourceAndExternalIdAndSourceYear(
-                PolicySource.NONGUP_EZ,
-                "AB000009",
-                "2026"
-            )
-        ).thenReturn(null)
         `when`(policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, "2026"))
             .thenReturn(emptyList())
         stubJobSaveAndFind()
@@ -128,13 +147,6 @@ class PolicySyncServiceTest {
         `when`(sourceClient.detectLatestYear()).thenReturn("2026")
         `when`(sourceClient.fetchPrograms("2026")).thenReturn(listOf(listItem()))
         `when`(sourceClient.fetchDetail("AB000009", "2026")).thenReturn(detail())
-        `when`(
-            policyProgramRepository.findBySourceAndExternalIdAndSourceYear(
-                PolicySource.NONGUP_EZ,
-                "AB000009",
-                "2026"
-            )
-        ).thenReturn(existing)
         `when`(policyProgramRepository.findBySourceAndSourceYear(PolicySource.NONGUP_EZ, "2026"))
             .thenReturn(listOf(existing))
         stubJobSaveAndFind()
@@ -213,27 +225,41 @@ class PolicySyncServiceTest {
         return captor.value
     }
 
-    private fun listItem(): NongupEzPolicyListItem =
+    private fun listItem(
+        externalId: String = "AB000009",
+        sourceYear: String = "2026",
+        title: String = "친환경농업 직불 지원",
+        summary: String? = "친환경 인증 농업인에게 직불금을 지원합니다.",
+        rawJson: String = """{"afbzCd":"AB000009"}"""
+    ): NongupEzPolicyListItem =
         NongupEzPolicyListItem(
-            externalId = "AB000009",
-            sourceYear = "2026",
-            title = "친환경농업 직불 지원",
-            summary = "친환경 인증 농업인에게 직불금을 지원합니다.",
+            externalId = externalId,
+            sourceYear = sourceYear,
+            title = title,
+            summary = summary,
             agencyName = "농림축산식품부",
             applyStartsOn = LocalDate.of(2026, 1, 1),
             applyEndsOn = LocalDate.of(2026, 12, 31),
-            rawJson = """{"afbzCd":"AB000009"}"""
+            rawJson = rawJson
         )
 
-    private fun detail(): NongupEzPolicyDetail =
+    private fun detail(
+        externalId: String = "AB000009",
+        sourceYear: String = "2026",
+        title: String = "친환경농업 직불 지원",
+        summary: String = "친환경 인증 농업인 지원",
+        eligibility: String = "농업경영정보를 등록하고 친환경인증을 받은 농업인",
+        benefit: String = "인증단계별 직불금 지원",
+        rawJson: String = """{"afbzCd":"AB000009","bizYr":"2026"}"""
+    ): NongupEzPolicyDetail =
         NongupEzPolicyDetail(
-            externalId = "AB000009",
-            sourceYear = "2026",
-            title = "친환경농업 직불 지원",
+            externalId = externalId,
+            sourceYear = sourceYear,
+            title = title,
             purpose = "친환경농업 확산",
-            summary = "친환경 인증 농업인 지원",
-            eligibility = "농업경영정보를 등록하고 친환경인증을 받은 농업인",
-            benefit = "인증단계별 직불금 지원",
+            summary = summary,
+            eligibility = eligibility,
+            benefit = benefit,
             applyStartsOn = LocalDate.of(2026, 2, 1),
             applyEndsOn = LocalDate.of(2026, 3, 31),
             applicationMethod = "방문 신청",
@@ -248,7 +274,7 @@ class PolicySyncServiceTest {
                 )
             ),
             attachments = emptyList(),
-            rawJson = """{"afbzCd":"AB000009","bizYr":"2026"}"""
+            rawJson = rawJson
         )
 
     private fun existingSyncedProgram(): PolicyProgram =
