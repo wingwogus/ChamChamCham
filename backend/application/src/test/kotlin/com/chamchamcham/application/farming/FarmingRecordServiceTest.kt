@@ -697,11 +697,84 @@ class FarmingRecordServiceTest {
         verifyNoInteractions(farmingRecordQueryRepository)
     }
 
+    @Test
+    fun `search resolves keyword into matched work type label`() {
+        `when`(
+            farmingRecordQueryRepository.search(
+                FarmingRecordQueryRepository.SearchCondition(
+                    memberId = memberId,
+                    cropId = null,
+                    workType = null,
+                    workedAtFrom = null,
+                    workedAtTo = null,
+                    keyword = "수확",
+                    matchedWorkTypes = listOf(WorkType.HARVEST),
+                    matchedParts = emptyList(),
+                    cursor = null,
+                    size = 21
+                )
+            )
+        ).thenReturn(FarmingRecordQueryRepository.SearchResult(emptyList()))
+
+        val page = service.search(searchCondition(keyword = "수확"))
+
+        assertThat(page.items).isEmpty()
+    }
+
+    @Test
+    fun `search resolves keyword into matched harvest part label`() {
+        `when`(
+            farmingRecordQueryRepository.search(
+                FarmingRecordQueryRepository.SearchCondition(
+                    memberId = memberId,
+                    cropId = null,
+                    workType = null,
+                    workedAtFrom = null,
+                    workedAtTo = null,
+                    keyword = "잎",
+                    matchedWorkTypes = emptyList(),
+                    matchedParts = listOf(CropUsePartCategory.LEAF),
+                    cursor = null,
+                    size = 21
+                )
+            )
+        ).thenReturn(FarmingRecordQueryRepository.SearchResult(emptyList()))
+
+        val page = service.search(searchCondition(keyword = "잎"))
+
+        assertThat(page.items).isEmpty()
+    }
+
+    @Test
+    fun `search passes blank keyword as null with no matched labels`() {
+        `when`(
+            farmingRecordQueryRepository.search(
+                FarmingRecordQueryRepository.SearchCondition(
+                    memberId = memberId,
+                    cropId = null,
+                    workType = null,
+                    workedAtFrom = null,
+                    workedAtTo = null,
+                    keyword = null,
+                    matchedWorkTypes = emptyList(),
+                    matchedParts = emptyList(),
+                    cursor = null,
+                    size = 21
+                )
+            )
+        ).thenReturn(FarmingRecordQueryRepository.SearchResult(emptyList()))
+
+        val page = service.search(searchCondition(keyword = "   "))
+
+        assertThat(page.items).isEmpty()
+    }
+
     private fun searchCondition(
         cropId: UUID? = null,
         workType: WorkType? = null,
         startDate: LocalDate? = null,
         endDate: LocalDate? = null,
+        keyword: String? = null,
         cursor: String? = null,
         size: Int = 20,
     ) = FarmingRecordSearchCondition(
@@ -710,6 +783,7 @@ class FarmingRecordServiceTest {
         workType = workType,
         startDate = startDate,
         endDate = endDate,
+        keyword = keyword,
         cursor = cursor,
         size = size,
     )

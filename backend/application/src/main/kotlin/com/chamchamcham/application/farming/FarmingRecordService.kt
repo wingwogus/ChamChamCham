@@ -5,6 +5,7 @@ import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.domain.crop.Crop
 import com.chamchamcham.domain.crop.CropRepository
+import com.chamchamcham.domain.crop.CropUsePartCategory
 import com.chamchamcham.domain.farm.Farm
 import com.chamchamcham.domain.farm.FarmRepository
 import com.chamchamcham.domain.farming.FarmingRecord
@@ -86,6 +87,7 @@ class FarmingRecordService(
     fun search(condition: FarmingRecordSearchCondition): FarmingRecordResult.Page {
         validatePageSize(condition.size)
         val cursor = decodeCursor(condition.cursor)
+        val trimmedKeyword = condition.keyword?.trim()?.takeIf(String::isNotEmpty)
         val result = farmingRecordQueryRepository.search(
             FarmingRecordQueryRepository.SearchCondition(
                 memberId = condition.memberId,
@@ -93,6 +95,9 @@ class FarmingRecordService(
                 workType = condition.workType,
                 workedAtFrom = condition.startDate?.atStartOfDay(),
                 workedAtTo = condition.endDate?.plusDays(1)?.atStartOfDay(),
+                keyword = trimmedKeyword,
+                matchedWorkTypes = matchedWorkTypes(trimmedKeyword),
+                matchedParts = matchedParts(trimmedKeyword),
                 cursor = cursor,
                 size = condition.size + 1
             )
@@ -108,6 +113,12 @@ class FarmingRecordService(
             nextCursor = nextCursor
         )
     }
+
+    private fun matchedWorkTypes(keyword: String?): List<WorkType> =
+        keyword?.let { kw -> WorkType.entries.filter { it.label.contains(kw) } } ?: emptyList()
+
+    private fun matchedParts(keyword: String?): List<CropUsePartCategory> =
+        keyword?.let { kw -> CropUsePartCategory.entries.filter { it.label.contains(kw) } } ?: emptyList()
 
     @Transactional(readOnly = true)
     fun getDetail(memberId: UUID, recordId: UUID): FarmingRecordResult.Detail {
