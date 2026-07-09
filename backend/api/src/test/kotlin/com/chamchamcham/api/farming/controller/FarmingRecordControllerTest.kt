@@ -192,6 +192,7 @@ class FarmingRecordControllerTest(
                     workType = WorkType.HARVEST,
                     startDate = LocalDate.of(2026, 6, 1),
                     endDate = LocalDate.of(2026, 6, 30),
+                    keyword = null,
                     cursor = "cursor-1",
                     size = 10
                 )
@@ -210,6 +211,32 @@ class FarmingRecordControllerTest(
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.nextCursor", equalTo("cursor-1")))
+    }
+
+    @Test
+    fun `list records maps keyword parameter`() {
+        `when`(
+            farmingRecordService.search(
+                FarmingRecordSearchCondition(
+                    memberId = memberId,
+                    cropId = null,
+                    workType = null,
+                    startDate = null,
+                    endDate = null,
+                    keyword = "수확",
+                    cursor = null,
+                    size = 20
+                )
+            )
+        ).thenReturn(pageResult())
+
+        mockMvc.perform(
+            get("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .param("keyword", "수확")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.items[0].id", equalTo(recordId.toString())))
     }
 
     @Test
@@ -382,6 +409,7 @@ class FarmingRecordControllerTest(
             workType = null,
             startDate = null,
             endDate = null,
+            keyword = null,
             cursor = null,
             size = 20
         )
