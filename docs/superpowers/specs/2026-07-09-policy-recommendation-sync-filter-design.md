@@ -6,8 +6,8 @@ The first NongupEZ policy recommendation MVP stores policy programs, creates
 member-specific recommendations, and shows fixed policy cards. The next change
 improves three weak points found during review:
 
-- repeated sync jobs update unchanged policy rows only to move
-  `lastSyncedJob`
+- repeated sync jobs update unchanged policy rows only to move sync-job
+  foreign keys
 - card summaries are currently string literals, even though they represent a
   closed set of categories
 - recommendation tags are extracted with broad keyword rules, which is not
@@ -22,6 +22,8 @@ schema.
 - Stop issuing updates for unchanged NongupEZ policy rows.
 - Keep sync jobs as execution logs, not as the definition of the active policy
   set.
+- Remove sync-job foreign keys from policy and recommendation current-state
+  decisions.
 - Add support-item filtering to recommendation listing by benefit category.
 - Represent card summary categories as Kotlin enums internally.
 - Use LLM extraction for policy recommendation tags at sync time only.
@@ -48,10 +50,17 @@ schema.
 source + externalId + sourceYear
 ```
 
-The current candidate query is tied to `lastSyncedJob.id`, so every successful
-sync must touch each policy row to make it visible in the latest recommendation
-run. That creates unnecessary update queries when source content has not
-changed.
+The current model lets policy and recommendation freshness depend on sync-job
+foreign keys:
+
+```text
+PolicyProgram.lastSyncedJob
+PolicyRecommendation.sourceSyncJob
+```
+
+That makes `PolicySyncJob` do two jobs at once: execution logging and active
+data selection. As a result, every successful sync can touch unchanged policy
+rows just to point them at the newest job.
 
 Recommendation cards expose:
 
@@ -69,7 +78,40 @@ This shape remains unchanged.
 
 ## Proposed Design
 
-### 1. Card Category Enums
+### 1. Sync Job as Execution Log Only
+
+`PolicySyncJob` should remain, but only as a record of a sync execution:
+
+```text
+source
+targetYear
+triggerType
+status
+startedAt
+finishedAt
+totalCount
+syncedCount
+detailSuccessCount
+detailFailureCount
+errorMessage
+createdByMemberId
+```
+
+It should not be referenced by the current policy or recommendation model.
+
+Remove these relationships from the domain model and schema:
+
+```text
+PolicyProgram.lastSyncedJob
+PolicyRecommendation.sourceSyncJob
+```
+
+After this change, current policy visibility is derived from `PolicyProgram`
+state, not from the latest sync job ID. Sync jobs answer "what happened during
+an ingestion run"; they do not answer "which policies are currently
+recommendable".
+
+### 2. Card Category Enums
 
 Introduce internal enums for card summary classification.
 
@@ -112,7 +154,7 @@ label in the existing `benefitSummary` and `eligibilitySummary` string fields.
 The enums give the code and tests stable identifiers while keeping the API
 response unchanged.
 
-### 2. Recommendation Benefit Filter
+### 3. Recommendation Benefit Filter
 
 Add an optional query parameter:
 
@@ -139,7 +181,7 @@ The response still returns only `benefitSummary`, not a new
 `benefitCategory` field. A future API can expose both enum key and label if the
 frontend needs stable keys in the payload.
 
-### 3. Sync Without Unchanged Row Updates
+### 4. Sync Without Unchanged Row Updates
 
 Policy sync should separate "source execution log" from "policy content state".
 
@@ -188,8 +230,9 @@ detailSynced
 recommendable
 ```
 
-`lastSyncedJob` should not be the reason to update an unchanged policy. It can
-remain as an audit pointer when a row is inserted or materially changed.
+Sync-job relationships are not part of `PolicyProgram`, so they cannot be the
+reason to update an unchanged policy. A row is updated only when its normalized
+policy state changes.
 
 To avoid keeping removed policies active forever, after fetching the current
 source list the sync service should compare current source identities against
@@ -197,9 +240,9 @@ stored policies for the same `source + sourceYear`. Stored policies missing
 from the current source list should be marked `recommendable=false`. Those are
 real availability changes and should be updated.
 
-### 4. Candidate Query and Recommendation Staleness
+### 5. Candidate Query and Recommendation Staleness
 
-Candidate lookup should no longer filter by `lastSyncedJob.id`.
+Candidate lookup should not filter by sync-job ID.
 
 Use:
 
@@ -211,22 +254,35 @@ recommendable = true
 applyEndsOn is null or applyEndsOn >= today
 ```
 
-Recommendation query should not require `sourceSyncJobId` to equal the latest
-job. `sourceSyncJob` remains useful as an audit field showing which sync job
-created the recommendation row.
+Recommendation query should not filter by `sourceSyncJobId`; that field is
+removed. It should scope recommendations through the linked policy program:
+
+```text
+recommendation.member.id = memberId
+recommendation.policyProgram.source = NONGUP_EZ
+recommendation.policyProgram.sourceYear = activeSourceYear
+```
 
 Staleness should be based on the current candidate set and content freshness:
 
 - regenerate if the member has no recommendations for the active source year
-- regenerate if stored recommendation policy IDs are not the same as the
-  current eligible recommendation policy IDs
-- regenerate if any candidate policy was updated after the member's newest
-  recommendation row was created
+- regenerate if any stored recommendation policy ID is no longer in the current
+  candidate set
+- regenerate if any active candidate policy was inserted or updated after the
+  member's newest recommendation row was created
+- regenerate if the member profile, member crop rows, or farm rows used for
+  matching were updated after the member's newest recommendation row was
+  created
 
 This preserves recommendations across no-op sync jobs while still recalculating
-when policy content or tags actually change.
+when policy content, tags, source availability, or relevant member profile data
+changes.
 
-### 5. LLM Policy Tag Extraction
+`updatedAt` is sufficient for the first implementation because unchanged sync
+items are skipped. A future `contentHash` field can replace or supplement
+`updatedAt` if explicit content-version comparison becomes necessary.
+
+### 6. LLM Policy Tag Extraction
 
 LLM usage is limited to sync-time policy tag extraction. It should not rank
 policies for a member and should not receive member data.
@@ -298,6 +354,7 @@ NongupEZ list/detail
 -> compare normalized content with existing policy
 -> insert/update/skip
 -> mark policies absent from latest source list as not recommendable
+-> record sync job counts and status only
 ```
 
 Recommendation listing:
@@ -305,7 +362,8 @@ Recommendation listing:
 ```text
 member request with optional benefitCategory
 -> load active source year
--> load active candidates independent of latestJobId
+-> load active candidates independent of sync job ID
+-> evaluate stale state from recommendation rows, policy updatedAt, and profile updatedAt
 -> regenerate only when missing/stale
 -> query member recommendations with optional benefitSummary label filter
 -> return existing card shape
@@ -321,12 +379,17 @@ member request with optional benefitCategory
 - A detail fetch failure still marks that policy detail as not synchronized only
   when the existing row must be changed; unchanged previous successful rows
   should remain available unless the current source list indicates removal.
+- Removing sync-job foreign keys means a failed sync job does not hide or
+  invalidate the last known good policy state.
 
 ## Testing Strategy
 
 - Unit-test each card category enum rule and label length.
 - Controller test for `benefitCategory` parsing and invalid enum handling.
 - Query repository test for benefit-category filtering and cursor ordering.
+- Domain/schema test or migration review confirming `PolicyProgram` no longer
+  maps `lastSyncedJob` and `PolicyRecommendation` no longer maps
+  `sourceSyncJob`.
 - Sync service test for unchanged existing policy rows skipping repository save
   or dirty update paths as far as the repository abstraction allows.
 - Sync service test for changed policy rows updating normalized fields.
@@ -336,6 +399,10 @@ member request with optional benefitCategory
   recommendations only because the job ID changed.
 - Recommendation service test showing policy content updates make
   recommendations stale.
+- Recommendation service test showing member, member crop, or farm updates make
+  recommendations stale.
+- Recommendation query test scoping rows by `policyProgram.source` and
+  `policyProgram.sourceYear`, not sync job ID.
 - LLM extractor tests with a fake client: valid JSON, unknown enum, invalid JSON,
   call failure, and fallback behavior.
 
@@ -346,6 +413,8 @@ Phase 1:
 - add category enums
 - update rule-based card summary generation to return enum labels
 - add recommendation `benefitCategory` filter
+- remove `PolicyProgram.lastSyncedJob`
+- remove `PolicyRecommendation.sourceSyncJob`
 - remove latest-job coupling from candidate and recommendation queries
 - skip unchanged policy updates during sync
 
@@ -358,4 +427,3 @@ Phase 2:
 
 This split keeps the deterministic behavior changes reviewable before adding
 external LLM configuration and failure modes.
-
