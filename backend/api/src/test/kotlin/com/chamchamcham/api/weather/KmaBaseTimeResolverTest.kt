@@ -47,4 +47,19 @@ class KmaBaseTimeResolverTest {
 
         assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260707", baseTime = "2330"))
     }
+
+    @Test
+    fun `동네예보는 10분 지연을 적용해 최신 발표시각을 사용한다`() {
+        assertThat(KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 11, 5, 9)))
+            .isEqualTo(KmaBaseDateTime(baseDate = "20260711", baseTime = "0200"))
+        assertThat(KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 11, 5, 10)))
+            .isEqualTo(KmaBaseDateTime(baseDate = "20260711", baseTime = "0500"))
+    }
+
+    @Test
+    fun `동네예보는 첫 발표시각 전이면 전날 23시를 사용한다`() {
+        val result = KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 11, 2, 9))
+
+        assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260710", baseTime = "2300"))
+    }
 }

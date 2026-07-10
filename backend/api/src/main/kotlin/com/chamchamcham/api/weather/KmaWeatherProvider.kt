@@ -2,6 +2,10 @@ package com.chamchamcham.api.weather
 
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackCurrentWeather
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackForecastDay
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackLiveWeather
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackWeatherPort
 import com.chamchamcham.application.weather.WeatherProvider
 import com.chamchamcham.application.weather.WeatherSnapshot
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -10,7 +14,10 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
+import java.math.BigDecimal
 import java.net.URI
+import java.time.Clock
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
@@ -24,8 +31,9 @@ import kotlin.math.roundToInt
 class KmaWeatherProvider internal constructor(
     private val restClient: RestClient,
     private val baseUrl: String,
-    private val serviceKey: String
-) : WeatherProvider {
+    private val serviceKey: String,
+    private val clock: Clock = Clock.systemDefaultZone()
+) : WeatherProvider, RecordFeedbackWeatherPort {
 
     @Autowired
     constructor(
@@ -46,7 +54,7 @@ class KmaWeatherProvider internal constructor(
 
     override fun fetchCurrentWeather(latitude: Double, longitude: Double): WeatherSnapshot {
         val grid = GeoToGridConverter.convert(latitude, longitude)
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(clock)
 
         val ncst = requestItems(
             path = "getUltraSrtNcst",
@@ -76,12 +84,47 @@ class KmaWeatherProvider internal constructor(
         )
     }
 
-    private fun requestItems(path: String, base: KmaBaseDateTime, nx: Int, ny: Int): List<KmaItem> {
+    override fun fetch(latitude: Double, longitude: Double, limitDays: Int): RecordFeedbackLiveWeather {
+        require(limitDays in 1..7) { "limitDays must be between 1 and 7" }
+
+        val current = fetchCurrentWeather(latitude, longitude)
+        val grid = GeoToGridConverter.convert(latitude, longitude)
+        val now = LocalDateTime.now(clock)
+        val villageForecast = requestItems(
+            path = "getVilageFcst",
+            base = KmaBaseTimeResolver.resolveVilageFcst(now),
+            nx = grid.nx,
+            ny = grid.ny,
+            numOfRows = VILAGE_FCST_NUM_OF_ROWS
+        )
+
+        return RecordFeedbackLiveWeather(
+            current = RecordFeedbackCurrentWeather(
+                temperatureC = current.temperature,
+                skyCondition = current.skyCondition,
+                observedAt = current.observedAt
+            ),
+            forecastDays = aggregateForecastDays(
+                items = villageForecast,
+                today = now.toLocalDate(),
+                limitDays = limitDays
+            ),
+            source = KMA_SHORT_TERM_SOURCE
+        )
+    }
+
+    private fun requestItems(
+        path: String,
+        base: KmaBaseDateTime,
+        nx: Int,
+        ny: Int,
+        numOfRows: Int = DEFAULT_NUM_OF_ROWS
+    ): List<KmaItem> {
         // serviceKey는 공공데이터포털 인코딩 키가 그대로 전달되도록 pre-encoded URI로 요청(이중 인코딩 방지).
         val uri = URI.create(
             "$baseUrl/$path" +
                 "?serviceKey=$serviceKey" +
-                "&pageNo=1&numOfRows=1000&dataType=JSON" +
+                "&pageNo=1&numOfRows=$numOfRows&dataType=JSON" +
                 "&base_date=${base.baseDate}&base_time=${base.baseTime}" +
                 "&nx=$nx&ny=$ny"
         )
@@ -100,6 +143,77 @@ class KmaWeatherProvider internal constructor(
             throw BusinessException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE)
         }
         return body.body?.items?.item ?: throw BusinessException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE)
+    }
+
+    private fun aggregateForecastDays(
+        items: List<KmaItem>,
+        today: LocalDate,
+        limitDays: Int
+    ): List<RecordFeedbackForecastDay> {
+        return items
+            .mapNotNull { item ->
+                val date = item.fcstDate?.let(::parseForecastDate) ?: return@mapNotNull null
+                if (date < today) return@mapNotNull null
+                date to item
+            }
+            .groupBy({ it.first }, { it.second })
+            .toSortedMap()
+            .entries
+            .take(limitDays)
+            .map { (date, dayItems) -> aggregateForecastDay(date, dayItems) }
+    }
+
+    private fun aggregateForecastDay(date: LocalDate, items: List<KmaItem>): RecordFeedbackForecastDay {
+        val temperatures = items
+            .filter { it.category == "TMP" || it.category == "TMN" || it.category == "TMX" }
+            .mapNotNull { it.fcstValue?.toBigDecimalOrNull() }
+        val maxTemperatureC = temperatures.maxOrNull()
+        val minTemperatureC = temperatures.minOrNull()
+        val rainProbabilityPct = items.maxIntValue("POP")
+        val rainfallMm = items
+            .filter { it.category == "PCP" }
+            .mapNotNull { it.fcstValue?.toExactRainfallMmOrNull() }
+            .maxOrNull()
+        val humidityPct = items.maxDecimalValue("REH")
+        val windSpeedMs = items.maxDecimalValue("WSD")
+        val hasPrecipitationType = items
+            .filter { it.category == "PTY" }
+            .any { it.fcstValue?.toIntOrNull()?.let { value -> value != 0 } == true }
+
+        return RecordFeedbackForecastDay(
+            date = date,
+            rainfallMm = rainfallMm,
+            rainProbabilityPct = rainProbabilityPct,
+            maxTemperatureC = maxTemperatureC,
+            minTemperatureC = minTemperatureC,
+            humidityPct = humidityPct,
+            windSpeedMs = windSpeedMs,
+            riskFlags = buildRiskFlags(
+                hasPrecipitationType = hasPrecipitationType,
+                rainProbabilityPct = rainProbabilityPct,
+                rainfallMm = rainfallMm,
+                maxTemperatureC = maxTemperatureC,
+                humidityPct = humidityPct,
+                windSpeedMs = windSpeedMs
+            )
+        )
+    }
+
+    private fun buildRiskFlags(
+        hasPrecipitationType: Boolean,
+        rainProbabilityPct: Int?,
+        rainfallMm: BigDecimal?,
+        maxTemperatureC: BigDecimal?,
+        humidityPct: BigDecimal?,
+        windSpeedMs: BigDecimal?
+    ): List<String> {
+        val flags = mutableListOf<String>()
+        if (hasPrecipitationType || (rainProbabilityPct ?: 0) >= 60) flags += "RAIN"
+        if (rainfallMm != null && rainfallMm >= HEAVY_RAIN_THRESHOLD_MM) flags += "HEAVY_RAIN"
+        if (humidityPct != null && humidityPct >= HIGH_HUMIDITY_THRESHOLD_PCT) flags += "HIGH_HUMIDITY"
+        if (maxTemperatureC != null && maxTemperatureC >= HOT_THRESHOLD_C) flags += "HOT"
+        if (windSpeedMs != null && windSpeedMs >= STRONG_WIND_THRESHOLD_MS) flags += "STRONG_WIND"
+        return flags
     }
 
     private fun parseObservedAt(ncst: List<KmaItem>): LocalDateTime {
@@ -157,7 +271,16 @@ class KmaWeatherProvider internal constructor(
     )
 
     companion object {
+        private const val DEFAULT_NUM_OF_ROWS = 1000
+        private const val VILAGE_FCST_NUM_OF_ROWS = 2000
+        private const val KMA_SHORT_TERM_SOURCE = "KMA_SHORT_TERM"
         private val OBSERVED_AT_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+        private val FORECAST_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE
+        private val EXACT_RAINFALL_PATTERN = Regex("""^\s*([0-9]+(?:\.[0-9]+)?)\s*(?:mm)?\s*$""")
+        private val HEAVY_RAIN_THRESHOLD_MM = BigDecimal("20")
+        private val HIGH_HUMIDITY_THRESHOLD_PCT = BigDecimal("85")
+        private val HOT_THRESHOLD_C = BigDecimal("30")
+        private val STRONG_WIND_THRESHOLD_MS = BigDecimal("8")
 
         private fun createRequestFactory(
             connectTimeoutMillis: Int,
@@ -185,5 +308,28 @@ class KmaWeatherProvider internal constructor(
                     else -> "정보없음"
                 }
             }
+
+        private fun parseForecastDate(value: String): LocalDate? =
+            try {
+                LocalDate.parse(value, FORECAST_DATE_FORMAT)
+            } catch (exception: Exception) {
+                null
+            }
+
+        private fun List<KmaItem>.maxIntValue(category: String): Int? =
+            filter { it.category == category }
+                .mapNotNull { it.fcstValue?.toIntOrNull() }
+                .maxOrNull()
+
+        private fun List<KmaItem>.maxDecimalValue(category: String): BigDecimal? =
+            filter { it.category == category }
+                .mapNotNull { it.fcstValue?.toBigDecimalOrNull() }
+                .maxOrNull()
+
+        private fun String.toExactRainfallMmOrNull(): BigDecimal? {
+            val exactValue = EXACT_RAINFALL_PATTERN.matchEntire(this)?.groupValues?.get(1)
+                ?: return null
+            return exactValue.toBigDecimalOrNull()
+        }
     }
 }
