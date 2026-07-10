@@ -4,7 +4,23 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 interface CoachingFeedbackRepository : JpaRepository<CoachingFeedback, UUID> {
-    fun findTop20ByMemberIdOrderByCreatedAtDesc(memberId: UUID): List<CoachingFeedback>
+    fun findByFeedbackTypeAndRecord_IdAndSourceRevision(
+        feedbackType: FeedbackType,
+        recordId: UUID,
+        sourceRevision: Long,
+    ): CoachingFeedback?
 
-    fun findByRecordIdOrderByCreatedAtDesc(recordId: UUID): List<CoachingFeedback>
+    fun findAllByFeedbackTypeAndRecord_IdAndStatusIn(
+        feedbackType: FeedbackType,
+        recordId: UUID,
+        statuses: Collection<CoachingFeedbackStatus>,
+    ): List<CoachingFeedback>
+
+    fun findTopByFeedbackTypeAndRecord_IdAndStatusOrderByUpdatedAtDesc(
+        feedbackType: FeedbackType,
+        recordId: UUID,
+        status: CoachingFeedbackStatus,
+    ): CoachingFeedback?
+
+    fun findByIdAndMember_Id(id: UUID, memberId: UUID): CoachingFeedback?
 }

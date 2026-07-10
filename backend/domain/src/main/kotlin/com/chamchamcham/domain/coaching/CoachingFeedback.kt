@@ -1,10 +1,9 @@
 package com.chamchamcham.domain.coaching
 
 import com.chamchamcham.domain.common.BaseTimeEntity
-import com.chamchamcham.domain.crop.Crop
-import com.chamchamcham.domain.farm.Farm
 import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.member.Member
+import com.chamchamcham.domain.report.FarmingCycleReport
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -18,8 +17,6 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import java.math.BigDecimal
-import java.time.LocalDate
 import java.util.UUID
 
 @Entity
@@ -35,57 +32,111 @@ class CoachingFeedback(
     val member: Member,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "coaching_mode", nullable = false, length = 32)
-    val coachingMode: CoachingMode,
+    @Column(name = "feedback_type", nullable = false, length = 32)
+    val feedbackType: FeedbackType,
+
+    status: CoachingFeedbackStatus,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "record_id")
     val record: FarmingRecord? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "farm_id")
-    val farm: Farm? = null,
+    @JoinColumn(name = "cycle_report_id")
+    val cycleReport: FarmingCycleReport? = null,
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "crop_id")
-    val crop: Crop? = null,
+    @Column(name = "source_revision", nullable = false)
+    val sourceRevision: Long,
 
-    @Column(nullable = false, columnDefinition = "text")
-    val question: String,
-
-    @Column(name = "period_starts_on")
-    val periodStartsOn: LocalDate? = null,
-
-    @Column(name = "period_ends_on")
-    val periodEndsOn: LocalDate? = null,
-
-    @Column(nullable = false, columnDefinition = "text")
-    val summary: String,
-
-    @Column(name = "risk_level", nullable = false, length = 32)
-    val riskLevel: String,
-
-    @Column(name = "confidence_score", nullable = false, precision = 5, scale = 4)
-    val confidenceScore: BigDecimal,
+    inputSnapshot: Map<String, Any?>? = null,
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "structured_result", nullable = false, columnDefinition = "jsonb")
-    val structuredResult: Map<String, Any?>,
+    @Column(name = "structured_result", columnDefinition = "jsonb")
+    var structuredResult: Map<String, Any?>? = null,
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
-    val citations: List<Map<String, Any?>>,
+    var citations: List<Map<String, Any?>> = emptyList(),
 
-    @Column(name = "audit_status", nullable = false, length = 32)
-    val auditStatus: String,
+    @Column(name = "audit_status", length = 32)
+    var auditStatus: String? = null,
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "audit_warnings", nullable = false, columnDefinition = "jsonb")
-    val auditWarnings: List<String>,
+    var auditWarnings: List<String> = emptyList(),
 
-    @Column(name = "model_name", nullable = false, length = 128)
-    val modelName: String,
+    failureCode: String? = null,
 
-    @Column(name = "embedding_model", nullable = false, length = 128)
-    val embeddingModel: String,
-) : BaseTimeEntity()
+    @Column(name = "model_name", length = 128)
+    var modelName: String? = null,
+
+    @Column(name = "embedding_model", length = 128)
+    var embeddingModel: String? = null,
+) : BaseTimeEntity() {
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    var status: CoachingFeedbackStatus = status
+        private set
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "input_snapshot", columnDefinition = "jsonb")
+    var inputSnapshot: Map<String, Any?>? = inputSnapshot
+        private set
+
+    @Column(name = "failure_code", length = 128)
+    var failureCode: String? = failureCode
+        private set
+
+    init {
+        require(sourceRevision > 0) { "sourceRevision must be positive" }
+        require((record == null) != (cycleReport == null)) { "exactly one feedback target is required" }
+        require(feedbackType != FeedbackType.RECORD || record != null) { "record feedback requires a record target" }
+        require(feedbackType != FeedbackType.CYCLE_REPORT || cycleReport != null) {
+            "cycle report feedback requires a cycle report target"
+        }
+    }
+
+    fun attachInputSnapshot(snapshot: Map<String, Any?>) {
+        check(status == CoachingFeedbackStatus.PENDING) { "input snapshot can only be attached while pending" }
+        inputSnapshot = snapshot
+    }
+
+    fun markFailed(code: String) {
+        check(status == CoachingFeedbackStatus.PENDING) { "only pending feedback can fail" }
+        status = CoachingFeedbackStatus.FAILED
+        failureCode = code
+    }
+
+    fun retry() {
+        check(status == CoachingFeedbackStatus.FAILED) { "only failed feedback can retry" }
+        status = CoachingFeedbackStatus.PENDING
+        failureCode = null
+        inputSnapshot = null
+    }
+
+    fun markStale() {
+        if (status == CoachingFeedbackStatus.STALE) {
+            return
+        }
+        check(status == CoachingFeedbackStatus.PENDING || status == CoachingFeedbackStatus.READY) {
+            "only pending or ready feedback can become stale"
+        }
+        status = CoachingFeedbackStatus.STALE
+    }
+
+    companion object {
+        fun pendingRecord(
+            member: Member,
+            record: FarmingRecord,
+            sourceRevision: Long,
+        ): CoachingFeedback {
+            return CoachingFeedback(
+                member = member,
+                feedbackType = FeedbackType.RECORD,
+                status = CoachingFeedbackStatus.PENDING,
+                record = record,
+                sourceRevision = sourceRevision,
+            )
+        }
+    }
+}

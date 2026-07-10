@@ -8,13 +8,7 @@ import com.chamchamcham.application.coaching.rag.common.RagModelInfo
 import com.chamchamcham.application.coaching.rag.common.RagProperties
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
-import com.chamchamcham.domain.coaching.CoachingFeedback
-import com.chamchamcham.domain.coaching.CoachingFeedbackRepository
 import com.chamchamcham.domain.coaching.CoachingMode
-import com.chamchamcham.domain.crop.CropRepository
-import com.chamchamcham.domain.farm.FarmRepository
-import com.chamchamcham.domain.farming.FarmingRecordRepository
-import com.chamchamcham.domain.member.MemberRepository
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor
 import org.springframework.ai.rag.retrieval.search.DocumentRetriever
@@ -22,7 +16,6 @@ import org.springframework.ai.vectorstore.SearchRequest
 import org.springframework.ai.vectorstore.VectorStore
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.UUID
 
 @Service
 class CoachingRagService(
@@ -31,13 +24,6 @@ class CoachingRagService(
     private val contextProvider: CoachingContextProvider,
     private val filterBuilder: CoachingRetrievalFilterBuilder,
     private val validator: CoachingStructuredOutputValidator,
-    private val persistencePolicy: CoachingFeedbackPersistencePolicy,
-    private val feedbackRepository: CoachingFeedbackRepository,
-    private val memberRepository: MemberRepository,
-    private val farmRepository: FarmRepository,
-    private val cropRepository: CropRepository,
-    private val farmingRecordRepository: FarmingRecordRepository,
-    private val feedbackMapper: CoachingFeedbackMapper,
     private val ragProperties: RagProperties
 ) {
     @Transactional
@@ -87,17 +73,11 @@ class CoachingRagService(
 
         val allowedCitationIds = retrievedDocuments.map { it.id }.toSet()
         val audit = validator.validate(result, allowedCitationIds)
-        val savedFeedbackId = if (shouldSaveFeedback(command, audit)) {
-            saveFeedback(command, result, audit)
-        } else {
-            null
-        }
-
         return CoachingRagResult(
             result = result,
             audit = audit,
             model = modelInfo(),
-            savedFeedbackId = savedFeedbackId
+            savedFeedbackId = null
         )
     }
 
@@ -124,56 +104,9 @@ class CoachingRagService(
     }
 
     private fun validateModeRequirements(command: CoachingRagCommand) {
-        if (command.mode == CoachingMode.RECORD_AUTO && command.recordId == null) {
+        if (command.mode != CoachingMode.CHAT) {
             throw BusinessException(ErrorCode.RAG_INVALID_REQUEST)
         }
-    }
-
-    private fun shouldSaveFeedback(command: CoachingRagCommand, audit: RagAuditResult): Boolean {
-        return persistencePolicy.shouldSave(command) && audit.status != RagAuditStatus.FAIL
-    }
-
-    private fun saveFeedback(
-        command: CoachingRagCommand,
-        result: CoachingStructuredResult,
-        audit: RagAuditResult
-    ): UUID {
-        val member = memberRepository.findById(command.memberId).orElseThrow {
-            BusinessException(ErrorCode.MEMBER_NOT_FOUND)
-        }
-        val record = command.recordId?.let {
-            farmingRecordRepository.findByIdAndMember_Id(it, command.memberId)
-                ?: throw BusinessException(ErrorCode.RAG_INVALID_REQUEST)
-        }
-        val farm = command.farmId?.let {
-            farmRepository.findByIdAndOwnerId(it, command.memberId)
-                ?: throw BusinessException(ErrorCode.RAG_INVALID_REQUEST)
-        } ?: record?.farm
-        val crop = command.cropId?.let { cropRepository.findById(it).orElse(null) } ?: record?.crop
-        val payload = feedbackMapper.toPayload(command, result)
-
-        val feedback = CoachingFeedback(
-            member = member,
-            coachingMode = command.mode,
-            record = record,
-            farm = farm,
-            crop = crop,
-            question = command.question,
-            periodStartsOn = command.periodStart,
-            periodEndsOn = command.periodEnd,
-            summary = result.summary,
-            riskLevel = result.riskLevel.name,
-            confidenceScore = payload.confidenceScore,
-            structuredResult = payload.structuredResult,
-            citations = payload.citations,
-            auditStatus = audit.status.name,
-            auditWarnings = audit.warnings,
-            modelName = ragProperties.chat.model,
-            embeddingModel = ragProperties.embedding.model
-        )
-
-        return feedbackRepository.save(feedback).id
-            ?: throw BusinessException(ErrorCode.INTERNAL_ERROR)
     }
 
     private fun systemPrompt(): String {
