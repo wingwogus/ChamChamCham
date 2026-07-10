@@ -153,6 +153,25 @@ class VoiceSessionServiceTest {
     }
 
     @Test
+    fun `생성 상태가 아닌 세션에 대화 턴을 제출하려 하면 예외를 던진다`() {
+        val session = VoiceRecordSession(id = sessionId, member = member, status = VoiceSessionStatus.WAITING_CONFIRMATION)
+        `when`(voiceRecordSessionRepository.findByIdAndMemberId(sessionId, memberId)).thenReturn(session)
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.submitTurns(
+                VoiceSessionCommand.SubmitTurns(
+                    memberId = memberId,
+                    sessionId = sessionId,
+                    turns = listOf(VoiceSessionCommand.TurnInput(role = VoiceTurnRole.USER, content = "어제 물 줬어요")),
+                    candidate = VoiceRecordCandidate(workType = WorkType.WATERING),
+                )
+            )
+        }
+
+        assertThat(exception.errorCode).isEqualTo(ErrorCode.VOICE_SESSION_INVALID_STATE)
+    }
+
+    @Test
     fun `확인대기 상태가 아닌 세션을 승인하려 하면 예외를 던진다`() {
         val session = VoiceRecordSession(id = sessionId, member = member, status = VoiceSessionStatus.CREATED)
         `when`(voiceRecordSessionRepository.findByIdAndMemberId(sessionId, memberId)).thenReturn(session)

@@ -67,6 +67,9 @@ class VoiceSessionService(
 
     fun submitTurns(command: VoiceSessionCommand.SubmitTurns): VoiceSessionResult.Processed {
         val session = findSession(command.sessionId, command.memberId)
+        if (session.status != VoiceSessionStatus.CREATED) {
+            throw BusinessException(ErrorCode.VOICE_SESSION_INVALID_STATE)
+        }
 
         command.turns.forEach { turn ->
             voiceRecordTurnRepository.save(
