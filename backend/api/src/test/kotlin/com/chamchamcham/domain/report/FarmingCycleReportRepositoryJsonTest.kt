@@ -1,8 +1,8 @@
 package com.chamchamcham.domain.report
 
+import com.chamchamcham.domain.common.BaseTimeEntity
 import com.chamchamcham.domain.crop.Crop
 import com.chamchamcham.domain.crop.CropUsePartCategory
-import com.chamchamcham.domain.common.BaseTimeEntity
 import com.chamchamcham.domain.farm.Farm
 import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.farming.WorkType
@@ -11,25 +11,23 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.SpringBootConfiguration
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.context.TestPropertySource
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
-@DataJpaTest
-@ActiveProfiles("test")
-@TestPropertySource(
-    properties = ["spring.jpa.properties.hibernate.type.json_format_mapper=com.chamchamcham.domain.report.TestJsonFormatMapper"],
+@DataJpaTest(
+    properties = [
+        "spring.datasource.url=jdbc:h2:mem:report-json-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE DOMAIN IF NOT EXISTS JSONB AS JSON",
+    ],
 )
-class FarmingCycleReportRepositoryTest @Autowired constructor(
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class FarmingCycleReportRepositoryJsonTest @Autowired constructor(
     private val entityManager: TestEntityManager,
     private val repository: FarmingCycleReportRepository,
 ) {
@@ -67,7 +65,7 @@ class FarmingCycleReportRepositoryTest @Autowired constructor(
     }
 
     @Test
-    fun `typed statistics round trip without value changes`() {
+    fun `typed statistics round trip through production Jackson JSON mapping`() {
         val original = completedReport(statisticsWithEveryWorkType())
         val id = requireNotNull(repository.saveAndFlush(original).id)
         entityManager.clear()
@@ -233,9 +231,3 @@ class FarmingCycleReportRepositoryTest @Autowired constructor(
         }
     }
 }
-
-@SpringBootConfiguration
-@EnableAutoConfiguration
-@EntityScan(basePackages = ["com.chamchamcham.domain"])
-@EnableJpaRepositories(basePackages = ["com.chamchamcham.domain"])
-private class FarmingCycleReportRepositoryTestApplication
