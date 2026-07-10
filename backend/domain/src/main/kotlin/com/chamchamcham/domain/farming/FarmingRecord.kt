@@ -57,9 +57,15 @@ class FarmingRecord(
     @Column(name = "entry_mode", nullable = false, length = 32)
     val entryMode: String,
 
+    sourceRevision: Long = 1,
+
     @Column(name = "is_deleted", nullable = false)
     var isDeleted: Boolean = false,
 ) : BaseTimeEntity() {
+    @Column(name = "source_revision", nullable = false)
+    var sourceRevision: Long = sourceRevision
+        private set
+
     fun update(
         farm: Farm,
         crop: Crop,
@@ -76,9 +82,11 @@ class FarmingRecord(
         this.weatherCondition = weatherCondition
         this.weatherTemperature = weatherTemperature
         this.memo = memo
+        sourceRevision += 1
     }
 
     fun softDelete() {
         isDeleted = true
+        sourceRevision += 1
     }
 }
