@@ -27,6 +27,6 @@ object VoiceRecordCandidateAnalyzer {
         WorkType.FERTILIZING -> candidate.fertilizing
         WorkType.PEST_CONTROL -> candidate.pestControl
         WorkType.HARVEST -> candidate.harvest
-        WorkType.PLANTING, WorkType.WATERING, WorkType.WEEDING, WorkType.PRUNING -> Unit
+        WorkType.PLANTING, WorkType.WATERING, WorkType.WEEDING, WorkType.PRUNING, WorkType.ETC -> Unit
     }
 }

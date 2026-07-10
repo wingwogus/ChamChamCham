@@ -149,7 +149,7 @@ class VoiceSessionControllerTest(
             workedAt = LocalDateTime.of(2026, 6, 1, 9, 0),
             weatherCondition = "맑음",
             weatherTemperature = 20,
-            memo = "물 줬어요",
+            memo = "물을 충분히 주었고 토양 상태도 양호하여 특별한 이상 없이 관수 작업을 마쳤습니다",
             entryMode = EntryMode.VOICE,
         ),
     )
@@ -162,7 +162,7 @@ class VoiceSessionControllerTest(
           "workedAt":"2026-06-01T09:00:00",
           "weatherCondition":"맑음",
           "weatherTemperature":20,
-          "memo":"물 줬어요",
+          "memo":"물을 충분히 주었고 토양 상태도 양호하여 특별한 이상 없이 관수 작업을 마쳤습니다",
           "entryMode":"MANUAL"
         }
     """.trimIndent()

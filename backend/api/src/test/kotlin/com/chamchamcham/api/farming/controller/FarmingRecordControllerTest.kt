@@ -8,7 +8,6 @@ import com.chamchamcham.application.farming.FarmingRecordService
 import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.domain.crop.CropUsePartCategory
 import com.chamchamcham.domain.farming.GrowthPeriodUnit
-import com.chamchamcham.domain.farming.HarvestAmountUnit
 import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.WorkType
 import org.hamcrest.Matchers.equalTo
@@ -149,7 +148,7 @@ class FarmingRecordControllerTest(
               "workedAt":"2026-06-01T09:00:00",
               "weatherCondition":"맑음",
               "weatherTemperature":28,
-              "memo":"메모",
+              "memo":"오늘은 날씨가 좋아 하루 종일 시비 작업을 진행했고 별다른 문제 없이 마무리했습니다",
               "fertilizing":{
                 "materialName":" ",
                 "amount":10,
@@ -166,6 +165,134 @@ class FarmingRecordControllerTest(
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `create record rejects harvest without medicinal part`() {
+        val json = """
+            {
+              "farmId":"$farmId",
+              "cropId":"$cropId",
+              "workType":"HARVEST",
+              "workedAt":"2026-06-01T09:00:00",
+              "weatherCondition":"맑음",
+              "weatherTemperature":28,
+              "memo":"오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
+              "harvest":{
+                "harvestAmount":10,
+                "harvestSource":"CULTIVATED",
+                "growthPeriod":2,
+                "growthPeriodUnit":"YEAR"
+              }
+            }
+        """.trimIndent()
+
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `create record accepts unknown harvest amount`() {
+        val command = FarmingRecordCommand.Create(
+            memberId = memberId,
+            farmId = farmId,
+            cropId = cropId,
+            workType = WorkType.HARVEST,
+            workedAt = workedAt,
+            weatherCondition = "맑음",
+            weatherTemperature = 28,
+            memo = "오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
+            harvest = FarmingRecordCommand.HarvestDetail(
+                harvestAmount = null,
+                amountUnknown = true,
+                medicinalPart = CropUsePartCategory.ROOT_BARK,
+                harvestSource = HarvestSource.CULTIVATED,
+                growthPeriod = 2,
+                growthPeriodUnit = GrowthPeriodUnit.YEAR,
+            ),
+        )
+        `when`(farmingRecordService.create(command)).thenReturn(FarmingRecordResult.RecordId(id = recordId, workType = WorkType.HARVEST))
+
+        val json = """
+            {
+              "farmId":"$farmId",
+              "cropId":"$cropId",
+              "workType":"HARVEST",
+              "workedAt":"2026-06-01T09:00:00",
+              "weatherCondition":"맑음",
+              "weatherTemperature":28,
+              "memo":"오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
+              "harvest":{
+                "harvestAmountUnknown":true,
+                "medicinalPart":"ROOT_BARK",
+                "harvestSource":"CULTIVATED",
+                "growthPeriod":2,
+                "growthPeriodUnit":"YEAR"
+              }
+            }
+        """.trimIndent()
+
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `create record rejects planting without propagation method`() {
+        val json = """
+            {
+              "farmId":"$farmId",
+              "cropId":"$cropId",
+              "workType":"PLANTING",
+              "workedAt":"2026-06-01T09:00:00",
+              "weatherCondition":"맑음",
+              "weatherTemperature":28,
+              "memo":"오늘은 날씨가 좋아 하루 종일 파종 작업을 진행했고 별다른 문제 없이 마무리했습니다",
+              "planting":{
+                "seedAmount":10,
+                "seedAmountUnit":"KG"
+              }
+            }
+        """.trimIndent()
+
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `create record rejects memo shorter than thirty characters`() {
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(saveRecordJson(memo = "너무 짧은 메모"))
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `create record rejects memo longer than five hundred characters`() {
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(saveRecordJson(memo = "메".repeat(501)))
+        )
+            .andExpect(status().isBadRequest)
     }
 
     @Test
@@ -222,7 +349,8 @@ class FarmingRecordControllerTest(
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.id", equalTo(recordId.toString())))
-            .andExpect(jsonPath("$.data.harvest.harvestAmountUnit", equalTo("KG")))
+            .andExpect(jsonPath("$.data.harvest.harvestAmount", equalTo(10)))
+            .andExpect(jsonPath("$.data.harvest.amountUnknown", equalTo(false)))
     }
 
     @Test
@@ -267,7 +395,7 @@ class FarmingRecordControllerTest(
         mediaIdsJson: String = "[\"$mediaId\"]",
         harvestAmount: String = "10",
         growthPeriod: String = "2",
-        memo: String = "수확 완료"
+        memo: String = "오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다"
     ): String {
         return """
             {
@@ -280,7 +408,7 @@ class FarmingRecordControllerTest(
               "memo":"$memo",
               "harvest":{
                 "harvestAmount":$harvestAmount,
-                "harvestAmountUnit":"KG",
+                "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
                 "growthPeriod":$growthPeriod,
                 "growthPeriodUnit":"YEAR"
@@ -299,10 +427,10 @@ class FarmingRecordControllerTest(
             workedAt = workedAt,
             weatherCondition = "맑음",
             weatherTemperature = 28,
-            memo = "수확 완료",
+            memo = "오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
             harvest = FarmingRecordCommand.HarvestDetail(
                 harvestAmount = BigDecimal.TEN,
-                harvestAmountUnit = HarvestAmountUnit.KG,
+                medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
@@ -320,10 +448,10 @@ class FarmingRecordControllerTest(
             workedAt = workedAt,
             weatherCondition = "맑음",
             weatherTemperature = 28,
-            memo = "수확 완료",
+            memo = "오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
             harvest = FarmingRecordCommand.HarvestDetail(
                 harvestAmount = BigDecimal.TEN,
-                harvestAmountUnit = HarvestAmountUnit.KG,
+                medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
@@ -364,7 +492,6 @@ class FarmingRecordControllerTest(
             memo = "수확 완료",
             harvest = FarmingRecordResult.HarvestDetail(
                 harvestAmount = BigDecimal.TEN,
-                harvestAmountUnit = HarvestAmountUnit.KG,
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,

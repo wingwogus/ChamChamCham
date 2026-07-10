@@ -32,8 +32,11 @@ object VoiceSessionInstructions {
             save_farming_record를 호출하지 말고, 누락된 항목을 한 번에 하나씩 질문하세요:
             - FERTILIZING(시비): 비료명, 시비량, 단위 필수
             - PEST_CONTROL(병해충 방제): 농약명, 농약량, 총 살포량과 단위 필수
-            - HARVEST(수확): 수확량, 단위, 재배기간, 재배기간 단위 필수
-            - PLANTING(파종/정식): 종자를 구매했다고 말한 경우(seedSource=PURCHASED) 구매처(seedPurchasePlace) 필수
+            - HARVEST(수확): 수확량(kg), 수확 부위(medicinalPart), 재배기간, 재배기간 단위 필수.
+              사용자가 수확량을 모른다고 하면 harvestAmountUnknown=true로 두고 수확량은 비우세요(0으로 채우지 마세요).
+            - PLANTING(파종/정식): 번식법(propagationMethod) 필수. 번식법이 종자(SEED)면 파종량(seedAmount/
+              seedAmountUnit)만 묻고, 그 외 번식법이면 모종수(seedlingCount/seedlingUnit)만 물으세요.
+              반대쪽 항목은 절대 채우지 마세요.
 
             memo는 항상 필요합니다(사용자가 말한 작업 내용을 간단히 요약).
 

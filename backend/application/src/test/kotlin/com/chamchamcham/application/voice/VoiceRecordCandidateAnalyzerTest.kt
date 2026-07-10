@@ -25,6 +25,15 @@ class VoiceRecordCandidateAnalyzerTest {
     }
 
     @Test
+    fun `기타 workType은 detail 누락으로 보고하지 않는다`() {
+        val candidate = baseCandidate(workType = WorkType.ETC)
+
+        val missing = VoiceRecordCandidateAnalyzer.missingFields(candidate)
+
+        assertThat(missing).doesNotContain("detail")
+    }
+
+    @Test
     fun `시비는 상세정보가 없으면 detail 누락으로 보고한다`() {
         val candidate = baseCandidate(workType = WorkType.FERTILIZING)
 
