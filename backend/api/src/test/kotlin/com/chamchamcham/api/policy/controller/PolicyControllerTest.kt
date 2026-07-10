@@ -5,6 +5,7 @@ import com.chamchamcham.application.policy.recommendation.PolicyRecommendationRe
 import com.chamchamcham.application.policy.recommendation.PolicyRecommendationService
 import com.chamchamcham.application.policy.support.PolicyBenefitCategory
 import com.chamchamcham.application.security.TokenProvider
+import com.chamchamcham.domain.policy.PolicyRecommendationSort
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
@@ -43,7 +44,15 @@ class PolicyControllerTest(
 
     @Test
     fun `list recommendations maps authenticated principal and returns items plus next cursor`() {
-        `when`(policyRecommendationService.listRecommendations(memberId, null, 20, null))
+        `when`(
+            policyRecommendationService.listRecommendations(
+                memberId,
+                null,
+                20,
+                null,
+                PolicyRecommendationSort.RECOMMENDED
+            )
+        )
             .thenReturn(
                 PolicyRecommendationResult.Page(
                     items = listOf(
@@ -81,7 +90,13 @@ class PolicyControllerTest(
             .andExpect(jsonPath("$.data.items[0].reason", equalTo("재배 작물과 지역 조건이 일치합니다")))
             .andExpect(jsonPath("$.data.nextCursor", equalTo("cursor-2")))
 
-        verify(policyRecommendationService).listRecommendations(memberId, null, 20, null)
+        verify(policyRecommendationService).listRecommendations(
+            memberId,
+            null,
+            20,
+            null,
+            PolicyRecommendationSort.RECOMMENDED
+        )
     }
 
     @Test
@@ -91,7 +106,8 @@ class PolicyControllerTest(
                 memberId,
                 null,
                 20,
-                PolicyBenefitCategory.FINANCE
+                PolicyBenefitCategory.FINANCE,
+                PolicyRecommendationSort.RECOMMENDED
             )
         ).thenReturn(PolicyRecommendationResult.Page(emptyList(), null))
 
@@ -106,8 +122,45 @@ class PolicyControllerTest(
             memberId,
             null,
             20,
-            PolicyBenefitCategory.FINANCE
+            PolicyBenefitCategory.FINANCE,
+            PolicyRecommendationSort.RECOMMENDED
         )
+    }
+
+    @Test
+    fun `list recommendations passes latest sort to service`() {
+        `when`(
+            policyRecommendationService.listRecommendations(
+                memberId,
+                null,
+                20,
+                null,
+                PolicyRecommendationSort.LATEST
+            )
+        ).thenReturn(PolicyRecommendationResult.Page(emptyList(), null))
+
+        mockMvc.perform(
+            get("/api/v1/policy-recommendations")
+                .param("sort", "LATEST")
+                .with(authenticatedMember(memberId.toString()))
+        ).andExpect(status().isOk)
+
+        verify(policyRecommendationService).listRecommendations(
+            memberId,
+            null,
+            20,
+            null,
+            PolicyRecommendationSort.LATEST
+        )
+    }
+
+    @Test
+    fun `list recommendations rejects unknown sort`() {
+        mockMvc.perform(
+            get("/api/v1/policy-recommendations")
+                .param("sort", "BAD")
+                .with(authenticatedMember(memberId.toString()))
+        ).andExpect(status().isBadRequest)
     }
 
     @Test
