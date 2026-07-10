@@ -300,7 +300,7 @@ class PolicySyncServiceTest {
                 eligibilityOriginal = "농업경영정보를 등록하고 친환경인증을 받은 농업인",
                 eligibilitySummary = "인증 보유 농업인",
                 benefitOriginal = "인증단계별 직불금 지원",
-                benefitSummary = "직불/수당",
+                benefitSummary = "지원금",
                 applyStartsOn = LocalDate.of(2026, 2, 1),
                 applyEndsOn = LocalDate.of(2026, 3, 31),
                 applicationPeriodLabel = "2026.02.01~03.31",
