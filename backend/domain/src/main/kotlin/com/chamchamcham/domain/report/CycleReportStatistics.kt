@@ -1,23 +1,22 @@
 package com.chamchamcham.domain.report
 
-import java.io.Serializable
 import java.math.BigDecimal
 import java.time.LocalDate
 
-data class Coverage(val recordedCount: Int, val targetCount: Int) : Serializable
+data class Coverage(val recordedCount: Int, val targetCount: Int)
 
 data class CountDistribution(
     val code: String,
     val label: String,
     val count: Int,
     val ratePct: BigDecimal,
-) : Serializable
+)
 
 data class AmountByUnit(
     val unit: String,
     val amount: BigDecimal,
     val coverage: Coverage,
-) : Serializable
+)
 
 data class PropagationStatistics(
     val code: String,
@@ -27,7 +26,7 @@ data class PropagationStatistics(
     val totalQuantity: BigDecimal?,
     val quantityUnit: String?,
     val quantityCoverage: Coverage,
-) : Serializable
+)
 
 data class MaterialCategoryStatistics(
     val code: String,
@@ -36,7 +35,7 @@ data class MaterialCategoryStatistics(
     val recordRatePct: BigDecimal,
     val amountKg: BigDecimal,
     val amountRatePct: BigDecimal,
-) : Serializable
+)
 
 data class CategoryMethodStatistics(
     val categoryCode: String,
@@ -45,7 +44,7 @@ data class CategoryMethodStatistics(
     val methodLabel: String,
     val recordCount: Int,
     val recordRatePct: BigDecimal,
-) : Serializable
+)
 
 data class CategoryAmountByUnit(
     val categoryCode: String,
@@ -54,9 +53,9 @@ data class CategoryAmountByUnit(
     val recordCount: Int,
     val amount: BigDecimal,
     val coverage: Coverage,
-) : Serializable
+)
 
-data class TargetCount(val target: String, val count: Int) : Serializable
+data class TargetCount(val target: String, val count: Int)
 
 data class HarvestPartStatistics(
     val code: String,
@@ -66,9 +65,9 @@ data class HarvestPartStatistics(
     val knownAmountKg: BigDecimal?,
     val amountRatePct: BigDecimal?,
     val amountCoverage: Coverage,
-) : Serializable
+)
 
-data class GrowthPeriodRange(val minMonths: Int, val maxMonths: Int) : Serializable
+data class GrowthPeriodRange(val minMonths: Int, val maxMonths: Int)
 
 data class CommonOnlyStatistics(
     val recordCount: Int = 0,
@@ -80,7 +79,7 @@ data class CommonOnlyStatistics(
     val photoAttachmentRatePct: BigDecimal? = null,
     val weatherDistribution: List<CountDistribution> = emptyList(),
     val averageTemperatureC: BigDecimal? = null,
-) : Serializable {
+) {
     companion object {
         fun empty() = CommonOnlyStatistics()
     }
@@ -97,7 +96,7 @@ data class PlantingStatistics(
     val weatherDistribution: List<CountDistribution> = emptyList(),
     val averageTemperatureC: BigDecimal? = null,
     val propagationMethods: List<PropagationStatistics> = emptyList(),
-) : Serializable {
+) {
     companion object {
         fun empty() = PlantingStatistics()
     }
@@ -115,7 +114,7 @@ data class WateringStatistics(
     val averageTemperatureC: BigDecimal? = null,
     val amountDistribution: List<CountDistribution> = emptyList(),
     val methodDistribution: List<CountDistribution> = emptyList(),
-) : Serializable {
+) {
     companion object {
         fun empty() = WateringStatistics()
     }
@@ -137,7 +136,7 @@ data class FertilizingStatistics(
     val materialCategories: List<MaterialCategoryStatistics> = emptyList(),
     val methodDistribution: List<CountDistribution> = emptyList(),
     val categoryMethods: List<CategoryMethodStatistics> = emptyList(),
-) : Serializable {
+) {
     companion object {
         fun empty() = FertilizingStatistics()
     }
@@ -159,7 +158,7 @@ data class PestControlStatistics(
     val totalSprayAmountLiters: BigDecimal? = null,
     val sprayAmountCoverage: Coverage = Coverage(0, 0),
     val targets: List<TargetCount> = emptyList(),
-) : Serializable {
+) {
     companion object {
         fun empty() = PestControlStatistics()
     }
@@ -176,7 +175,7 @@ data class WeedingStatistics(
     val weatherDistribution: List<CountDistribution> = emptyList(),
     val averageTemperatureC: BigDecimal? = null,
     val methodDistribution: List<CountDistribution> = emptyList(),
-) : Serializable {
+) {
     companion object {
         fun empty() = WeedingStatistics()
     }
@@ -200,7 +199,7 @@ data class HarvestStatistics(
     val medicinalParts: List<HarvestPartStatistics> = emptyList(),
     val finalGrowthPeriodMonths: Int? = null,
     val growthPeriodRangeMonths: GrowthPeriodRange? = null,
-) : Serializable {
+) {
     companion object {
         fun empty() = HarvestStatistics()
     }
@@ -215,7 +214,7 @@ data class CycleReportStatistics(
     val pruning: CommonOnlyStatistics = CommonOnlyStatistics.empty(),
     val harvest: HarvestStatistics = HarvestStatistics.empty(),
     val etc: CommonOnlyStatistics = CommonOnlyStatistics.empty(),
-) : Serializable {
+) {
     companion object {
         fun empty() = CycleReportStatistics()
     }
