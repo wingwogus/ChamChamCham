@@ -62,6 +62,7 @@ class PolicyRecommendationService(
         ) ?: return PolicyRecommendationResult.Page(emptyList(), null)
         val source = PolicySource.NONGUP_EZ
         val sourceYear = latestJob.targetYear
+        val decodedCursor = decodeCursor(cursor, source, sourceYear, benefitCategory, sort)
         val today = LocalDate.now(clock)
         val candidates = policyProgramRepository.findRecommendableCandidates(
             source,
@@ -78,7 +79,6 @@ class PolicyRecommendationService(
             regenerate(memberId, member, source, sourceYear, candidates, today, memberCrops, farms)
         }
 
-        val decodedCursor = decodeCursor(cursor, source, sourceYear, benefitCategory, sort)
         val result = policyRecommendationQueryRepository.findPage(
             PolicyRecommendationQueryRepository.SearchCondition(
                 memberId = memberId,
