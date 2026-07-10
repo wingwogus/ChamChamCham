@@ -329,7 +329,6 @@ class FarmingRecordQueryRepositoryTest @Autowired constructor(
             HarvestRecord(
                 record = record,
                 harvestAmount = BigDecimal.TEN,
-                harvestAmountUnit = HarvestAmountUnit.KG,
                 medicinalPart = medicinalPart,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 1,

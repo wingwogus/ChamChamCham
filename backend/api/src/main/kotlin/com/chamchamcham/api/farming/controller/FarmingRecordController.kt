@@ -143,8 +143,7 @@ class FarmingRecordController(
                 seedAmountUnit = it.seedAmountUnit,
                 seedlingCount = it.seedlingCount,
                 seedlingUnit = it.seedlingUnit,
-                seedSource = it.seedSource,
-                seedPurchasePlace = it.seedPurchasePlace,
+                propagationMethod = requireNotNull(it.propagationMethod),
             )
         }
 
@@ -185,7 +184,8 @@ class FarmingRecordController(
         harvest?.let {
             FarmingRecordCommand.HarvestDetail(
                 harvestAmount = it.harvestAmount,
-                harvestAmountUnit = it.harvestAmountUnit,
+                amountUnknown = it.harvestAmountUnknown,
+                medicinalPart = requireNotNull(it.medicinalPart),
                 harvestSource = it.harvestSource,
                 growthPeriod = it.growthPeriod,
                 growthPeriodUnit = it.growthPeriodUnit,
