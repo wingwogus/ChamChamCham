@@ -542,12 +542,12 @@
       </aside>
 
       <div class="stack">
-        <nav aria-label="테스트 영역">
-          <button class="tab" data-view="feedback" aria-selected="true" type="button">기록 피드백</button>
-          <button class="tab" data-view="report" aria-selected="false" type="button">리포트 통계</button>
+        <nav role="tablist" aria-label="테스트 영역">
+          <button id="feedbackTab" class="tab" role="tab" data-view="feedback" aria-controls="feedbackView" aria-selected="true" type="button">기록 피드백</button>
+          <button id="reportTab" class="tab" role="tab" data-view="report" aria-controls="reportView" aria-selected="false" type="button">리포트 통계</button>
         </nav>
 
-        <section id="feedbackView">
+        <section id="feedbackView" role="tabpanel" aria-labelledby="feedbackTab">
           <div class="report-title">
             <div class="stack compact">
               <h2>기록 저장 및 피드백</h2>
@@ -616,7 +616,7 @@
           </div>
         </section>
 
-        <section id="reportView" hidden>
+        <section id="reportView" role="tabpanel" aria-labelledby="reportTab" hidden>
           <div class="report-title">
             <div class="stack compact">
               <h2>리포트 통계</h2>
@@ -646,17 +646,19 @@
             <button id="loadReportDetail" class="secondary" type="button">상세 조회</button>
           </div>
 
-          <div class="report-tabs" aria-label="스냅샷 선택">
-            <button class="tab active" data-report-scope="current" type="button">현재</button>
-            <button class="tab" data-report-scope="previous" type="button">직전</button>
-            <button class="tab" data-report-scope="selected" type="button">상세</button>
+          <div class="report-tabs" role="tablist" aria-label="스냅샷 선택">
+            <button id="currentReportTab" class="tab active" role="tab" aria-controls="reportSnapshotContent" aria-selected="true" data-report-scope="current" type="button">현재</button>
+            <button id="previousReportTab" class="tab" role="tab" aria-controls="reportSnapshotContent" aria-selected="false" data-report-scope="previous" type="button">직전</button>
+            <button id="selectedReportTab" class="tab" role="tab" aria-controls="reportSnapshotContent" aria-selected="false" data-report-scope="selected" type="button">상세</button>
           </div>
 
-          <div id="reportSummary" class="metrics"></div>
-          <div id="reportList" class="panel compact"></div>
+          <div id="reportSnapshotContent" class="stack compact" role="tabpanel" aria-labelledby="currentReportTab">
+            <div id="reportSummary" class="metrics"></div>
+            <div id="reportList" class="panel compact"></div>
 
-          <div class="work-tabs" aria-label="작업 유형"></div>
-          <div id="workStats" class="panel compact"></div>
+            <div class="work-tabs" role="tablist" aria-label="작업 유형"></div>
+            <div id="workStats" class="panel compact" role="tabpanel"></div>
+          </div>
         </section>
       </div>
 
@@ -1172,6 +1174,10 @@
       $$(".report-tabs button").forEach((button) => {
         const active = button.dataset.reportScope === state.reportScope;
         button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+        if (active) {
+          $("reportSnapshotContent").setAttribute("aria-labelledby", button.id);
+        }
       });
 
       const selected = snapshotForScope();
@@ -1201,7 +1207,11 @@
         ...workTypeOrder.map((type) => {
           const button = document.createElement("button");
           button.type = "button";
+          button.id = `workTypeTab-${type}`;
           button.className = `tab${state.workType === type ? " active" : ""}`;
+          button.setAttribute("role", "tab");
+          button.setAttribute("aria-controls", "workStats");
+          button.setAttribute("aria-selected", String(state.workType === type));
           button.dataset.workType = type;
           button.textContent = workTypeLabels[type];
           button.addEventListener("click", () => {
@@ -1211,6 +1221,7 @@
           return button;
         })
       );
+      $("workStats").setAttribute("aria-labelledby", `workTypeTab-${state.workType}`);
     }
 
     function renderWorkStats(stats) {
