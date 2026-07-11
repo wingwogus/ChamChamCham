@@ -17,6 +17,8 @@
 
 - 정책 추천 프로필 생성 시 `MemberCrop`과 `Crop`을 같은 SELECT로 조회해 작물 수에
   비례한 추가 SELECT를 제거한다.
+- 정책 추천 프로필 생성 시 `Farm`과 EAGER `boundaryCoordinates`를 같은 SELECT로
+  먼저 조회해 농장 수에 비례한 secondary SELECT를 제거한다.
 - 정책 추천 카드 조회 시 기존 `PolicyRecommendation`과 `PolicyProgram` fetch join
   계약을 회귀 테스트로 고정한다.
 - 조회 결과, 정렬, 커서, stale 판정, 추천 재생성 동작은 변경하지 않는다.
@@ -54,10 +56,33 @@ fun findAllWithCropByMemberId(@Param("memberId") memberId: UUID): List<MemberCro
 `PolicyRecommendationService.listRecommendations()`만 이 메서드를 사용한다.
 추천 프로필 생성에서 `crop.name`과 `crop.usePartCategory`를 읽어도 영속성 컨텍스트가
 추가 SELECT를 수행하지 않는다. 이 경로에서 사용하지 않는 `member`와 `farm`은 fetch
-join하지 않는다. 현재 엔티티 bytecode가 `final`이라 cold persistence context에서는
-사용하지 않는 `member`와 `farm`을 Hibernate가 각각 한 번 추가 조회할 수 있다. 이
-고정 비용을 없애기 위해 불필요한 연관까지 fetch join하거나 전역 프록시 설정을
-바꾸지는 않는다.
+join하지 않는다. 대신 아래 정책 전용 농장 조회를 먼저 실행해 final인 `farm` 연관이
+영속성 컨텍스트에서 해소되도록 한다.
+
+### 정책 전용 농장·경계 조회와 호출 순서
+
+`Farm.boundaryCoordinates`는 EAGER이므로 기존 `findByOwnerId()`는 다중 농장에서
+농장별 secondary SELECT를 발생시킨다. 기존 계약은 유지하고 정책 전용 메서드를
+추가한다.
+
+```kotlin
+@Query(
+    """
+    select distinct f
+    from Farm f
+    left join fetch f.boundaryCoordinates
+    where f.owner.id = :ownerId
+    """
+)
+fun findAllWithBoundaryCoordinatesByOwnerId(
+    @Param("ownerId") ownerId: UUID
+): List<Farm>
+```
+
+서비스는 회원을 조회한 다음 이 농장 쿼리를 실행하고, 그 뒤 회원 작물 쿼리를
+실행한다. 농장과 경계가 먼저 영속성 컨텍스트에 들어가므로 final인
+`MemberCrop.farm` 때문에 농장별 SELECT가 다시 발생하지 않는다. 순서만 바꾸고 기존
+농장 쿼리를 유지하면 EAGER 경계 조회가 남으므로 두 변경은 함께 적용한다.
 
 ### 기존 정책 카드 조회 유지
 
@@ -69,11 +94,12 @@ join하지 않는다. 현재 엔티티 bytecode가 `final`이라 cold persistenc
 ## 데이터 흐름
 
 1. 서비스가 최신 성공 동기화 작업과 정책 후보를 조회한다.
-2. 회원과 농장 정보를 조회한다.
-3. 정책 전용 회원 작물 쿼리가 `MemberCrop`과 `Crop`을 한 번에 조회한다.
-4. 서비스가 로딩된 작물 정보로 추천 프로필과 stale 여부를 계산한다.
-5. 기존 추천 페이지 쿼리가 `PolicyRecommendation`과 `PolicyProgram`을 한 번에 조회한다.
-6. 서비스가 기존 정렬·커서 규칙으로 카드와 다음 커서를 반환한다.
+2. 회원 정보를 조회한다.
+3. 정책 전용 농장 쿼리가 `Farm`과 경계 좌표를 한 번에 조회한다.
+4. 정책 전용 회원 작물 쿼리가 `MemberCrop`과 `Crop`을 한 번에 조회한다.
+5. 서비스가 로딩된 농장·작물 정보로 추천 프로필과 stale 여부를 계산한다.
+6. 기존 추천 페이지 쿼리가 `PolicyRecommendation`과 `PolicyProgram`을 한 번에 조회한다.
+7. 서비스가 기존 정렬·커서 규칙으로 카드와 다음 커서를 반환한다.
 
 추천이 stale한 경우의 삭제와 저장 횟수는 이번 query-count 합격 기준에 포함하지
 않는다. 단, stale 여부와 관계없이 회원 작물 조회에서 작물 수에 비례한 SELECT가
@@ -83,12 +109,11 @@ join하지 않는다. 현재 엔티티 bytecode가 `final`이라 cold persistenc
 
 ### 회원 작물 N+1 회귀 테스트
 
-도메인 JPA 테스트에서 서로 다른 작물 3개를 가진 회원을 저장한다. 영속성 컨텍스트를
-비우고 Hibernate statistics를 초기화한 뒤 정책 전용 메서드를 호출한다. 반환된 모든
-`crop.name`과 `crop.usePartCategory`를 실제로 읽은 다음 statement count가 3 이하인지
-검증한다. 현재 매핑에서는 본 쿼리 1회와 final인 `member`, `farm`의 고정 조회가 각각
-1회 발생한다. fetch join을 제거하면 서로 다른 작물 3개 조회가 더해져 이 상한을
-초과하는지 mutation으로 확인한다.
+도메인 JPA 테스트에서 경계 좌표가 있는 서로 다른 농장 3개와 작물 3개를 가진 회원을
+저장한다. 영속성 컨텍스트와 Hibernate statistics를 초기화한 뒤 운영 순서대로 회원,
+정책 전용 농장, 정책 전용 회원 작물을 조회한다. 농장·경계·작물 필드를 실제로 읽은
+뒤에도 statement count가 3 이하인지 검증한다. 농장 boundary fetch를 제거하면 6회로
+증가하는지 mutation으로 확인한다.
 
 테스트 클래스에만 다음 속성을 사용한다.
 
@@ -109,8 +134,10 @@ spring.jpa.properties.hibernate.generate_statistics=true
 ### 서비스 계약 테스트
 
 `PolicyRecommendationServiceTest`는 서비스가 일반 `findByMemberId()` 대신
-`findAllWithCropByMemberId()`를 호출하는지 검증한다. 결과 카드, stale 판정, 추천
-재생성 관련 기존 테스트는 변경된 mock 메서드에 맞춰 유지한다.
+`findAllWithCropByMemberId()`를, 일반 `findByOwnerId()` 대신
+`findAllWithBoundaryCoordinatesByOwnerId()`를 호출하는지 검증한다. 또한 농장 조회가
+회원 작물 조회보다 먼저 실행되는 순서를 고정한다. 결과 카드, stale 판정, 추천 재생성
+관련 기존 테스트는 변경된 mock 메서드에 맞춰 유지한다.
 
 ## PostgreSQL 측정과 인덱스 게이트
 
@@ -135,14 +162,16 @@ spring.jpa.properties.hibernate.generate_statistics=true
   않는다.
 - 회원에게 작물이 없으면 빈 목록을 반환하는 기존 동작을 유지한다.
 - `Crop`은 필수 연관관계이므로 inner fetch join으로 행이 유실되지 않는다.
+- 경계 좌표가 없는 농장도 유지해야 하므로 boundary는 left fetch join하며, collection
+  join 중복은 `distinct`로 제거한다.
 - 통계 수집은 테스트 범위에서만 활성화하므로 운영 성능에 영향을 주지 않는다.
 
 ## 완료 기준
 
-- 서로 다른 작물 3개에 접근해도 회원 작물 SELECT가 3회 이하이며, fetch join 제거
-  mutation에서 이 상한을 초과한다.
+- 서로 다른 농장·경계·작물 3개에 접근해도 회원+농장+회원작물 SELECT가 3회 이하이며,
+  farm boundary fetch 제거 mutation에서 이 상한을 초과한다.
 - 정책 추천 페이지의 `PolicyProgram` 필드 접근까지 SELECT가 2회 이하이며, fetch join
   제거 mutation에서 이 상한을 초과한다.
-- 정책 추천 서비스가 정책 전용 fetch join 메서드를 사용한다.
+- 정책 추천 서비스가 두 정책 전용 fetch join 메서드를 농장→회원작물 순으로 사용한다.
 - 기존 정책 추천 정렬·필터·커서 테스트와 전체 백엔드 테스트가 통과한다.
 - 새 의존성, 전역 fetch 설정, 인덱스 DDL이 추가되지 않는다.

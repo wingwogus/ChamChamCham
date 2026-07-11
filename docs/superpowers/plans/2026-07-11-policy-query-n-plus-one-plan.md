@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 정책 추천 프로필의 `MemberCrop → Crop` N+1을 제거하고 기존 정책 카드 fetch join을 query-count 회귀 테스트로 고정한다.
+**Goal:** 정책 추천 프로필의 `Farm → boundaryCoordinates`, `MemberCrop → Crop` N+1을 제거하고 기존 정책 카드 fetch join을 query-count 회귀 테스트로 고정한다.
 
-**Architecture:** 다른 기능이 사용하는 `MemberCropRepository.findByMemberId()`는 유지하고, 정책 추천 전용 `findAllWithCropByMemberId()` fetch join 쿼리를 추가한다. 서비스는 전용 메서드만 사용하며 H2의 Hibernate statistics로 회원 작물 수와 무관하게 SELECT 수가 일정함을 검증한다. PostgreSQL 인덱스는 실제 실행 계획 증거가 없으므로 추가하지 않는다.
+**Architecture:** 다른 기능이 사용하는 일반 저장소 메서드는 유지하고 정책 전용 Farm-boundary, MemberCrop-Crop fetch join을 추가한다. 서비스는 회원→농장→회원작물 순으로 조회하며 H2의 Hibernate statistics로 농장·작물 수와 무관하게 SELECT 수가 일정함을 검증한다. PostgreSQL 인덱스는 실제 실행 계획 증거가 없으므로 추가하지 않는다.
 
 **Tech Stack:** Kotlin 2.x, Spring Boot 3.5.4, Spring Data JPA, Hibernate ORM, H2 PostgreSQL mode, JUnit 5, AssertJ, Mockito, Gradle 8.14.3, Java 21
 
@@ -13,6 +13,7 @@
 - API 응답, 정책 정렬, 카테고리 필터, 커서, stale 판정, 추천 재생성 동작을 변경하지 않는다.
 - 새 라이브러리, Testcontainers, Flyway, 전역 Hibernate fetch 설정을 추가하지 않는다.
 - `MemberCropRepository.findByMemberId()`의 기존 계약을 변경하지 않는다.
+- `FarmRepository.findByOwnerId()`의 기존 계약을 변경하지 않는다.
 - 테스트 클래스 범위에서만 `hibernate.generate_statistics=true`를 사용한다.
 - 인덱스 DDL, `@Index`, 운영 설정을 추가하지 않는다.
 - 정책 프로그램과 회원별 추천이 각각 1만 건에 근접하거나 실제 지연이 관측되기 전에는 PostgreSQL 인덱스를 추가하지 않는다.
@@ -23,6 +24,9 @@
 
 ### Task 1: 정책 전용 MemberCrop-Crop fetch join
 
+> 최종 상태 참고: 이 태스크의 단일 농장 query-count fixture는 Task 4의 다중 농장
+> 운영 순서 fixture로 확장되었다. 최종 합격 기준은 Task 4와 Final Checklist를 따른다.
+
 **Files:**
 - Modify: `backend/domain/src/main/kotlin/com/chamchamcham/domain/crop/MemberCropRepository.kt`
 - Create: `backend/domain/src/test/kotlin/com/chamchamcham/domain/crop/MemberCropRepositoryTest.kt`
@@ -30,9 +34,9 @@
 **Interfaces:**
 - Consumes: 기존 `MemberCrop`, `Crop`, `Farm`, `Member` JPA 엔티티와 `MemberCropRepository.findByMemberId(UUID)`.
 - Produces: `fun findAllWithCropByMemberId(memberId: UUID): List<MemberCrop>`.
-- Guarantee: 반환된 모든 `MemberCrop.crop`의 필드를 접근해도 전체 SELECT 수는 3회
-  이하이며 작물 수에 비례해 증가하지 않는다. 현재 final 엔티티 매핑 때문에 본 쿼리
-  외에 `member`, `farm` 고정 조회가 각각 1회 발생한다.
+- Guarantee: 반환된 모든 `MemberCrop.crop`의 프로필 필드를 접근해도 작물 수에 비례한
+  추가 SELECT가 발생하지 않는다. 다중 농장의 final `farm` 연관은 Task 4의 정책 전용
+  농장 선조회로 해소한다.
 
 - [ ] **Step 1: 새 정책 전용 메서드를 요구하는 실패 테스트 작성**
 
@@ -429,12 +433,41 @@ git commit \
 
 ---
 
+### Task 4: 최종 리뷰 다중 농장 N+1 수정
+
+**Evidence:** 경계 좌표가 있는 서로 다른 농장 3개에서 cold MemberCrop 조회는 5회,
+기존 농장 조회를 먼저 실행해도 EAGER boundary secondary SELECT 때문에 5회였다.
+Farm-boundary fetch join을 먼저 실행하면 회원 조회 포함 전체 3회로 고정됐다.
+
+**Files:**
+- Modify: `backend/domain/src/main/kotlin/com/chamchamcham/domain/farm/FarmRepository.kt`
+- Modify: `backend/domain/src/test/kotlin/com/chamchamcham/domain/crop/MemberCropRepositoryTest.kt`
+- Modify: `backend/application/src/main/kotlin/com/chamchamcham/application/policy/recommendation/PolicyRecommendationService.kt`
+- Modify: `backend/application/src/test/kotlin/com/chamchamcham/application/policy/recommendation/PolicyRecommendationServiceTest.kt`
+
+**Final contract:**
+- 정책 경로는 `findAllWithBoundaryCoordinatesByOwnerId()`를
+  `findAllWithCropByMemberId()`보다 먼저 호출한다.
+- 3개 농장·경계·작물 프로필 조회가 회원 조회 포함 statement 3회 이하이며 이후 필드
+  접근으로 statement가 증가하지 않는다.
+- farm boundary fetch 제거 mutation은 6회로 실패하고, 호출 순서 교환 mutation은
+  `VerificationInOrderFailure`로 실패한다.
+- 기존 `findByOwnerId()`와 `findByMemberId()` 계약은 유지한다.
+
+**Verification:** focused domain/application tests, 두 mutation 복원 후 전체
+`./gradlew test`, `git diff --check`가 통과한다.
+
+---
+
 ## Final Verification Checklist
 
 - [ ] `MemberCropRepository.findByMemberId()`는 그대로 존재한다.
 - [ ] `findAllWithCropByMemberId()`만 `crop`을 fetch join한다.
-- [ ] `PolicyRecommendationService`는 새 정책 전용 메서드만 호출한다.
-- [ ] 서로 다른 작물 3개 접근의 statement count가 3 이하이고 mutation에서 초과한다.
+- [ ] `FarmRepository.findByOwnerId()`는 그대로 존재한다.
+- [ ] 정책 전용 farm 쿼리는 boundary를 left fetch join하고 `distinct`를 사용한다.
+- [ ] `PolicyRecommendationService`는 농장→회원작물 순으로 정책 전용 메서드만 호출한다.
+- [ ] 서로 다른 농장·경계·작물 3개 접근의 statement count가 3 이하이고 farm fetch
+  mutation에서 6회로 초과한다.
 - [ ] 정책 카드 필드 접근의 statement count가 2 이하이고 mutation에서 초과한다.
 - [ ] production 설정에 Hibernate statistics 또는 batch fetch가 추가되지 않았다.
 - [ ] index DDL과 `@Index`가 추가되지 않았다.
