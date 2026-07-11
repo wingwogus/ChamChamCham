@@ -3,6 +3,11 @@ package com.chamchamcham.api.coaching.controller
 import com.chamchamcham.api.exception.GlobalExceptionHandler
 import com.chamchamcham.application.coaching.feedback.RecordFeedbackQueryService
 import com.chamchamcham.application.coaching.feedback.RecordFeedbackResult
+import com.chamchamcham.application.coaching.feedback.RecordFeedbackUserGoodPoint
+import com.chamchamcham.application.coaching.feedback.RecordFeedbackUserNextAction
+import com.chamchamcham.application.coaching.feedback.RecordFeedbackUserResponse
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackActionCategory
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackActionDue
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.application.security.TokenProvider
@@ -56,7 +61,56 @@ class FarmingRecordFeedbackControllerTest(
             .andExpect(jsonPath("$.data.sourceRevision", equalTo(3)))
             .andExpect(jsonPath("$.data.inputPrepared", equalTo(true)))
             .andExpect(jsonPath("$.data.failureCode").isEmpty())
+            .andExpect(jsonPath("$.data.feedback").isEmpty())
             .andExpect(jsonPath("$.data.inputSnapshot").doesNotExist())
+    }
+
+    @Test
+    fun `ready response serializes feedback but not internal coaching fields`() {
+        `when`(queryService.get(memberId, recordId)).thenReturn(
+            result(
+                status = CoachingFeedbackStatus.READY,
+                feedback = RecordFeedbackUserResponse(
+                    goodPoint = RecordFeedbackUserGoodPoint(
+                        text = "점적관수로 토양 수분을 확인한 점이 좋았어요.",
+                    ),
+                    nextActions = listOf(
+                        RecordFeedbackUserNextAction(
+                            text = "오후에 토양 표면이 마르는지 한 번 더 확인하세요.",
+                            due = RecordFeedbackActionDue.TODAY,
+                            category = RecordFeedbackActionCategory.IRRIGATION,
+                        ),
+                        RecordFeedbackUserNextAction(
+                            text = "이번 주 안에 배수로 주변의 막힌 흙을 정리하세요.",
+                            due = RecordFeedbackActionDue.THIS_WEEK,
+                            category = RecordFeedbackActionCategory.CULTIVATION,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        mockMvc.perform(
+            get("/api/v1/farming-records/{recordId}/coaching-feedback", recordId)
+                .with(authenticatedMember(memberId.toString())),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.status", equalTo("READY")))
+            .andExpect(jsonPath("$.data.feedback.goodPoint.text", equalTo("점적관수로 토양 수분을 확인한 점이 좋았어요.")))
+            .andExpect(jsonPath("$.data.feedback.goodPoint.basis").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.goodPoint.evidenceRefs").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.nextActions[0].text", equalTo("오후에 토양 표면이 마르는지 한 번 더 확인하세요.")))
+            .andExpect(jsonPath("$.data.feedback.nextActions[0].due", equalTo("TODAY")))
+            .andExpect(jsonPath("$.data.feedback.nextActions[0].category", equalTo("IRRIGATION")))
+            .andExpect(jsonPath("$.data.feedback.nextActions[0].basis").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.nextActions[0].evidenceRefs").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.citations").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.inputSnapshot").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.audit").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback.model").doesNotExist())
+            .andExpect(jsonPath("$.data.citations").doesNotExist())
+            .andExpect(jsonPath("$.data.auditStatus").doesNotExist())
+            .andExpect(jsonPath("$.data.modelName").doesNotExist())
     }
 
     @Test
@@ -128,6 +182,7 @@ class FarmingRecordFeedbackControllerTest(
         status: CoachingFeedbackStatus,
         inputPrepared: Boolean = false,
         failureCode: String? = null,
+        feedback: RecordFeedbackUserResponse? = null,
     ) = RecordFeedbackResult(
         feedbackId = feedbackId,
         recordId = recordId,
@@ -135,6 +190,7 @@ class FarmingRecordFeedbackControllerTest(
         sourceRevision = 3,
         inputPrepared = inputPrepared,
         failureCode = failureCode,
+        feedback = feedback,
         createdAt = LocalDateTime.of(2026, 7, 11, 10, 0),
         updatedAt = LocalDateTime.of(2026, 7, 11, 10, 1),
     )

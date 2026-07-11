@@ -1,5 +1,7 @@
 package com.chamchamcham.application.coaching.feedback
 
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackActionCategory
+import com.chamchamcham.application.coaching.rag.record.RecordFeedbackActionDue
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.domain.coaching.CoachingFeedback
@@ -13,6 +15,7 @@ import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.farming.FarmingRecordRepository
 import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.member.Member
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -23,6 +26,7 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder
 import org.springframework.test.util.ReflectionTestUtils
 import java.time.LocalDateTime
 import java.util.UUID
@@ -54,11 +58,12 @@ class RecordFeedbackQueryServiceTest {
         entryMode = "MANUAL",
         sourceRevision = 3,
     )
+    private val objectMapper: ObjectMapper = Jackson2ObjectMapperBuilder.json().build()
     private lateinit var service: RecordFeedbackQueryService
 
     @BeforeEach
     fun setUp() {
-        service = RecordFeedbackQueryService(farmingRecordRepository, feedbackRepository, lifecycleService)
+        service = RecordFeedbackQueryService(farmingRecordRepository, feedbackRepository, lifecycleService, objectMapper)
     }
 
     @Test
@@ -79,6 +84,7 @@ class RecordFeedbackQueryServiceTest {
         assertThat(result.sourceRevision).isEqualTo(3)
         assertThat(result.inputPrepared).isTrue()
         assertThat(result.failureCode).isNull()
+        assertThat(result.feedback).isNull()
     }
 
     @Test
@@ -99,6 +105,61 @@ class RecordFeedbackQueryServiceTest {
         assertThat(result.status).isEqualTo(CoachingFeedbackStatus.FAILED)
         assertThat(result.inputPrepared).isFalse()
         assertThat(result.failureCode).isEqualTo("CONTEXT_ASSEMBLY_FAILED")
+        assertThat(result.feedback).isNull()
+    }
+
+    @Test
+    fun `ready feedback returns only user facing text fields`() {
+        stubOwnedRecord()
+        val feedback = feedback(
+            status = CoachingFeedbackStatus.READY,
+            structuredResult = structuredResult(),
+        )
+        `when`(feedbackRepository.findByFeedbackTypeAndRecord_IdAndSourceRevision(
+            FeedbackType.RECORD,
+            record.id!!,
+            record.sourceRevision,
+        )).thenReturn(feedback)
+
+        val result = service.get(member.id!!, record.id!!)
+
+        assertThat(result.feedback?.goodPoint?.text).contains("점적관수")
+        assertThat(result.feedback?.nextActions).hasSize(2)
+        assertThat(result.feedback?.nextActions?.map { it.text }).containsExactly(
+            "오후에 토양 표면이 마르는지 한 번 더 확인하세요.",
+            "이번 주 안에 배수로 주변의 막힌 흙을 정리하세요.",
+        )
+        assertThat(result.feedback?.nextActions?.map { it.due }).containsExactly(
+            RecordFeedbackActionDue.TODAY,
+            RecordFeedbackActionDue.THIS_WEEK,
+        )
+        assertThat(result.feedback?.nextActions?.map { it.category }).containsExactly(
+            RecordFeedbackActionCategory.IRRIGATION,
+            RecordFeedbackActionCategory.CULTIVATION,
+        )
+    }
+
+    @Test
+    fun `ready feedback with malformed structured result is an internal consistency error`() {
+        stubOwnedRecord()
+        val feedback = feedback(
+            status = CoachingFeedbackStatus.READY,
+            structuredResult = mapOf(
+                "goodPoint" to mapOf(
+                    "basis" to "record_memo",
+                    "text" to "점적관수로 토양 수분을 확인한 점이 좋았어요.",
+                    "evidenceRefs" to listOf("record.memo"),
+                ),
+            ),
+        )
+        `when`(feedbackRepository.findByFeedbackTypeAndRecord_IdAndSourceRevision(
+            FeedbackType.RECORD,
+            record.id!!,
+            record.sourceRevision,
+        )).thenReturn(feedback)
+
+        assertThatThrownBy { service.get(member.id!!, record.id!!) }
+            .isInstanceOf(IllegalStateException::class.java)
     }
 
     @Test
@@ -223,6 +284,7 @@ class RecordFeedbackQueryServiceTest {
         status: CoachingFeedbackStatus,
         sourceRevision: Long = record.sourceRevision,
         inputSnapshot: Map<String, Any?>? = null,
+        structuredResult: Map<String, Any?>? = null,
         failureCode: String? = null,
     ): CoachingFeedback = CoachingFeedback(
         id = UUID.randomUUID(),
@@ -232,11 +294,40 @@ class RecordFeedbackQueryServiceTest {
         record = record,
         sourceRevision = sourceRevision,
         inputSnapshot = inputSnapshot,
+        structuredResult = structuredResult,
         failureCode = failureCode,
     ).also {
         ReflectionTestUtils.setField(it, "createdAt", LocalDateTime.of(2026, 7, 11, 10, 0))
         ReflectionTestUtils.setField(it, "updatedAt", LocalDateTime.of(2026, 7, 11, 10, 1))
     }
+
+    private fun structuredResult(): Map<String, Any?> = mapOf(
+        "goodPoint" to mapOf(
+            "basis" to "record_memo",
+            "text" to "점적관수로 토양 수분을 확인한 점이 좋았어요.",
+            "evidenceRefs" to listOf("record.memo"),
+        ),
+        "nextActions" to listOf(
+            mapOf(
+                "due" to "TODAY",
+                "category" to "IRRIGATION",
+                "basis" to "weather",
+                "text" to "오후에 토양 표면이 마르는지 한 번 더 확인하세요.",
+                "evidenceRefs" to listOf("weather.forecast"),
+            ),
+            mapOf(
+                "due" to "THIS_WEEK",
+                "category" to "CULTIVATION",
+                "basis" to "record_memo",
+                "text" to "이번 주 안에 배수로 주변의 막힌 흙을 정리하세요.",
+                "evidenceRefs" to listOf("record.memo"),
+            ),
+        ),
+        "citations" to listOf(mapOf("title" to "비공개 근거")),
+        "audit" to mapOf("status" to "PASS"),
+        "model" to mapOf("chat" to "gpt-test"),
+        "inputSnapshot" to mapOf("memo" to "토양 상태를 확인하고 관수한 영농기록입니다."),
+    )
 
     private fun stubOwnedRecord() {
         `when`(farmingRecordRepository.findContextSourceByIdAndMemberId(record.id!!, member.id!!)).thenReturn(record)
