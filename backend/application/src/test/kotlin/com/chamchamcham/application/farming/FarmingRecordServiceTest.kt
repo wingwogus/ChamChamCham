@@ -307,6 +307,7 @@ class FarmingRecordServiceTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         )
 
@@ -333,6 +334,7 @@ class FarmingRecordServiceTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         )
 
@@ -454,6 +456,7 @@ class FarmingRecordServiceTest {
                     medicinalPart = CropUsePartCategory.ROOT_BARK,
                     growthPeriod = 2,
                     growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                    isLastHarvest = false,
                 ),
             )
         )
@@ -589,6 +592,7 @@ class FarmingRecordServiceTest {
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = true,
             )
         )
         `when`(farmingRecordMediaRepository.findByRecord_Id(recordId)).thenReturn(
@@ -604,6 +608,7 @@ class FarmingRecordServiceTest {
         assertEquals("맑음", detail.weatherCondition)
         assertEquals(20, detail.weatherTemperature)
         assertEquals(BigDecimal.TEN, detail.harvest?.harvestAmount)
+        assertEquals(true, detail.harvest?.isLastHarvest)
         assertThat(detail.imageUrls).containsExactly(media1.fileUrl)
     }
 

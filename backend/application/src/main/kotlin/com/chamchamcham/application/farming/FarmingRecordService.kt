@@ -221,6 +221,7 @@ class FarmingRecordService(
                         harvestSource = detail.harvestSource,
                         growthPeriod = detail.growthPeriod,
                         growthPeriodUnit = detail.growthPeriodUnit,
+                        isLastHarvest = detail.isLastHarvest,
                     )
                 )
             }
@@ -306,6 +307,7 @@ class FarmingRecordService(
                     harvestSource = it.harvestSource,
                     growthPeriod = it.growthPeriod,
                     growthPeriodUnit = it.growthPeriodUnit,
+                    isLastHarvest = it.isLastHarvest,
                 )
             }
 

@@ -214,6 +214,7 @@ class FarmingRecordControllerTest(
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = true,
             ),
         )
         `when`(farmingRecordService.create(command)).thenReturn(FarmingRecordResult.RecordId(id = recordId, workType = WorkType.HARVEST))
@@ -232,7 +233,8 @@ class FarmingRecordControllerTest(
                 "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
                 "growthPeriod":2,
-                "growthPeriodUnit":"YEAR"
+                "growthPeriodUnit":"YEAR",
+                "isLastHarvest":true
               }
             }
         """.trimIndent()
@@ -260,6 +262,36 @@ class FarmingRecordControllerTest(
               "planting":{
                 "seedAmount":10,
                 "seedAmountUnit":"KG"
+              }
+            }
+        """.trimIndent()
+
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `create record rejects harvest without last harvest flag`() {
+        val json = """
+            {
+              "farmId":"$farmId",
+              "cropId":"$cropId",
+              "workType":"HARVEST",
+              "workedAt":"2026-06-01T09:00:00",
+              "weatherCondition":"맑음",
+              "weatherTemperature":28,
+              "memo":"오늘은 날씨가 좋아 하루 종일 수확 작업을 진행했고 별다른 문제 없이 마무리했습니다",
+              "harvest":{
+                "harvestAmount":10,
+                "medicinalPart":"ROOT_BARK",
+                "harvestSource":"CULTIVATED",
+                "growthPeriod":2,
+                "growthPeriodUnit":"YEAR"
               }
             }
         """.trimIndent()
@@ -351,6 +383,7 @@ class FarmingRecordControllerTest(
             .andExpect(jsonPath("$.data.id", equalTo(recordId.toString())))
             .andExpect(jsonPath("$.data.harvest.harvestAmount", equalTo(10)))
             .andExpect(jsonPath("$.data.harvest.amountUnknown", equalTo(false)))
+            .andExpect(jsonPath("$.data.harvest.isLastHarvest", equalTo(true)))
     }
 
     @Test
@@ -411,7 +444,8 @@ class FarmingRecordControllerTest(
                 "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
                 "growthPeriod":$growthPeriod,
-                "growthPeriodUnit":"YEAR"
+                "growthPeriodUnit":"YEAR",
+                "isLastHarvest":true
               },
               "mediaIds":$mediaIdsJson
             }
@@ -434,6 +468,7 @@ class FarmingRecordControllerTest(
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = true,
             ),
             mediaIds = listOf(mediaId),
         )
@@ -455,6 +490,7 @@ class FarmingRecordControllerTest(
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = true,
             ),
             mediaIds = listOf(mediaId),
         )
@@ -496,6 +532,7 @@ class FarmingRecordControllerTest(
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = true,
             ),
             imageUrls = listOf("https://example.test/1.jpg"),
             createdAt = createdAt,

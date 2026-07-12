@@ -132,6 +132,9 @@ object FarmingRecordRequests {
         @field:Min(value = 1, message = "재배기간은 1 이상이어야 합니다")
         val growthPeriod: Int,
         val growthPeriodUnit: GrowthPeriodUnit,
+
+        @field:NotNull(message = "마지막 수확 여부를 선택해주세요")
+        val isLastHarvest: Boolean?,
     )
 }
 
@@ -211,4 +214,5 @@ fun FarmingRecordRequests.HarvestDetailRequest.toCommand(): FarmingRecordCommand
         harvestSource = harvestSource,
         growthPeriod = growthPeriod,
         growthPeriodUnit = growthPeriodUnit,
+        isLastHarvest = requireNotNull(isLastHarvest),
     )

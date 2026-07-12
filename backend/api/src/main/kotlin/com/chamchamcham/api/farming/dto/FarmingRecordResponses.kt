@@ -193,6 +193,7 @@ object FarmingRecordResponses {
         val harvestSource: HarvestSource,
         val growthPeriod: Int,
         val growthPeriodUnit: GrowthPeriodUnit,
+        val isLastHarvest: Boolean,
     ) {
         companion object {
             fun from(result: FarmingRecordResult.HarvestDetail): HarvestDetailResponse = HarvestDetailResponse(
@@ -202,6 +203,7 @@ object FarmingRecordResponses {
                 harvestSource = result.harvestSource,
                 growthPeriod = result.growthPeriod,
                 growthPeriodUnit = result.growthPeriodUnit,
+                isLastHarvest = result.isLastHarvest,
             )
         }
     }

@@ -102,5 +102,6 @@ object FarmingRecordResult {
         val harvestSource: HarvestSource,
         val growthPeriod: Int,
         val growthPeriodUnit: GrowthPeriodUnit,
+        val isLastHarvest: Boolean,
     )
 }

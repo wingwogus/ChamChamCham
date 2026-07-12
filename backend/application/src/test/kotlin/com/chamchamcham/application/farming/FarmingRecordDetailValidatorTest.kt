@@ -204,6 +204,7 @@ class FarmingRecordDetailValidatorTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         ).forEach { payload -> assertDoesNotThrow { validator.validate(payload) } }
     }
@@ -218,6 +219,7 @@ class FarmingRecordDetailValidatorTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         ).forEach { payload -> assertDoesNotThrow { validator.validate(payload) } }
     }
@@ -232,6 +234,7 @@ class FarmingRecordDetailValidatorTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         ).forEach { payload ->
             val exception = assertThrows(BusinessException::class.java) { validator.validate(payload) }
@@ -249,6 +252,7 @@ class FarmingRecordDetailValidatorTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
                 growthPeriodUnit = GrowthPeriodUnit.YEAR,
+                isLastHarvest = false,
             ),
         ).forEach { payload ->
             val exception = assertThrows(BusinessException::class.java) { validator.validate(payload) }
