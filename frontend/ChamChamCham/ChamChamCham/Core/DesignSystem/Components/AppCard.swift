@@ -51,6 +51,7 @@ struct AppCard<Thumbnail: View>: View {
     var commentText: String = "nn"
     var showsPostInfo: Bool = true
     var width: CGFloat? = nil
+    var isSelected: Bool = false
 
     private let thumbnail: Thumbnail?
 
@@ -65,6 +66,7 @@ struct AppCard<Thumbnail: View>: View {
         commentText: String = "nn",
         showsPostInfo: Bool = true,
         width: CGFloat? = nil,
+        isSelected: Bool = false,
         @ViewBuilder thumbnail: () -> Thumbnail
     ) {
         self.size = size
@@ -77,6 +79,7 @@ struct AppCard<Thumbnail: View>: View {
         self.commentText = commentText
         self.showsPostInfo = showsPostInfo
         self.width = width
+        self.isSelected = isSelected
         self.thumbnail = thumbnail()
     }
 
@@ -85,8 +88,11 @@ struct AppCard<Thumbnail: View>: View {
             .padding(size.padding)
             .frame(width: resolvedWidth, height: size.canvasSize.height)
             .frame(maxWidth: fillsAvailableWidth ? .infinity : nil)
-            .background(Color.Object.default)
-            .overlay(RoundedRectangle(cornerRadius: size.cornerRadius).stroke(Color.Border.default, lineWidth: 1))
+            .background(Self.backgroundColor(size: size, isSelected: isSelected))
+            .overlay {
+                RoundedRectangle(cornerRadius: size.cornerRadius)
+                    .stroke(Self.borderColor(size: size, isSelected: isSelected), lineWidth: 1)
+            }
             .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius))
     }
 
@@ -122,7 +128,7 @@ struct AppCard<Thumbnail: View>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .appTypography(.titleMediumEmphasized)
-                    .foregroundStyle(Color.Text.subtle)
+                    .foregroundStyle(Self.titleColor(size: size, isSelected: isSelected))
                     .lineLimit(1)
 
                 HStack(spacing: 2) {
@@ -134,7 +140,7 @@ struct AppCard<Thumbnail: View>: View {
                     }
                 }
                 .appTypography(.labelMedium)
-                .foregroundStyle(Color.Text.muted)
+                .foregroundStyle(Self.captionColor(size: size, isSelected: isSelected))
                 .lineLimit(1)
             }
         }
@@ -157,13 +163,13 @@ struct AppCard<Thumbnail: View>: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .appTypography(.titleLargeEmphasized)
-                        .foregroundStyle(Color.Text.subtle)
+                        .foregroundStyle(Self.titleColor(size: size, isSelected: isSelected))
                         .lineLimit(1)
                     if let caption = captions.first {
                         Text(caption)
                             .appTypography(.bodyLarge)
-                            .foregroundStyle(Color.Text.muted)
-                            .lineLimit(1)
+                            .foregroundStyle(Self.captionColor(size: size, isSelected: isSelected))
+                            .lineLimit(Self.smallCaptionLineLimit)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -288,9 +294,71 @@ struct AppCard<Thumbnail: View>: View {
     private func badgeRow(size badgeSize: AppBadge.Size, maxCount: Int) -> some View {
         HStack(spacing: 8) {
             ForEach(Array(badges.prefix(maxCount).enumerated()), id: \.offset) { _, badge in
-                AppBadge(label: badge, size: badgeSize, style: .solidPastel, variant: .secondary)
+                cardBadge(badge, size: badgeSize)
             }
         }
+    }
+
+    @ViewBuilder
+    private func cardBadge(_ label: String, size badgeSize: AppBadge.Size) -> some View {
+        if Self.usesSelectedStyle(size: size, isSelected: isSelected) {
+            Text(label)
+                .appTypography(.labelMedium)
+                .foregroundStyle(Self.badgeTextColor(size: size, isSelected: isSelected))
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .frame(minWidth: 48, minHeight: 32)
+                .background(Self.badgeBackgroundColor(size: size, isSelected: isSelected))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            AppBadge(label: label, size: badgeSize, style: .solidPastel, variant: .secondary)
+        }
+    }
+
+    static var smallCaptionLineLimit: Int { 2 }
+
+    static func usesSelectedStyle(size: Size, isSelected: Bool) -> Bool {
+        guard isSelected else { return false }
+        switch size {
+        case .xsmall, .small: return true
+        case .medium, .large: return false
+        }
+    }
+
+    static func backgroundColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Object.primarySubtle
+            : Color.Object.default
+    }
+
+    static func borderColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Border.primary
+            : Color.Border.default
+    }
+
+    static func titleColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Text.default
+            : Color.Text.subtle
+    }
+
+    static func captionColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Text.subtle
+            : Color.Text.muted
+    }
+
+    static func badgeBackgroundColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Object.default
+            : Color.Object.muted
+    }
+
+    static func badgeTextColor(size: Size, isSelected: Bool) -> Color {
+        usesSelectedStyle(size: size, isSelected: isSelected)
+            ? Color.Text.primary
+            : Color.Text.subtle
     }
 }
 
@@ -305,7 +373,8 @@ extension AppCard where Thumbnail == EmptyView {
         likeText: String = "nn",
         commentText: String = "nn",
         showsPostInfo: Bool = true,
-        width: CGFloat? = nil
+        width: CGFloat? = nil,
+        isSelected: Bool = false
     ) {
         self.size = size
         self.title = title
@@ -317,6 +386,7 @@ extension AppCard where Thumbnail == EmptyView {
         self.commentText = commentText
         self.showsPostInfo = showsPostInfo
         self.width = width
+        self.isSelected = isSelected
         self.thumbnail = nil
     }
 }

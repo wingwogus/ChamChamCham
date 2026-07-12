@@ -77,6 +77,29 @@ struct DesignSystemCaptureStyleTests {
         #expect(AppCard<EmptyView>.Size.large.cornerRadius == 24)
     }
 
+    @Test("card selection matches the captured xsmall and small states")
+    @MainActor
+    func selectedCardStyles() {
+        typealias Card = AppCard<EmptyView>
+
+        #expect(Card.usesSelectedStyle(size: .xsmall, isSelected: true))
+        #expect(Card.usesSelectedStyle(size: .small, isSelected: true))
+        #expect(!Card.usesSelectedStyle(size: .medium, isSelected: true))
+        #expect(!Card.usesSelectedStyle(size: .large, isSelected: true))
+        #expect(!Card.usesSelectedStyle(size: .small, isSelected: false))
+
+        #expect(hex(Card.backgroundColor(size: .small, isSelected: true)) == 0xE4F8E3)
+        #expect(hex(Card.borderColor(size: .small, isSelected: true)) == 0x38C284)
+        #expect(hex(Card.titleColor(size: .small, isSelected: true)) == 0x1A1A1A)
+        #expect(hex(Card.captionColor(size: .small, isSelected: true)) == 0x4F4F4F)
+        #expect(hex(Card.badgeBackgroundColor(size: .small, isSelected: true)) == 0xFFFFFF)
+        #expect(hex(Card.badgeTextColor(size: .small, isSelected: true)) == 0x27865C)
+
+        #expect(hex(Card.backgroundColor(size: .small, isSelected: false)) == 0xFFFFFF)
+        #expect(hex(Card.borderColor(size: .small, isSelected: false)) == 0xE0E0E0)
+        #expect(Card.smallCaptionLineLimit == 2)
+    }
+
     @Test("list keeps the new large row and the policy xlarge row separate")
     func listSizes() {
         #expect(AppListItem<EmptyView>.Size.xsmall.canvasSize == CGSize(width: 390, height: 58))
