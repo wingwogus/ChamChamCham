@@ -1,5 +1,12 @@
-package com.chamchamcham.application.coaching.rag.common
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.CoachingActionDue
+import com.chamchamcham.application.coaching.rag.common.CoachingNextAction
+import com.chamchamcham.application.coaching.rag.common.CoachingPriority
+import com.chamchamcham.application.coaching.rag.common.CoachingRecommendation
+import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

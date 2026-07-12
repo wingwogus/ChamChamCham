@@ -6,7 +6,7 @@ import com.chamchamcham.domain.coaching.RecordFeedbackStatus
 import java.time.LocalDateTime
 import java.util.UUID
 
-data class RecordFeedbackStatusResult(
+data class RecordFeedbackDetailResult(
     val feedbackId: UUID,
     val recordId: UUID,
     val status: RecordFeedbackStatus,

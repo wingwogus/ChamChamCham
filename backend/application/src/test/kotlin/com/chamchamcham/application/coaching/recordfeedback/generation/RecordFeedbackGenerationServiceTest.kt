@@ -61,6 +61,38 @@ class RecordFeedbackGenerationServiceTest {
     }
 
     @Test
+    fun `deduplicates context warnings in generation audit`() {
+        val result = service(documents = listOf(officialDocument("doc-1")))
+            .generate(
+                context.copy(
+                    warnings = listOf("weather_location_unavailable", "weather_location_unavailable"),
+                ),
+            )
+
+        assertThat(result.auditWarnings).containsExactly("weather_location_unavailable")
+    }
+
+    @Test
+    fun `rejects an unsupported context schema before retrieval`() {
+        assertThatThrownBy {
+            service(documents = listOf(officialDocument("doc-1")))
+                .generate(context.copy(schemaVersion = "record-feedback-context.v1"))
+        }.isInstanceOfSatisfying(RecordFeedbackGenerationFailure::class.java) {
+            assertThat(it.code).isEqualTo(RecordFeedbackFailureCode.INVALID_CONTEXT)
+        }
+    }
+
+    @Test
+    fun `rejects a context without the farmer memo before retrieval`() {
+        assertThatThrownBy {
+            service(documents = listOf(officialDocument("doc-1")))
+                .generate(context.copy(record = context.record.copy(memo = " ")))
+        }.isInstanceOfSatisfying(RecordFeedbackGenerationFailure::class.java) {
+            assertThat(it.code).isEqualTo(RecordFeedbackFailureCode.INVALID_CONTEXT)
+        }
+    }
+
+    @Test
     fun `retries once when parsed output violates product validation`() {
         val invalidResult = validResult("doc-1", context.recordCitationId()).copy(
             nextActions = listOf(
