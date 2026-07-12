@@ -84,12 +84,12 @@ object FarmingRecordCommand {
     )
 
     data class PestControlDetail(
-        val pesticideName: String,
+        val pesticideId: UUID,
         val pesticideAmount: BigDecimal,
         val pesticideAmountUnit: PesticideAmountUnit,
         val totalSprayAmount: BigDecimal,
         val totalSprayAmountUnit: SprayAmountUnit,
-        val pestTarget: String? = null,
+        val pestId: UUID? = null,
     )
 
     data class WeedingDetail(

@@ -178,7 +178,7 @@ class FarmingRecordDetailValidatorTest {
         payloads(
             workType = WorkType.PEST_CONTROL,
             pestControl = FarmingRecordCommand.PestControlDetail(
-                pesticideName = "약제",
+                pesticideId = UUID.randomUUID(),
                 pesticideAmount = BigDecimal.ONE,
                 pesticideAmountUnit = PesticideAmountUnit.ML,
                 totalSprayAmount = BigDecimal.TEN,

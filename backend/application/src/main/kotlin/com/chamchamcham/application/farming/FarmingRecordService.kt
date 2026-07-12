@@ -30,6 +30,10 @@ import com.chamchamcham.domain.media.UploadedMediaRepository
 import com.chamchamcham.domain.media.UploadedMediaUsageType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.member.MemberRepository
+import com.chamchamcham.domain.pesticide.Pest
+import com.chamchamcham.domain.pesticide.PestRepository
+import com.chamchamcham.domain.pesticide.Pesticide
+import com.chamchamcham.domain.pesticide.PesticideRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -50,6 +54,8 @@ class FarmingRecordService(
     private val pestControlRecordRepository: PestControlRecordRepository,
     private val weedingRecordRepository: WeedingRecordRepository,
     private val harvestRecordRepository: HarvestRecordRepository,
+    private val pesticideRepository: PesticideRepository,
+    private val pestRepository: PestRepository,
     private val detailValidator: FarmingRecordDetailValidator,
     private val cursorCodec: OpaqueCursorCodec,
 ) {
@@ -195,12 +201,12 @@ class FarmingRecordService(
                 pestControlRecordRepository.save(
                     PestControlRecord(
                         record = record,
-                        pesticideName = detail.pesticideName,
+                        pesticide = findPesticide(detail.pesticideId),
                         pesticideAmount = detail.pesticideAmount,
                         pesticideAmountUnit = detail.pesticideAmountUnit,
                         totalSprayAmount = detail.totalSprayAmount,
                         totalSprayAmountUnit = detail.totalSprayAmountUnit,
-                        pestTarget = detail.pestTarget,
+                        pest = detail.pestId?.let(::findPest),
                     )
                 )
             }
@@ -285,12 +291,14 @@ class FarmingRecordService(
 
             WorkType.PEST_CONTROL -> pestControl = pestControlRecordRepository.findByRecord_Id(recordId)?.let {
                 FarmingRecordResult.PestControlDetail(
-                    pesticideName = it.pesticideName,
+                    pesticideId = requireNotNull(it.pesticide.id) { "Persisted pesticide id is required" },
+                    pesticideName = it.pesticide.brandName,
                     pesticideAmount = it.pesticideAmount,
                     pesticideAmountUnit = it.pesticideAmountUnit,
                     totalSprayAmount = it.totalSprayAmount,
                     totalSprayAmountUnit = it.totalSprayAmountUnit,
-                    pestTarget = it.pestTarget,
+                    pestId = it.pest?.id,
+                    pestName = it.pest?.name,
                 )
             }
 
@@ -442,6 +450,16 @@ class FarmingRecordService(
     private fun findCrop(cropId: UUID): Crop =
         cropRepository.findById(cropId).orElseThrow {
             BusinessException(ErrorCode.CROP_NOT_FOUND)
+        }
+
+    private fun findPesticide(pesticideId: UUID): Pesticide =
+        pesticideRepository.findById(pesticideId).orElseThrow {
+            BusinessException(ErrorCode.PESTICIDE_NOT_FOUND)
+        }
+
+    private fun findPest(pestId: UUID): Pest =
+        pestRepository.findById(pestId).orElseThrow {
+            BusinessException(ErrorCode.PEST_NOT_FOUND)
         }
 
     private companion object {

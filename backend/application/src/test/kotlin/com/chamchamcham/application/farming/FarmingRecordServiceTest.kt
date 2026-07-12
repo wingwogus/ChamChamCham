@@ -20,11 +20,14 @@ import com.chamchamcham.domain.farming.GrowthPeriodUnit
 import com.chamchamcham.domain.farming.HarvestRecord
 import com.chamchamcham.domain.farming.HarvestRecordRepository
 import com.chamchamcham.domain.farming.HarvestSource
+import com.chamchamcham.domain.farming.PestControlRecord
 import com.chamchamcham.domain.farming.PestControlRecordRepository
+import com.chamchamcham.domain.farming.PesticideAmountUnit
 import com.chamchamcham.domain.farming.PlantingRecord
 import com.chamchamcham.domain.farming.PlantingRecordRepository
 import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
+import com.chamchamcham.domain.farming.SprayAmountUnit
 import com.chamchamcham.domain.farming.WateringRecordRepository
 import com.chamchamcham.domain.farming.WeedingRecordRepository
 import com.chamchamcham.domain.farming.WorkType
@@ -35,6 +38,10 @@ import com.chamchamcham.domain.media.UploadedMediaType
 import com.chamchamcham.domain.media.UploadedMediaUsageType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.member.MemberRepository
+import com.chamchamcham.domain.pesticide.Pest
+import com.chamchamcham.domain.pesticide.PestRepository
+import com.chamchamcham.domain.pesticide.Pesticide
+import com.chamchamcham.domain.pesticide.PesticideRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -82,6 +89,8 @@ class FarmingRecordServiceTest {
     @Mock private lateinit var pestControlRecordRepository: PestControlRecordRepository
     @Mock private lateinit var weedingRecordRepository: WeedingRecordRepository
     @Mock private lateinit var harvestRecordRepository: HarvestRecordRepository
+    @Mock private lateinit var pesticideRepository: PesticideRepository
+    @Mock private lateinit var pestRepository: PestRepository
     @Mock private lateinit var detailValidator: FarmingRecordDetailValidator
 
     private lateinit var service: FarmingRecordService
@@ -108,6 +117,8 @@ class FarmingRecordServiceTest {
             pestControlRecordRepository = pestControlRecordRepository,
             weedingRecordRepository = weedingRecordRepository,
             harvestRecordRepository = harvestRecordRepository,
+            pesticideRepository = pesticideRepository,
+            pestRepository = pestRepository,
             detailValidator = detailValidator,
             cursorCodec = cursorCodec,
         )
@@ -123,6 +134,7 @@ class FarmingRecordServiceTest {
         workType: WorkType,
         planting: FarmingRecordCommand.PlantingDetail? = null,
         harvest: FarmingRecordCommand.HarvestDetail? = null,
+        pestControl: FarmingRecordCommand.PestControlDetail? = null,
         mediaIds: List<UUID> = emptyList(),
     ) = FarmingRecordCommand.Create(
         memberId = memberId,
@@ -135,6 +147,7 @@ class FarmingRecordServiceTest {
         memo = "memo",
         planting = planting,
         harvest = harvest,
+        pestControl = pestControl,
         mediaIds = mediaIds,
     )
 
@@ -251,6 +264,66 @@ class FarmingRecordServiceTest {
         assertEquals(BigDecimal.TEN, captor.value.seedAmount)
         assertEquals(SeedAmountUnit.KG, captor.value.seedAmountUnit)
         verifyNoInteractions(harvestRecordRepository, wateringRecordRepository, fertilizingRecordRepository, pestControlRecordRepository, weedingRecordRepository)
+    }
+
+    @Test
+    fun `create saves pest control detail when workType is PEST_CONTROL`() {
+        `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        val pesticideId = UUID.randomUUID()
+        val pestId = UUID.randomUUID()
+        val pesticide = Pesticide(id = pesticideId, itemName = "만코제브 수화제", brandName = "가가방")
+        val pest = Pest(id = pestId, name = "역병")
+        `when`(pesticideRepository.findById(pesticideId)).thenReturn(Optional.of(pesticide))
+        `when`(pestRepository.findById(pestId)).thenReturn(Optional.of(pest))
+        stubFarmingRecordSave()
+
+        val command = baseCommand(
+            workType = WorkType.PEST_CONTROL,
+            pestControl = FarmingRecordCommand.PestControlDetail(
+                pesticideId = pesticideId,
+                pesticideAmount = BigDecimal.ONE,
+                pesticideAmountUnit = PesticideAmountUnit.ML,
+                totalSprayAmount = BigDecimal.TEN,
+                totalSprayAmountUnit = SprayAmountUnit.L,
+                pestId = pestId,
+            ),
+        )
+
+        service.create(command)
+
+        val captor = ArgumentCaptor.forClass(PestControlRecord::class.java)
+        verify(pestControlRecordRepository).save(captor.capture())
+        assertEquals(pesticideId, captor.value.pesticide.id)
+        assertEquals(pestId, captor.value.pest?.id)
+        verifyNoInteractions(harvestRecordRepository, wateringRecordRepository, fertilizingRecordRepository, plantingRecordRepository, weedingRecordRepository)
+    }
+
+    @Test
+    fun `create throws when pesticide id does not exist`() {
+        `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        val pesticideId = UUID.randomUUID()
+        `when`(pesticideRepository.findById(pesticideId)).thenReturn(Optional.empty())
+        stubFarmingRecordSave()
+
+        val command = baseCommand(
+            workType = WorkType.PEST_CONTROL,
+            pestControl = FarmingRecordCommand.PestControlDetail(
+                pesticideId = pesticideId,
+                pesticideAmount = BigDecimal.ONE,
+                pesticideAmountUnit = PesticideAmountUnit.ML,
+                totalSprayAmount = BigDecimal.TEN,
+                totalSprayAmountUnit = SprayAmountUnit.L,
+            ),
+        )
+
+        val exception = assertThrows(BusinessException::class.java) { service.create(command) }
+
+        assertEquals(ErrorCode.PESTICIDE_NOT_FOUND, exception.errorCode)
+        verify(pestControlRecordRepository, never()).save(any(PestControlRecord::class.java))
     }
 
     @Test

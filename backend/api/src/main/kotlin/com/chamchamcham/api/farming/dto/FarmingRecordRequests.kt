@@ -103,8 +103,8 @@ object FarmingRecordRequests {
     )
 
     data class PestControlDetailRequest(
-        @field:NotBlank(message = "농약명을 입력해주세요")
-        val pesticideName: String,
+        @field:NotNull(message = "농약을 선택해주세요")
+        val pesticideId: UUID?,
 
         @field:DecimalMin(value = "0.01", message = "농약량은 0보다 커야 합니다")
         val pesticideAmount: BigDecimal,
@@ -113,7 +113,7 @@ object FarmingRecordRequests {
         @field:DecimalMin(value = "0.01", message = "살포량은 0보다 커야 합니다")
         val totalSprayAmount: BigDecimal,
         val totalSprayAmountUnit: SprayAmountUnit,
-        val pestTarget: String? = null,
+        val pestId: UUID? = null,
     )
 
     data class WeedingDetailRequest(
@@ -195,12 +195,12 @@ fun FarmingRecordRequests.FertilizingDetailRequest.toCommand(): FarmingRecordCom
 
 fun FarmingRecordRequests.PestControlDetailRequest.toCommand(): FarmingRecordCommand.PestControlDetail =
     FarmingRecordCommand.PestControlDetail(
-        pesticideName = pesticideName,
+        pesticideId = requireNotNull(pesticideId),
         pesticideAmount = pesticideAmount,
         pesticideAmountUnit = pesticideAmountUnit,
         totalSprayAmount = totalSprayAmount,
         totalSprayAmountUnit = totalSprayAmountUnit,
-        pestTarget = pestTarget,
+        pestId = pestId,
     )
 
 fun FarmingRecordRequests.WeedingDetailRequest.toCommand(): FarmingRecordCommand.WeedingDetail =
