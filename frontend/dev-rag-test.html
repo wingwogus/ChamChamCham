@@ -1274,7 +1274,7 @@
     }
 
     async function fetchFeedback(recordId) {
-      const response = await request(`/api/v1/farming-records/${encodeURIComponent(recordId)}/coaching-feedback`);
+      const response = await request(`/api/v1/farming-records/${encodeURIComponent(recordId)}/feedback`);
       return response.data;
     }
 
@@ -1901,7 +1901,7 @@
         if (state.feedbackSource !== "api" || state.feedbackStatus !== "FAILED") {
           throw new Error("실제 API에서 조회한 FAILED 피드백만 재생성할 수 있습니다.");
         }
-        const response = await request(`/api/v1/farming-records/${encodeURIComponent(recordId)}/coaching-feedback/regenerate`, {
+        const response = await request(`/api/v1/farming-records/${encodeURIComponent(recordId)}/feedback/regenerate`, {
           method: "POST"
         });
         renderFeedback(response.data, "api");
