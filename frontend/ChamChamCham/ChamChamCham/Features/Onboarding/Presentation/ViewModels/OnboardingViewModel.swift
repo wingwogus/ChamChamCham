@@ -35,6 +35,15 @@ final class OnboardingViewModel {
         case selectionLimitReached
     }
 
+    enum BasicProfileField: Hashable {
+        case name
+        case nickname
+        case phone
+        case birthDate
+        case experienceYears
+        case managementType
+    }
+
     var currentStep: Step
     var draft: OnboardingDraft
 
@@ -46,6 +55,30 @@ final class OnboardingViewModel {
     var submissionState: SubmissionState = .idle
 
     var shouldShowResumePrompt: Bool { pendingResumeSnapshot != nil }
+    var canProceedFromBasicProfile: Bool { basicProfileValidationErrors.isEmpty }
+
+    var basicProfileValidationErrors: [BasicProfileField: String] {
+        var errors: [BasicProfileField: String] = [:]
+        if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.name] = "이름은 필수로 입력해주세요."
+        }
+        if draft.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.nickname] = "닉네임은 필수로 입력해주세요."
+        }
+        if draft.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.phone] = "연락처는 필수로 입력해주세요."
+        }
+        if draft.birthDate == nil {
+            errors[.birthDate] = "생년월일은 필수로 입력해주세요."
+        }
+        if draft.experienceYears == nil {
+            errors[.experienceYears] = "귀농 년차는 필수로 입력해주세요."
+        }
+        if draft.managementType == nil {
+            errors[.managementType] = "자격은 필수로 선택해주세요."
+        }
+        return errors
+    }
 
     private var pendingResumeSnapshot: OnboardingDraftSnapshot?
     private let store: OnboardingDraftStore

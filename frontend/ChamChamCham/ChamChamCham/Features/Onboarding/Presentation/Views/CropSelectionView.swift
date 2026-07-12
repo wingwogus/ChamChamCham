@@ -228,7 +228,7 @@ struct CropSelectionView: View {
         } label: {
             VStack(spacing: 0) {
                 Text(category.label)
-                    .font(AppTypography.labelMediumEmphasized.font)
+                    .font(AppTypography.titleMediumEmphasized.font)
                     .foregroundStyle(isSelected ? Color.Text.primary : Color.Text.subtle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -272,12 +272,7 @@ struct CropSelectionView: View {
 
     private var bottomTray: some View {
         VStack(spacing: Spacing.md) {
-            if selectedCropChips.isEmpty {
-                Text("작물을 1개 이상 선택해주세요.")
-                    .font(AppTypography.labelMedium.font)
-                    .foregroundStyle(Color.Text.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            if !selectedCropChips.isEmpty {
                 LazyVGrid(columns: chipColumns, alignment: .leading, spacing: Spacing.sm) {
                     ForEach(selectedCropChips) { crop in
                         selectedCropChip(crop)
@@ -293,28 +288,22 @@ struct CropSelectionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Button {
+            OnboardingCTAButton(title: "완료", isVisuallyEnabled: selectedCount > 0) {
                 guard selectedCount > 0 else { return }
                 viewModel.goNext()
-            } label: {
-                Text("완료")
-                    .font(AppTypography.bodyLarge.font)
-                    .foregroundStyle(selectedCount == 0 ? Color.Text.muted : Color.Text.inverse)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(selectedCount == 0 ? Color.Object.disabled : Color.Object.bold)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .buttonStyle(.plain)
-            .disabled(selectedCount == 0)
         }
         .padding(.horizontal, 20)
-        .padding(.top, selectedCropChips.isEmpty ? Spacing.md : Spacing.lg)
-        .padding(.bottom, Spacing.md)
+        .padding(.top, selectedCropChips.isEmpty ? 16 : 24)
+        .padding(.bottom, selectedCropChips.isEmpty ? 28 : 16)
         .background {
-            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 32, topTrailing: 32))
-                .fill(Color.Background.default)
-                .shadow(color: .black.opacity(0.08), radius: 16, y: -4)
+            if selectedCropChips.isEmpty {
+                Color.Background.default
+            } else {
+                UnevenRoundedRectangle(cornerRadii: .init(topLeading: 32, topTrailing: 32))
+                    .fill(Color.Background.default)
+                    .shadow(color: .black.opacity(0.08), radius: 16, y: -4)
+            }
         }
     }
 

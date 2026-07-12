@@ -39,6 +39,22 @@ final class FarmLocationViewModel {
         return selectedParcel != nil || manualAreaSqm != nil
     }
 
+    func requiredInputError(farmName: String) -> String? {
+        let isAddressMissing = selectedAddress == nil
+        let isFarmNameMissing = farmName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        switch (isAddressMissing, isFarmNameMissing) {
+        case (true, true):
+            return "주소지와 농지명은 필수로 입력해주세요."
+        case (true, false):
+            return "주소지는 필수로 입력해주세요."
+        case (false, true):
+            return "농지명은 필수로 입력해주세요."
+        case (false, false):
+            return nil
+        }
+    }
+
     private let addressSearch: any AddressSearching
     private let vworld: any FarmlandGeocoding & ParcelLookup
     private let landCharacteristics: any LandCharacteristicsLookup
