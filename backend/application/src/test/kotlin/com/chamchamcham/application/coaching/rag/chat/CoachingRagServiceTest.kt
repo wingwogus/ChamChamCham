@@ -7,7 +7,6 @@ import com.chamchamcham.application.coaching.rag.common.CoachingObservation
 import com.chamchamcham.application.coaching.rag.common.CoachingPriority
 import com.chamchamcham.application.coaching.rag.common.CoachingRecommendation
 import com.chamchamcham.application.coaching.rag.common.CoachingRiskLevel
-import com.chamchamcham.application.coaching.rag.common.CoachingStructuredOutputValidator
 import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
 import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
 import com.chamchamcham.application.coaching.rag.common.RagProperties

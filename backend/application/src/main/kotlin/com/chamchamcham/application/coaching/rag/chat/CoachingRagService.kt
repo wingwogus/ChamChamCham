@@ -1,6 +1,5 @@
 package com.chamchamcham.application.coaching.rag.chat
 
-import com.chamchamcham.application.coaching.rag.common.CoachingStructuredOutputValidator
 import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
 import com.chamchamcham.application.coaching.rag.common.RagAuditResult
 import com.chamchamcham.application.coaching.rag.common.RagAuditStatus

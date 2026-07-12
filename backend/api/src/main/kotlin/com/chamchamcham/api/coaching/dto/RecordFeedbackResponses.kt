@@ -1,6 +1,6 @@
 package com.chamchamcham.api.coaching.dto
 
-import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackStatusResult
+import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackDetailResult
 import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackResultContent
 import com.chamchamcham.domain.coaching.RecordFeedbackActionCategory
 import com.chamchamcham.domain.coaching.RecordFeedbackActionDue
@@ -21,7 +21,7 @@ object RecordFeedbackResponses {
         val updatedAt: LocalDateTime,
     ) {
         companion object {
-            fun from(source: RecordFeedbackStatusResult) = StatusResponse(
+            fun from(source: RecordFeedbackDetailResult) = StatusResponse(
                 feedbackId = source.feedbackId,
                 recordId = source.recordId,
                 status = source.status,

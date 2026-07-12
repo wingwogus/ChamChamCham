@@ -18,13 +18,13 @@ class RecordFeedbackQueryService(
     private val lifecycleService: RecordFeedbackLifecycleService,
 ) {
     @Transactional(readOnly = true)
-    fun get(memberId: UUID, recordId: UUID): RecordFeedbackStatusResult {
+    fun get(memberId: UUID, recordId: UUID): RecordFeedbackDetailResult {
         val record = findOwnedActiveRecord(memberId, recordId)
-        return findCurrentOrStale(record).toStatusResult()
+        return findCurrentOrStale(record).toDetailResult()
     }
 
     @Transactional
-    fun regenerate(memberId: UUID, recordId: UUID): RecordFeedbackStatusResult {
+    fun regenerate(memberId: UUID, recordId: UUID): RecordFeedbackDetailResult {
         val record = findOwnedActiveRecord(memberId, recordId)
         val current = findCurrent(record)
 
@@ -39,7 +39,7 @@ class RecordFeedbackQueryService(
             throw BusinessException(ErrorCode.RECORD_FEEDBACK_REGENERATION_NOT_ALLOWED)
         }
 
-        return lifecycleService.retry(current).toStatusResult()
+        return lifecycleService.retry(current).toDetailResult()
     }
 
     private fun findOwnedActiveRecord(memberId: UUID, recordId: UUID): FarmingRecord =
@@ -60,7 +60,7 @@ class RecordFeedbackQueryService(
             RecordFeedbackStatus.STALE,
         )
 
-    private fun RecordFeedback.toStatusResult(): RecordFeedbackStatusResult = RecordFeedbackStatusResult(
+    private fun RecordFeedback.toDetailResult(): RecordFeedbackDetailResult = RecordFeedbackDetailResult(
         feedbackId = requireNotNull(id),
         recordId = requireNotNull(record.id),
         status = status,

@@ -1,5 +1,8 @@
-package com.chamchamcham.application.coaching.rag.common
+package com.chamchamcham.application.coaching.rag.chat
 
+import com.chamchamcham.application.coaching.rag.common.CoachingStructuredResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditResult
+import com.chamchamcham.application.coaching.rag.common.RagAuditStatus
 import org.springframework.stereotype.Component
 
 @Component

@@ -4,7 +4,7 @@ import com.chamchamcham.api.exception.GlobalExceptionHandler
 import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackQueryService
 import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackNextActionResult
 import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackResultContent
-import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackStatusResult
+import com.chamchamcham.application.coaching.recordfeedback.lifecycle.RecordFeedbackDetailResult
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.application.security.TokenProvider
@@ -180,7 +180,7 @@ class RecordFeedbackControllerTest(
         inputPrepared: Boolean = false,
         failureCode: String? = null,
         content: RecordFeedbackResultContent? = null,
-    ) = RecordFeedbackStatusResult(
+    ) = RecordFeedbackDetailResult(
         feedbackId = feedbackId,
         recordId = recordId,
         status = status,
