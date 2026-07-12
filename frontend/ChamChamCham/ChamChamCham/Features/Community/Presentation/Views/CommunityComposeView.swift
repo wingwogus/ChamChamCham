@@ -11,6 +11,18 @@ import SwiftUI
 /// "게시물 작성하기" composer. Calls `onCreated` with the new post id after a successful submit and
 /// dismisses itself.
 struct CommunityComposeView: View {
+    enum Layout {
+        static let horizontalInset: CGFloat = 20
+        static let textAreaContentInset: CGFloat = 20
+        static let titleHeight: CGFloat = 38
+        static let minimumBodyLines = 9
+        static let maximumBodyLines = 21
+        static let descriptionSpacing: CGFloat = 12
+        static let imageSpacing: CGFloat = 12
+        static let sectionTopInset: CGFloat = 16
+        static let majorSectionGap: CGFloat = 24
+    }
+
     private enum FocusedField {
         case title
         case body
@@ -96,7 +108,7 @@ struct CommunityComposeView: View {
                     .foregroundStyle(Color.Text.red)
             }
             .frame(height: 24)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Layout.horizontalInset)
 
             HStack(spacing: 0) {
                 Button {
@@ -131,65 +143,65 @@ struct CommunityComposeView: View {
                         }
                     }
                     .padding(.leading, Spacing.sm)
-                    .padding(.trailing, 20)
+                    .padding(.trailing, Layout.horizontalInset)
                     .frame(height: 48)
                 }
             }
             .frame(height: 48)
         }
-        .padding(.top, Spacing.sm)
+        .padding(.top, Layout.sectionTopInset)
     }
 
     // MARK: - Text area
 
     private var composeTextArea: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            TextField("제목을 입력해주세요.", text: $viewModel.title, axis: .vertical)
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            TextField(
+                "",
+                text: $viewModel.title,
+                prompt: Text("제목을 입력해주세요.")
+                    .foregroundStyle(Color.Text.muted)
+            )
                 .appTypography(.titleMedium)
                 .foregroundStyle(viewModel.isTitleOverLimit ? Color.Text.red : Color.Text.default)
-                .lineLimit(1...2)
+                .lineLimit(1)
                 .focused($focusedField, equals: .title)
-                .frame(minHeight: 38, alignment: .leading)
+                .frame(height: Layout.titleHeight, alignment: .topLeading)
                 .overlay(alignment: .bottom) {
                     Rectangle()
                         .fill(Color.Border.default)
                         .frame(height: 1)
                 }
 
-            ZStack(alignment: .topLeading) {
-                if viewModel.body.isEmpty {
-                    Text("농사와 관련해 이야기하고 싶은 내용을 자유롭게 작성해보세요.")
-                        .appTypography(.bodyLarge)
-                        .foregroundStyle(Color.Text.muted)
-                        .padding(.top, 14)
-                        .allowsHitTesting(false)
-                }
+            VStack(alignment: .leading, spacing: Layout.descriptionSpacing) {
+                TextField(
+                    "",
+                    text: $viewModel.body,
+                    prompt: Text("농사와 관련해 이야기하고 싶은 내용을 자유롭게 작성해보세요.")
+                        .foregroundStyle(Color.Text.muted),
+                    axis: .vertical
+                )
+                .appTypography(.bodyLarge)
+                .foregroundStyle(Color.Text.subtle)
+                .lineLimit(Layout.minimumBodyLines...Layout.maximumBodyLines)
+                .focused($focusedField, equals: .body)
 
-                TextEditor(text: $viewModel.body)
-                    .appTypography(.bodyLarge)
-                    .foregroundStyle(Color.Text.subtle)
-                    .scrollContentBackground(.hidden)
-                    .background(Color.clear)
-                    .focused($focusedField, equals: .body)
-                    .frame(minHeight: 250)
-                    .padding(.horizontal, -5)
+                validationRow
             }
-
-            validationRow
         }
-        .padding(20)
+        .padding(Layout.textAreaContentInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.Background.subtle)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Layout.horizontalInset)
         .padding(.top, Spacing.md)
-        .padding(.bottom, Spacing.xl)
+        .padding(.bottom, Layout.majorSectionGap)
     }
 
     private var validationRow: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
-            if let validationMessage {
-                Text(validationMessage)
+            if let inputValidationMessage = viewModel.inputValidationMessage {
+                Text(inputValidationMessage)
                     .appTypography(.labelMedium)
                     .foregroundStyle(Color.Text.red)
                     .lineLimit(2)
@@ -205,20 +217,10 @@ struct CommunityComposeView: View {
         }
     }
 
-    private var validationMessage: String? {
-        if viewModel.isTitleOverLimit {
-            return "제목은 최대 30자까지 입력 가능합니다."
-        }
-        if viewModel.isBodyOverLimit {
-            return "내용은 최대 500자까지 입력 가능합니다."
-        }
-        return nil
-    }
-
     // MARK: - Farming record
 
     private var farmingRecordSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Layout.imageSpacing) {
             Button {
                 showRecordPicker = true
             } label: {
@@ -231,10 +233,10 @@ struct CommunityComposeView: View {
                         .font(.system(size: 24))
                         .foregroundStyle(Color.Icon.subtle)
                 }
-                .frame(height: 28)
+                .frame(height: 24)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Layout.horizontalInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.sm) {
@@ -242,28 +244,37 @@ struct CommunityComposeView: View {
                         Button {
                             selectedFarmingRecord = record
                         } label: {
-                            FarmingRecordCompactCard(record: record, isSelected: selectedFarmingRecord?.id == record.id)
+                            AppCard(
+                                size: .xsmall,
+                                title: record.title,
+                                captions: [record.cropName, record.caption],
+                                dateText: record.dateText,
+                                isSelected: selectedFarmingRecord?.id == record.id
+                            ) {
+                                FarmingRecordImage(record: record, height: 84)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Layout.horizontalInset)
             }
         }
-        .padding(.vertical, Spacing.md)
+        .padding(.top, Layout.majorSectionGap)
+        .padding(.bottom, Layout.majorSectionGap)
     }
 
     // MARK: - Images
 
     private var imageSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Layout.imageSpacing) {
             Text("사진 첨부하기")
                 .appTypography(.bodyMedium)
                 .foregroundStyle(Color.Text.default)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Layout.horizontalInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Spacing.md) {
+                HStack(spacing: Layout.imageSpacing) {
                     if viewModel.canAddImage {
                         PhotosPicker(
                             selection: $pickerItems,
@@ -282,10 +293,10 @@ struct CommunityComposeView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Layout.horizontalInset)
             }
         }
-        .padding(.vertical, Spacing.md)
+        .padding(.bottom, Layout.majorSectionGap)
     }
 
     /// The picked image is shown immediately; while its upload is in flight a dimmed spinner overlays it.
@@ -307,14 +318,17 @@ struct CommunityComposeView: View {
     // MARK: - Q&A toggle
 
     private var questionToggle: some View {
-        Toggle(isOn: $viewModel.isQuestion) {
+        HStack {
             Text("질문으로 올리기")
                 .appTypography(.bodyMedium)
                 .foregroundStyle(Color.Text.default)
+            Spacer()
+            AppToggle(isOn: $viewModel.isQuestion)
         }
-        .toggleStyle(AppSwitchToggleStyle())
-        .padding(.horizontal, 20)
-        .frame(height: 60)
+        .padding(.horizontal, Layout.horizontalInset)
+        .frame(height: 28)
+        .padding(.top, Layout.majorSectionGap)
+        .padding(.bottom, 36)
     }
 
     private var submitBar: some View {
@@ -323,25 +337,21 @@ struct CommunityComposeView: View {
                 .fill(Color.Border.subtle)
                 .frame(height: 1)
 
-            Button(action: submit) {
-                ZStack {
-                    Text("완료")
-                        .appTypography(.bodyLarge)
-                        .opacity(viewModel.isSubmitting ? 0 : 1)
-                    if viewModel.isSubmitting {
-                        ProgressView()
-                            .tint(Color.Text.inverse)
-                    }
-                }
-                .foregroundStyle(viewModel.canSubmit ? Color.Text.inverse : Color.Text.muted)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(viewModel.canSubmit ? Color.Object.primary : Color.Object.disabled)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .buttonStyle(.plain)
+            AppButton(
+                viewModel.isSubmitting ? nil : "완료",
+                variant: .primary,
+                size: .medium,
+                fullWidth: true,
+                action: submit
+            )
             .disabled(!viewModel.canSubmit)
-            .padding(.horizontal, 20)
+            .overlay {
+                if viewModel.isSubmitting {
+                    ProgressView()
+                        .tint(Color.Text.inverse)
+                }
+            }
+            .padding(.horizontal, Layout.horizontalInset)
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
@@ -353,15 +363,13 @@ struct CommunityComposeView: View {
             Text(errorMessage)
                 .appTypography(.labelMedium)
                 .foregroundStyle(Color.Text.red)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Layout.horizontalInset)
                 .padding(.bottom, Spacing.md)
         }
     }
 
     private var sectionDivider: some View {
-        Rectangle()
-            .fill(Color.Object.muted)
-            .frame(height: 2)
+        AppDivider(size: .small)
     }
 
     private func submit() {
@@ -525,46 +533,6 @@ private struct FarmingRecordPickerView: View {
     }
 }
 
-private struct FarmingRecordCompactCard: View {
-    let record: FarmingRecordPreview
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            recordImage
-
-            Text(record.title)
-                .appTypography(.titleMediumEmphasized)
-                .foregroundStyle(isSelected ? Color.Text.default : Color.Text.subtle)
-                .lineLimit(1)
-
-            Text("\(record.cropName) · \(record.caption)")
-                .appTypography(.labelMedium)
-                .foregroundStyle(isSelected ? Color.Text.subtle : Color.Text.muted)
-                .lineLimit(1)
-        }
-        .padding(12)
-        .frame(width: 168, height: 168, alignment: .topLeading)
-        .background(isSelected ? Color.Object.primarySubtle : Color.Object.default)
-        .overlay {
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isSelected ? Color.Border.primary : Color.Border.default, lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var recordImage: some View {
-        FarmingRecordImage(record: record, height: 84)
-            .overlay(alignment: .topLeading) {
-                Text(record.dateText)
-                    .appTypography(.labelMedium)
-                    .foregroundStyle(Color.Text.inverse)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, 6)
-            }
-    }
-}
-
 private struct FarmingRecordPickerCard: View {
     let record: FarmingRecordPreview
     let isSelected: Bool
@@ -650,38 +618,6 @@ private struct FarmingRecordImage: View {
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-private struct AppSwitch: View {
-    let isOn: Bool
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 14)
-            .fill(isOn ? Color.Object.primary : Color.Object.disabled)
-            .frame(width: 48, height: 28)
-            .overlay(alignment: isOn ? .trailing : .leading) {
-                Circle()
-                    .fill(Color.Object.default)
-                    .frame(width: 24, height: 24)
-                    .padding(2)
-            }
-            .animation(.easeInOut(duration: 0.16), value: isOn)
-    }
-}
-
-private struct AppSwitchToggleStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Button {
-            configuration.isOn.toggle()
-        } label: {
-            HStack {
-                configuration.label
-                Spacer()
-                AppSwitch(isOn: configuration.isOn)
-            }
-        }
-        .buttonStyle(.plain)
     }
 }
 
