@@ -94,6 +94,22 @@ struct PendingFarmSyncServiceTests {
         #expect(pending.isEmpty)
     }
 
+    @Test("enqueueing another member never erases the owner's pending farms")
+    func preservesOtherMemberQueue() async throws {
+        let ownerMemberId = UUID()
+        let otherMemberId = UUID()
+        let store = PendingFarmStore(defaults: isolatedDefaults())
+        let repository = RecordingFarmRepository()
+        let service = PendingFarmSyncService(store: store, repository: repository)
+        let ownerRequests = try farmRequests(count: 2)
+
+        await service.enqueue(ownerRequests, memberId: ownerMemberId)
+        await service.enqueue([], memberId: otherMemberId)
+
+        let retained = await store.load(memberId: ownerMemberId)
+        #expect(retained == ownerRequests)
+    }
+
     private func isolatedDefaults() -> UserDefaults {
         UserDefaults(suiteName: "pending-farms-\(UUID().uuidString)")!
     }

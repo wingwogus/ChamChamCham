@@ -8,9 +8,8 @@
 import Foundation
 
 actor PendingFarmStore {
-    private struct Batch: Codable {
-        let memberId: UUID
-        var requests: [SaveFarmRequestDTO]
+    private struct State: Codable {
+        var requestsByMember: [String: [SaveFarmRequestDTO]] = [:]
     }
 
     private let defaults: UserDefaults
@@ -21,36 +20,42 @@ actor PendingFarmStore {
     }
 
     func replace(with requests: [SaveFarmRequestDTO], memberId: UUID) {
-        guard !requests.isEmpty else {
-            defaults.removeObject(forKey: key)
-            return
+        var state = loadState()
+        if requests.isEmpty {
+            state.requestsByMember.removeValue(forKey: memberId.uuidString)
+        } else {
+            state.requestsByMember[memberId.uuidString] = requests
         }
-        let batch = Batch(memberId: memberId, requests: requests)
-        guard let data = try? JSONEncoder().encode(batch) else { return }
-        defaults.set(data, forKey: key)
+        save(state)
     }
 
     func load() -> [SaveFarmRequestDTO] {
-        guard let data = defaults.data(forKey: key),
-              let batch = try? JSONDecoder().decode(Batch.self, from: data) else {
-            return []
-        }
-        return batch.requests
+        loadState().requestsByMember.values.flatMap { $0 }
     }
 
     func load(memberId: UUID) -> [SaveFarmRequestDTO] {
-        guard let batch = loadBatch(), batch.memberId == memberId else { return [] }
-        return batch.requests
+        loadState().requestsByMember[memberId.uuidString] ?? []
     }
 
     func removeFirst(memberId: UUID) {
-        guard var batch = loadBatch(), batch.memberId == memberId, !batch.requests.isEmpty else { return }
-        batch.requests.removeFirst()
-        replace(with: batch.requests, memberId: memberId)
+        var requests = load(memberId: memberId)
+        guard !requests.isEmpty else { return }
+        requests.removeFirst()
+        replace(with: requests, memberId: memberId)
     }
 
-    private func loadBatch() -> Batch? {
-        guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(Batch.self, from: data)
+    private func loadState() -> State {
+        guard let data = defaults.data(forKey: key),
+              let state = try? JSONDecoder().decode(State.self, from: data) else { return State() }
+        return state
+    }
+
+    private func save(_ state: State) {
+        guard !state.requestsByMember.isEmpty else {
+            defaults.removeObject(forKey: key)
+            return
+        }
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        defaults.set(data, forKey: key)
     }
 }
