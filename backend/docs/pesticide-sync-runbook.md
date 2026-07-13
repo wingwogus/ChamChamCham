@@ -64,7 +64,30 @@ GET /api/v1/admin/pesticide-sync/{jobId}
 `status`가 `SUCCEEDED`가 될 때까지 폴링한다. `ApiResponse<PesticideSyncJobDetailResponse>`의
 `totalCount`/`fetchedRowCount`/`createdApplicationCount`를 확인한다. 이미 동기화된 데이터에
 재실행하면 dedup 로직 때문에 `createdApplicationCount`가 낮게(또는 0으로) 나오는 것이 정상이다.
-실패 시 `status`는 `FAILED`가 되고 `errorMessage`에 원인이 담긴다.
+실패 시 `status`는 `FAILED`가 되고 `errorMessage`에 원인이 담긴다. `fetchedRowCount`가
+`totalCount`에 미달하면(중간 빈 페이지 등) 잡은 자동으로 `FAILED` 처리되므로 그대로 재실행한다.
+
+> ⚠️ `/api/v1/admin/**` 경로는 `ROLE_ADMIN` 권한이 필요하다(SecurityConfig). 아직 관리자 권한
+> 부여 절차가 없다면 아래 "대안"으로 적재하고, 관리자 인증은 추후 도입한다.
+
+### 대안: 관리자 토큰 없이 수동 로더로 적재 (현재 권장)
+
+HTTP·토큰 없이 실 DB에 직접 적재하는 1회성 로더 테스트가 있다:
+`api/src/test/kotlin/com/chamchamcham/api/pesticide/PesticideSyncManualLoaderTest.kt`.
+
+일반 `./gradlew test`에서는 절대 실행되지 않고, 전용 플래그 `PSIS_PESTICIDE_SYNC_RUN=true`가
+있을 때만 활성화된다(로컬 Postgres + Redis 기동 필요 — 로컬 앱 구동과 동일 전제).
+
+```bash
+PSIS_PESTICIDE_SYNC_RUN=true \
+PSIS_PESTICIDE_API_KEY=<서비스인증키> \
+PSIS_PESTICIDE_BASE_URL=http://psis.rda.go.kr/openApi/service.do \
+./gradlew :api:test --tests "com.chamchamcham.api.pesticide.PesticideSyncManualLoaderTest"
+```
+
+`runExistingJob`을 동기로 끝까지 돌리므로 전량 적재가 끝날 때까지 블로킹된다(수 분~수십 분).
+콘솔의 `[PSIS sync] status=... total=... fetched=... createdApplications=...` 로그로 결과를
+확인한다. `SUCCEEDED`가 아니면 단언에서 실패로 드러난다.
 
 ## 롤백
 
