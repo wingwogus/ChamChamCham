@@ -8,9 +8,9 @@ import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * 데이터포털/PSIS류 XML 응답에서 반복되는 <item> 엘리먼트를 태그명 -> 텍스트값 맵으로 평탄화한다.
- * 실제 태그명(예: cropNm, aplyPestNm 등)은 API 키 발급 후 실응답으로 확정하고
- * [PsisPesticideRowMapper]에서만 매핑하면 되도록, 이 파서는 특정 필드명을 알 필요가 없게 만든다.
+ * PSIS(농약안전정보시스템) XML 응답(<service><list><item>...)에서 반복되는 <item> 엘리먼트를
+ * 태그명 -> 텍스트값 맵으로 평탄화한다. 실제 필드 매핑은 [PsisPesticideRowMapper]에서만 하면 되도록,
+ * 이 파서는 특정 필드명을 알 필요가 없게 만든다.
  */
 @Component
 class PsisPesticideResponseParser {
@@ -38,8 +38,8 @@ class PsisPesticideResponseParser {
         }
 
         return PsisPesticideEnvelope(
-            resultCode = firstTagText(document, "resultCode"),
-            resultMsg = firstTagText(document, "resultMsg"),
+            errorCode = firstTagText(document, "errorCode"),
+            errorMsg = firstTagText(document, "errorMsg"),
             totalCount = firstTagText(document, "totalCount")?.toIntOrNull(),
             items = items,
         )

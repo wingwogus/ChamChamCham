@@ -51,12 +51,12 @@ class AdminPesticideSyncControllerTest(
         )
         `when`(pesticideSyncService.probe(10)).thenReturn(
             PesticideProbeResult(
-                resultCode = "00",
-                resultMsg = "NORMAL_SERVICE",
-                totalCount = 137877,
+                errorCode = null,
+                errorMsg = null,
+                totalCount = 143912,
                 itemCount = 1,
-                distinctTagNames = listOf("cropNm", "prdtNm"),
-                sampleRawItem = mapOf("cropNm" to "감자", "prdtNm" to "만코제브 수화제"),
+                distinctTagNames = listOf("cropName", "pestiKorName"),
+                sampleRawItem = mapOf("cropName" to "감자", "pestiKorName" to "만코제브 수화제"),
                 requiredKeyResolution = mapOf("itemName" to true, "cropName" to true, "pestName" to true),
                 mapped = mapped,
             )
@@ -65,11 +65,11 @@ class AdminPesticideSyncControllerTest(
         mockMvc.perform(post("/api/v1/admin/pesticide-sync/probe"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.resultCode", equalTo("00")))
-            .andExpect(jsonPath("$.data.resultMsg", equalTo("NORMAL_SERVICE")))
-            .andExpect(jsonPath("$.data.totalCount", equalTo(137877)))
+            .andExpect(jsonPath("$.data.errorCode").doesNotExist())
+            .andExpect(jsonPath("$.data.errorMsg").doesNotExist())
+            .andExpect(jsonPath("$.data.totalCount", equalTo(143912)))
             .andExpect(jsonPath("$.data.itemCount", equalTo(1)))
-            .andExpect(jsonPath("$.data.distinctTagNames[0]", equalTo("cropNm")))
+            .andExpect(jsonPath("$.data.distinctTagNames[0]", equalTo("cropName")))
             .andExpect(jsonPath("$.data.requiredKeyResolution.itemName", equalTo(true)))
             .andExpect(jsonPath("$.data.mapped.itemName", equalTo("만코제브 수화제")))
 
@@ -77,7 +77,7 @@ class AdminPesticideSyncControllerTest(
     }
 
     @Test
-    fun `probe rejects rows outside 1 to 100`() {
+    fun `probe rejects rows outside 1 to 50`() {
         mockMvc.perform(post("/api/v1/admin/pesticide-sync/probe").param("rows", "0"))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.success").value(false))

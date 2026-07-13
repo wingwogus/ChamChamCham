@@ -83,16 +83,16 @@ class PesticideSyncServiceTest {
         `when`(
             pesticideApplicationRepository.findByPesticide_IdAndPest_IdAndCropName(pesticideId, pestId2, "강낭콩")
         ).thenReturn(null)
-        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml())
+        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml(totalCount = 2))
 
-        val result = service.sync(pageSize = 100)
+        val result = service.sync()
 
         assertEquals(2, result.fetchedRowCount)
         assertEquals(2, result.createdApplicationCount)
     }
 
     @Test
-    fun `stops paginating once a page returns fewer rows than the page size`() {
+    fun `stops paginating once startPoint passes totalCount`() {
         `when`(pesticideRepository.findByItemNameAndBrandName("만코제브 수화제", "가가방"))
             .thenReturn(null, savedPesticide)
         `when`(pestRepository.findByName("역병")).thenReturn(null)
@@ -103,9 +103,9 @@ class PesticideSyncServiceTest {
         `when`(
             pesticideApplicationRepository.findByPesticide_IdAndPest_IdAndCropName(pesticideId, pestId2, "강낭콩")
         ).thenReturn(null)
-        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml())
+        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml(totalCount = 2))
 
-        val result = service.sync(pageSize = 100)
+        val result = service.sync()
 
         assertEquals(1, result.pageCount)
     }
@@ -120,20 +120,20 @@ class PesticideSyncServiceTest {
             null,
             PesticideApplication(pesticide = savedPesticide, pest = savedPest1, cropName = "감자")
         )
-        `when`(transport.get(anyMap())).thenReturn(oneRowPageXml())
+        `when`(transport.get(anyMap())).thenReturn(oneRowPageXml(totalCount = 1))
 
-        service.sync(pageSize = 100)
-        val secondResult = service.sync(pageSize = 100)
+        service.sync()
+        val secondResult = service.sync()
 
         assertEquals(0, secondResult.createdApplicationCount)
     }
 
     @Test
-    fun `throws when upstream responds with an error resultCode`() {
+    fun `throws when upstream responds with an errorCode`() {
         `when`(transport.get(anyMap())).thenReturn(errorEnvelopeXml())
 
         val exception = assertThrows(BusinessException::class.java) {
-            service.sync(pageSize = 100)
+            service.sync()
         }
 
         assertEquals(ErrorCode.PESTICIDE_SYNC_FAILED, exception.errorCode)
@@ -141,13 +141,16 @@ class PesticideSyncServiceTest {
 
     @Test
     fun `probe fetches one page and reports diagnostics without writing to the database`() {
-        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml())
+        `when`(transport.get(anyMap())).thenReturn(twoRowPageXml(totalCount = 2))
 
         val result = service.probe(rows = 10)
 
-        assertEquals(null, result.totalCount)
+        assertEquals(2, result.totalCount)
         assertEquals(2, result.itemCount)
-        assertEquals(listOf("aplyPestNm", "cropNm", "dltnMag", "prdtNm", "trdmrkNm"), result.distinctTagNames)
+        assertEquals(
+            listOf("cropName", "dilutUnit", "diseaseWeedName", "pestiBrandName", "pestiKorName"),
+            result.distinctTagNames
+        )
         val mapped = result.mapped
         requireNotNull(mapped)
         assertEquals("만코제브 수화제", mapped.itemName)
@@ -155,7 +158,7 @@ class PesticideSyncServiceTest {
     }
 
     @Test
-    fun `probe throws when upstream responds with an error resultCode`() {
+    fun `probe throws when upstream responds with an errorCode`() {
         `when`(transport.get(anyMap())).thenReturn(errorEnvelopeXml())
 
         val exception = assertThrows(BusinessException::class.java) {
@@ -166,47 +169,47 @@ class PesticideSyncServiceTest {
     }
 
     private fun errorEnvelopeXml(): String = """
-        <response>
-          <header>
-            <resultCode>03</resultCode>
-            <resultMsg>NODATA_ERROR</resultMsg>
-          </header>
-          <body>
-            <items/>
-            <totalCount>0</totalCount>
-          </body>
-        </response>
+        <service>
+          <errorCode>ERR_101</errorCode>
+          <errorMsg>인증키가 등록되지 않았습니다. 정상적인 인증키를 확인하세요.</errorMsg>
+        </service>
     """.trimIndent()
 
-    private fun oneRowPageXml(): String = """
-        <response><body><items>
-          <item>
-            <prdtNm>만코제브 수화제</prdtNm>
-            <trdmrkNm>가가방</trdmrkNm>
-            <cropNm>감자</cropNm>
-            <aplyPestNm>역병</aplyPestNm>
-            <dltnMag>500배</dltnMag>
-          </item>
-        </items></body></response>
+    private fun oneRowPageXml(totalCount: Int): String = """
+        <service>
+          <totalCount>$totalCount</totalCount>
+          <list>
+            <item>
+              <pestiKorName>만코제브 수화제</pestiKorName>
+              <pestiBrandName>가가방</pestiBrandName>
+              <cropName>감자</cropName>
+              <diseaseWeedName>역병</diseaseWeedName>
+              <dilutUnit>500배</dilutUnit>
+            </item>
+          </list>
+        </service>
     """.trimIndent()
 
-    private fun twoRowPageXml(): String = """
-        <response><body><items>
-          <item>
-            <prdtNm>만코제브 수화제</prdtNm>
-            <trdmrkNm>가가방</trdmrkNm>
-            <cropNm>감자</cropNm>
-            <aplyPestNm>역병</aplyPestNm>
-            <dltnMag>500배</dltnMag>
-          </item>
-          <item>
-            <prdtNm>만코제브 수화제</prdtNm>
-            <trdmrkNm>가가방</trdmrkNm>
-            <cropNm>강낭콩</cropNm>
-            <aplyPestNm>탄저병</aplyPestNm>
-            <dltnMag>500배</dltnMag>
-          </item>
-        </items></body></response>
+    private fun twoRowPageXml(totalCount: Int): String = """
+        <service>
+          <totalCount>$totalCount</totalCount>
+          <list>
+            <item>
+              <pestiKorName>만코제브 수화제</pestiKorName>
+              <pestiBrandName>가가방</pestiBrandName>
+              <cropName>감자</cropName>
+              <diseaseWeedName>역병</diseaseWeedName>
+              <dilutUnit>500배</dilutUnit>
+            </item>
+            <item>
+              <pestiKorName>만코제브 수화제</pestiKorName>
+              <pestiBrandName>가가방</pestiBrandName>
+              <cropName>강낭콩</cropName>
+              <diseaseWeedName>탄저병</diseaseWeedName>
+              <dilutUnit>500배</dilutUnit>
+            </item>
+          </list>
+        </service>
     """.trimIndent()
 
     private class NoopTransactionManager : AbstractPlatformTransactionManager() {

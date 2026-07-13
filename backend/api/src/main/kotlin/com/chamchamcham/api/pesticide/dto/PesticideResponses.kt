@@ -49,8 +49,8 @@ object PesticideResponses {
     }
 
     data class PesticideProbeResponse(
-        val resultCode: String?,
-        val resultMsg: String?,
+        val errorCode: String?,
+        val errorMsg: String?,
         val totalCount: Int?,
         val itemCount: Int,
         val distinctTagNames: List<String>,
@@ -60,8 +60,8 @@ object PesticideResponses {
     ) {
         companion object {
             fun from(result: PesticideProbeResult): PesticideProbeResponse = PesticideProbeResponse(
-                resultCode = result.resultCode,
-                resultMsg = result.resultMsg,
+                errorCode = result.errorCode,
+                errorMsg = result.errorMsg,
                 totalCount = result.totalCount,
                 itemCount = result.itemCount,
                 distinctTagNames = result.distinctTagNames,

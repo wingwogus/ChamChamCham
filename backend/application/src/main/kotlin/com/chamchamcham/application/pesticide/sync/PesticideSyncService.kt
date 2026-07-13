@@ -12,11 +12,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 
 /**
- * PSIS 원본 데이터(작물 x 병해충 x 약제 사실 테이블, 약 137,877건)를 전량 페이지네이션 순회하며
- * Pesticide/Pest/PesticideApplication으로 dedup·upsert한다.
+ * PSIS 원본 데이터(작물 x 병해충 x 약제 사실 테이블, 약 143,912건)를 startPoint 오프셋 페이지네이션으로
+ * 전량 순회하며 Pesticide/Pest/PesticideApplication으로 dedup·upsert한다.
  *
  * 매 서버 기동마다 자동 실행되지 않는다 — 관리자 트리거(AdminPesticideSyncController)로만 호출된다.
- * 행 단위 findBy 쿼리를 쓰므로 137k건 전체 동기화는 느릴 수 있다(1회성 관리 작업이라 우선 정확성을
+ * 행 단위 findBy 쿼리를 쓰므로 143k건 전체 동기화는 느릴 수 있다(1회성 관리 작업이라 우선 정확성을
  * 우선하고, 실제 실행해보고 느리면 배치 upsert로 최적화한다 - YAGNI).
  */
 @Service
@@ -30,15 +30,20 @@ class PesticideSyncService(
     private val transactionTemplate: TransactionTemplate,
 ) {
     fun sync(pageSize: Int = DEFAULT_PAGE_SIZE): PesticideSyncResult {
-        var pageNo = 1
+        val clampedPageSize = pageSize.coerceAtMost(MAX_PAGE_SIZE)
+        var startPoint = 1
         var pagesFetched = 0
         var fetchedRowCount = 0
         var createdApplicationCount = 0
+        var totalCount: Int? = null
 
         while (true) {
-            val body = transport.get(pageQuery(pageNo = pageNo, numOfRows = pageSize))
+            val body = transport.get(pageQuery(startPoint = startPoint, displayCount = clampedPageSize))
             val envelope = responseParser.parseEnvelope(body)
             failOnUpstreamError(envelope)
+            if (totalCount == null) {
+                totalCount = envelope.totalCount
+            }
             val rawRows = envelope.items
             if (rawRows.isEmpty()) {
                 break
@@ -49,10 +54,11 @@ class PesticideSyncService(
             fetchedRowCount += rawRows.size
             createdApplicationCount += transactionTemplate.execute { upsertRows(rows) } ?: 0
 
-            if (rawRows.size < pageSize) {
+            startPoint += clampedPageSize
+            val currentTotal = totalCount
+            if (currentTotal != null && startPoint > currentTotal) {
                 break
             }
-            pageNo += 1
         }
 
         return PesticideSyncResult(
@@ -63,14 +69,14 @@ class PesticideSyncService(
     }
 
     fun probe(rows: Int = DEFAULT_PROBE_ROWS): PesticideProbeResult {
-        val body = transport.get(pageQuery(pageNo = 1, numOfRows = rows))
+        val body = transport.get(pageQuery(startPoint = 1, displayCount = rows))
         val envelope = responseParser.parseEnvelope(body)
         failOnUpstreamError(envelope)
 
         val sampleRawItem = envelope.items.firstOrNull()
         return PesticideProbeResult(
-            resultCode = envelope.resultCode,
-            resultMsg = envelope.resultMsg,
+            errorCode = envelope.errorCode,
+            errorMsg = envelope.errorMsg,
             totalCount = envelope.totalCount,
             itemCount = envelope.items.size,
             distinctTagNames = envelope.items.flatMap { it.keys }.distinct().sorted(),
@@ -81,22 +87,20 @@ class PesticideSyncService(
     }
 
     private fun failOnUpstreamError(envelope: PsisPesticideEnvelope) {
-        val resultCode = envelope.resultCode?.trim() ?: return
-        if (resultCode in SUCCESS_RESULT_CODES) {
-            return
-        }
+        val errorCode = envelope.errorCode ?: return
         throw BusinessException(
             ErrorCode.PESTICIDE_SYNC_FAILED,
-            detail = mapOf("resultCode" to resultCode, "resultMsg" to envelope.resultMsg),
+            detail = mapOf("errorCode" to errorCode, "errorMsg" to envelope.errorMsg),
         )
     }
 
-    // pageNo/numOfRows만 다르고 나머지는 동일하므로 sync/probe가 같은 쿼리 형태를 공유한다.
-    // type 파라미터명이 실제 엔드포인트에서 다르면(dataType/_type 등) 여기 한 곳만 고치면 된다.
-    private fun pageQuery(pageNo: Int, numOfRows: Int): Map<String, String> = mapOf(
-        "pageNo" to pageNo.toString(),
-        "numOfRows" to numOfRows.toString(),
-        "type" to "xml",
+    // startPoint(1-based row offset)/displayCount만 다르고 나머지는 동일하므로 sync/probe가 같은
+    // 쿼리 형태를 공유한다. displayCount는 PSIS 제약상 최대 50이라 여기서 clamp한다.
+    private fun pageQuery(startPoint: Int, displayCount: Int): Map<String, String> = mapOf(
+        "serviceCode" to SERVICE_CODE,
+        "serviceType" to SERVICE_TYPE,
+        "displayCount" to displayCount.coerceAtMost(MAX_PAGE_SIZE).toString(),
+        "startPoint" to startPoint.toString(),
     )
 
     private fun upsertRows(rows: List<PsisPesticideRow>): Int {
@@ -160,8 +164,10 @@ class PesticideSyncService(
     }
 
     private companion object {
-        const val DEFAULT_PAGE_SIZE = 1000
+        const val SERVICE_CODE = "SVC01"
+        const val SERVICE_TYPE = "AA001"
+        const val DEFAULT_PAGE_SIZE = 50
+        const val MAX_PAGE_SIZE = 50
         const val DEFAULT_PROBE_ROWS = 10
-        val SUCCESS_RESULT_CODES = setOf("00", "0")
     }
 }
