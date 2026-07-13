@@ -117,6 +117,30 @@ class PesticideSyncServiceTest {
     }
 
     @Test
+    fun `runExistingJob marks the job FAILED when pagination ends before totalCount is reached`() {
+        stubJobSaveAndFind()
+        `when`(pesticideRepository.findByItemNameAndBrandName("만코제브 수화제", "가가방")).thenReturn(null)
+        `when`(pestRepository.findByName("역병")).thenReturn(null)
+        `when`(
+            pesticideApplicationRepository.findByPesticide_IdAndPest_IdAndCropName(pesticideId, pestId, "감자")
+        ).thenReturn(null)
+        `when`(transport.get(anyMap())).thenAnswer { invocation ->
+            val params = invocation.getArgument<Map<String, String>>(0)
+            if (params["startPoint"] == "1") {
+                pageXml(totalCount = 100, itemCount = 1)
+            } else {
+                pageXml(totalCount = 100, itemCount = 0)
+            }
+        }
+
+        service.createSyncJob(adminMemberId)
+        service.runExistingJob(jobId)
+
+        assertEquals(PesticideSyncJobStatus.FAILED, persistedJob.status)
+        assertNotNull(persistedJob.errorMessage)
+    }
+
+    @Test
     fun `runExistingJob marks the job FAILED when upstream responds with an errorCode`() {
         stubJobSaveAndFind()
         `when`(transport.get(anyMap())).thenReturn(errorEnvelopeXml())

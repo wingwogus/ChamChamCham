@@ -72,7 +72,16 @@ class PesticideSyncService(
                 }
             }
 
-            succeedJob(jobId, totalCount ?: fetchedRowCount, fetchedRowCount, createdApplicationCount)
+            // 중간에 일시적 빈 페이지가 오면 totalCount에 못 미친 채 순회가 끝날 수 있다. 이때
+            // SUCCEEDED로 두면 부분 적재가 조용히 성공으로 보이므로, 미달이면 실패로 표시한다(재실행은
+            // dedup되어 안전).
+            val resolvedTotal = totalCount
+            if (resolvedTotal != null && fetchedRowCount < resolvedTotal) {
+                throw IllegalStateException(
+                    "PSIS 동기화가 불완전하게 종료되었습니다: 전체 ${resolvedTotal}건 중 ${fetchedRowCount}건만 수집(재실행 필요)"
+                )
+            }
+            succeedJob(jobId, resolvedTotal ?: fetchedRowCount, fetchedRowCount, createdApplicationCount)
         } catch (exception: Exception) {
             failJob(jobId, exception)
         }
