@@ -55,16 +55,25 @@ class ReportFeedbackTest {
     )
 
     @Test
-    fun `ready feedback stores summary and ordered items without a section count cap`() {
-        val feedback = ReportFeedback.pending(member, report)
+    fun `pending feedback belongs to one report work type`() {
+        val feedback = ReportFeedback.pending(member, report, WorkType.WATERING)
+
+        assertThat(feedback.workType).isEqualTo(WorkType.WATERING)
+        assertThat(feedback.report).isSameAs(report)
+        assertThat(feedback.status).isEqualTo(ReportFeedbackStatus.PENDING)
+    }
+
+    @Test
+    fun `ready feedback stores one work type summary and ordered items without a section count cap`() {
+        val feedback = ReportFeedback.pending(member, report, WorkType.WATERING)
 
         feedback.markReady(
-            summary = "이번 사이클은 관수 간격을 안정적으로 유지했습니다.",
+            summary = "이번 관수 작업은 간격을 안정적으로 유지했어요.",
             items = listOf(
-                item(ReportFeedbackItemSection.STRENGTH, "관수 4회", "관수를 4회 기록해 건조 구간을 줄였습니다."),
-                item(ReportFeedbackItemSection.IMPROVEMENT, "시비 1회", "시비 간격과 효과를 다음 사이클에 비교하세요."),
-                item(ReportFeedbackItemSection.NEXT_CYCLE_ACTION, "파종 전", "파종 전 토양 상태를 기록하세요."),
-                item(ReportFeedbackItemSection.NEXT_CYCLE_ACTION, "생육 중", "주간 관수 간격을 기록하세요."),
+                item(ReportFeedbackItemSection.STRENGTH, "관수 4회", "관수를 네 번 기록해 흐름을 확인하기 좋았어요."),
+                item(ReportFeedbackItemSection.IMPROVEMENT, "관수량 누락", "다음에는 관수량도 함께 기록하세요."),
+                item(ReportFeedbackItemSection.NEXT_ACTION, "다음 관수", "관수 전에 토양 수분을 확인하세요."),
+                item(ReportFeedbackItemSection.NEXT_ACTION, "관수 직후", "관수량과 토양 상태를 함께 기록하세요."),
             ),
             citations = listOf(mapOf("id" to "report:current")),
             auditStatus = "PASS",
@@ -74,21 +83,39 @@ class ReportFeedbackTest {
         )
 
         assertThat(feedback.status).isEqualTo(ReportFeedbackStatus.READY)
-        assertThat(feedback.summary).isEqualTo("이번 사이클은 관수 간격을 안정적으로 유지했습니다.")
+        assertThat(feedback.summary).isEqualTo("이번 관수 작업은 간격을 안정적으로 유지했어요.")
         assertThat(feedback.items().map(ReportFeedbackItem::displayOrder)).containsExactly(0, 1, 2, 3)
         assertThat(feedback.items().map(ReportFeedbackItem::section))
             .containsExactly(
                 ReportFeedbackItemSection.STRENGTH,
                 ReportFeedbackItemSection.IMPROVEMENT,
-                ReportFeedbackItemSection.NEXT_CYCLE_ACTION,
-                ReportFeedbackItemSection.NEXT_CYCLE_ACTION,
+                ReportFeedbackItemSection.NEXT_ACTION,
+                ReportFeedbackItemSection.NEXT_ACTION,
             )
+    }
+
+    @Test
+    fun `ready feedback permits a summary without forced items`() {
+        val feedback = ReportFeedback.pending(member, report, WorkType.WATERING)
+
+        feedback.markReady(
+            summary = "이번 관수 기록의 흐름을 확인했어요.",
+            items = emptyList(),
+            citations = emptyList(),
+            auditStatus = "PASS",
+            auditWarnings = emptyList(),
+            modelName = "test-chat",
+            embeddingModel = "test-embedding",
+        )
+
+        assertThat(feedback.status).isEqualTo(ReportFeedbackStatus.READY)
+        assertThat(feedback.items()).isEmpty()
     }
 
     @Test
     fun `ready feedback rejects blank summary and blank item values`() {
         assertThatThrownBy {
-            ReportFeedback.pending(member, report).markReady(
+            ReportFeedback.pending(member, report, WorkType.WATERING).markReady(
                 summary = " ",
                 items = listOf(item(ReportFeedbackItemSection.STRENGTH, "관수", "관수 기록이 좋습니다.")),
                 citations = emptyList(),
@@ -100,7 +127,7 @@ class ReportFeedbackTest {
         }.isInstanceOf(IllegalArgumentException::class.java)
 
         assertThatThrownBy {
-            ReportFeedback.pending(member, report).markReady(
+            ReportFeedback.pending(member, report, WorkType.WATERING).markReady(
                 summary = "요약",
                 items = listOf(item(ReportFeedbackItemSection.STRENGTH, " ", "관수 기록이 좋습니다.")),
                 citations = emptyList(),

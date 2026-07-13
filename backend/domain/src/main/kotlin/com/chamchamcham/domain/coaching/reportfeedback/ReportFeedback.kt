@@ -1,6 +1,7 @@
 package com.chamchamcham.domain.coaching.reportfeedback
 
 import com.chamchamcham.domain.common.BaseTimeEntity
+import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.report.FarmingCycleReport
 import jakarta.persistence.CascadeType
@@ -26,7 +27,10 @@ import java.util.UUID
 @Table(
     name = "report_feedback",
     uniqueConstraints = [
-        UniqueConstraint(name = "uk_report_feedback_report", columnNames = ["report_id"]),
+        UniqueConstraint(
+            name = "uk_report_feedback_report_work_type",
+            columnNames = ["report_id", "work_type"],
+        ),
     ],
 )
 class ReportFeedback(
@@ -42,6 +46,10 @@ class ReportFeedback(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "report_id", nullable = false)
     val report: FarmingCycleReport,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_type", nullable = false, length = 32)
+    val workType: WorkType,
 
     status: ReportFeedbackStatus,
 
@@ -112,7 +120,6 @@ class ReportFeedback(
     ) {
         check(status == ReportFeedbackStatus.PENDING) { "only pending feedback can become ready" }
         require(summary.isNotBlank()) { "summary is required" }
-        require(items.isNotEmpty()) { "at least one feedback item is required" }
         require(items.all { it.basis.isNotBlank() && it.text.isNotBlank() }) {
             "feedback item basis and text are required"
         }
@@ -138,11 +145,16 @@ class ReportFeedback(
     }
 
     companion object {
-        fun pending(member: Member, report: FarmingCycleReport): ReportFeedback =
+        fun pending(member: Member, report: FarmingCycleReport, workType: WorkType): ReportFeedback =
             ReportFeedback(
                 member = member,
                 report = report,
+                workType = workType,
                 status = ReportFeedbackStatus.PENDING,
             )
+
+        @Deprecated("Specify the report work type explicitly")
+        fun pending(member: Member, report: FarmingCycleReport): ReportFeedback =
+            pending(member, report, WorkType.HARVEST)
     }
 }
