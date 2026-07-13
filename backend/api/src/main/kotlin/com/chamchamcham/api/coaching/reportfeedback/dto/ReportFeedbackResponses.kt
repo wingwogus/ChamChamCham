@@ -2,15 +2,29 @@ package com.chamchamcham.api.coaching.reportfeedback.dto
 
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackDetailResult
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackItemResult
+import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackListResult
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackResultContent
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackStatus
+import com.chamchamcham.domain.farming.WorkType
 import java.time.LocalDateTime
 import java.util.UUID
 
 object ReportFeedbackResponses {
+    data class ListResponse(
+        val reportId: UUID,
+        val feedbacks: List<StatusResponse>,
+    ) {
+        companion object {
+            fun from(source: ReportFeedbackListResult) = ListResponse(
+                reportId = source.reportId,
+                feedbacks = source.feedbacks.map(StatusResponse::from),
+            )
+        }
+    }
+
     data class StatusResponse(
         val feedbackId: UUID,
-        val reportId: UUID,
+        val workType: WorkType,
         val status: ReportFeedbackStatus,
         val inputPrepared: Boolean,
         val failureCode: String?,
@@ -21,7 +35,7 @@ object ReportFeedbackResponses {
         companion object {
             fun from(source: ReportFeedbackDetailResult) = StatusResponse(
                 feedbackId = source.feedbackId,
-                reportId = source.reportId,
+                workType = source.workType,
                 status = source.status,
                 inputPrepared = source.inputPrepared,
                 failureCode = source.failureCode,
@@ -36,14 +50,14 @@ object ReportFeedbackResponses {
         val summary: String,
         val strengths: List<ItemResponse>,
         val improvements: List<ItemResponse>,
-        val nextCycleActions: List<ItemResponse>,
+        val nextActions: List<ItemResponse>,
     ) {
         companion object {
             fun from(source: ReportFeedbackResultContent) = FeedbackResponse(
                 summary = source.summary,
                 strengths = source.strengths.map(ItemResponse::from),
                 improvements = source.improvements.map(ItemResponse::from),
-                nextCycleActions = source.nextCycleActions.map(ItemResponse::from),
+                nextActions = source.nextActions.map(ItemResponse::from),
             )
         }
     }

@@ -22,9 +22,9 @@ class ReportFeedbackController(
     fun getStatus(
         @AuthenticationPrincipal memberId: String?,
         @PathVariable reportId: UUID,
-    ): ResponseEntity<ApiResponse<ReportFeedbackResponses.StatusResponse>> {
+    ): ResponseEntity<ApiResponse<ReportFeedbackResponses.ListResponse>> {
         val result = queryService.get(parseMemberId(memberId), reportId)
-        return ResponseEntity.ok(ApiResponse.ok(ReportFeedbackResponses.StatusResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(ReportFeedbackResponses.ListResponse.from(result)))
     }
 
     private fun parseMemberId(memberId: String?): UUID {

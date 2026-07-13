@@ -6,7 +6,9 @@ import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedback
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackItemSection
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackRepository
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackStatus
+import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.report.FarmingCycleReportRepository
+import com.chamchamcham.domain.report.FarmingCycleReportStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -18,16 +20,21 @@ class ReportFeedbackQueryService(
     private val feedbackRepository: ReportFeedbackRepository,
 ) {
     @Transactional(readOnly = true)
-    fun get(memberId: UUID, reportId: UUID): ReportFeedbackDetailResult {
-        reportRepository.findByIdAndMember_Id(reportId, memberId) ?: throw BusinessException(ErrorCode.REPORT_NOT_FOUND)
-        val feedback = feedbackRepository.findByReport_IdAndMember_Id(reportId, memberId)
-            ?: throw BusinessException(ErrorCode.REPORT_FEEDBACK_NOT_FOUND)
-        return feedback.toDetailResult()
+    fun get(memberId: UUID, reportId: UUID): ReportFeedbackListResult {
+        val report = reportRepository.findByIdAndMember_Id(reportId, memberId)
+            ?.takeIf { it.status == FarmingCycleReportStatus.COMPLETED }
+            ?: throw BusinessException(ErrorCode.REPORT_NOT_FOUND)
+        return ReportFeedbackListResult(
+            reportId = requireNotNull(report.id),
+            feedbacks = feedbackRepository.findAllByReport_IdAndMember_Id(reportId, memberId)
+                .sortedBy { it.workType.ordinal }
+                .map { it.toDetailResult() },
+        )
     }
 
     private fun ReportFeedback.toDetailResult() = ReportFeedbackDetailResult(
         feedbackId = requireNotNull(id),
-        reportId = requireNotNull(report.id),
+        workType = workType,
         status = status,
         inputPrepared = inputSnapshot != null,
         failureCode = failureCode,
@@ -36,7 +43,7 @@ class ReportFeedbackQueryService(
                 summary = requireNotNull(summary),
                 strengths = itemsFor(ReportFeedbackItemSection.STRENGTH),
                 improvements = itemsFor(ReportFeedbackItemSection.IMPROVEMENT),
-                nextCycleActions = itemsFor(ReportFeedbackItemSection.NEXT_ACTION),
+                nextActions = itemsFor(ReportFeedbackItemSection.NEXT_ACTION),
             )
         } else {
             null
@@ -50,9 +57,14 @@ class ReportFeedbackQueryService(
         .map { ReportFeedbackItemResult(it.text) }
 }
 
+data class ReportFeedbackListResult(
+    val reportId: UUID,
+    val feedbacks: List<ReportFeedbackDetailResult>,
+)
+
 data class ReportFeedbackDetailResult(
     val feedbackId: UUID,
-    val reportId: UUID,
+    val workType: WorkType,
     val status: ReportFeedbackStatus,
     val inputPrepared: Boolean,
     val failureCode: String?,
@@ -65,7 +77,7 @@ data class ReportFeedbackResultContent(
     val summary: String,
     val strengths: List<ReportFeedbackItemResult>,
     val improvements: List<ReportFeedbackItemResult>,
-    val nextCycleActions: List<ReportFeedbackItemResult>,
+    val nextActions: List<ReportFeedbackItemResult>,
 )
 
 data class ReportFeedbackItemResult(

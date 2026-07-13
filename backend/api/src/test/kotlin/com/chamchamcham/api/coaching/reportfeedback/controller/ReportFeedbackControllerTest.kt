@@ -3,10 +3,14 @@ package com.chamchamcham.api.coaching.reportfeedback.controller
 import com.chamchamcham.api.exception.GlobalExceptionHandler
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackDetailResult
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackItemResult
+import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackListResult
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackQueryService
 import com.chamchamcham.application.coaching.reportfeedback.lifecycle.ReportFeedbackResultContent
+import com.chamchamcham.application.exception.ErrorCode
+import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackStatus
+import com.chamchamcham.domain.farming.WorkType
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
@@ -32,40 +36,99 @@ import java.util.UUID
 class ReportFeedbackControllerTest(
     @Autowired private val mockMvc: MockMvc,
 ) {
-    private val memberId = UUID.randomUUID()
-    private val reportId = UUID.randomUUID()
-    private val feedbackId = UUID.randomUUID()
+    private val memberId = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val reportId = UUID.fromString("00000000-0000-0000-0000-000000000101")
+    private val wateringFeedbackId = UUID.fromString("00000000-0000-0000-0000-000000000201")
+    private val fertilizingFeedbackId = UUID.fromString("00000000-0000-0000-0000-000000000202")
+    private val harvestFeedbackId = UUID.fromString("00000000-0000-0000-0000-000000000203")
 
     @MockBean private lateinit var queryService: ReportFeedbackQueryService
     @MockBean private lateinit var tokenProvider: TokenProvider
 
     @Test
-    fun `ready report feedback exposes sectioned display content only`() {
+    fun `report feedback returns an ordered work type collection with ready content only`() {
         `when`(queryService.get(memberId, reportId)).thenReturn(
-            ReportFeedbackDetailResult(
-                feedbackId = feedbackId,
+            ReportFeedbackListResult(
                 reportId = reportId,
-                status = ReportFeedbackStatus.READY,
-                inputPrepared = true,
-                failureCode = null,
-                content = ReportFeedbackResultContent(
-                    summary = "이번 사이클 요약",
-                    strengths = listOf(ReportFeedbackItemResult("관수 기록을 꾸준히 남겼습니다.")),
-                    improvements = listOf(ReportFeedbackItemResult("시비 간격을 비교하세요.")),
-                    nextCycleActions = listOf(ReportFeedbackItemResult("파종 전 토양 상태를 기록하세요.")),
+                feedbacks = listOf(
+                    feedback(
+                        feedbackId = wateringFeedbackId,
+                        workType = WorkType.WATERING,
+                        status = ReportFeedbackStatus.READY,
+                        inputPrepared = true,
+                        content = ReportFeedbackResultContent(
+                            summary = "관수 작업 요약",
+                            strengths = listOf(ReportFeedbackItemResult("수분 상태를 꾸준히 확인했어요.")),
+                            improvements = listOf(ReportFeedbackItemResult("관수 간격도 함께 비교해 보세요.")),
+                            nextActions = listOf(ReportFeedbackItemResult("내일 토양 수분을 다시 확인하세요.")),
+                        ),
+                    ),
+                    feedback(
+                        feedbackId = fertilizingFeedbackId,
+                        workType = WorkType.FERTILIZING,
+                        status = ReportFeedbackStatus.PENDING,
+                    ),
+                    feedback(
+                        feedbackId = harvestFeedbackId,
+                        workType = WorkType.HARVEST,
+                        status = ReportFeedbackStatus.FAILED,
+                        inputPrepared = true,
+                        failureCode = "STRUCTURED_OUTPUT_INVALID",
+                    ),
                 ),
-                createdAt = LocalDateTime.of(2026, 7, 13, 9, 0),
-                updatedAt = LocalDateTime.of(2026, 7, 13, 9, 1),
             ),
         )
 
-        mockMvc.perform(get("/api/v1/farming-reports/{reportId}/feedback", reportId).with(authenticatedMember(memberId.toString())))
+        mockMvc.perform(
+            get("/api/v1/farming-reports/{reportId}/feedback", reportId)
+                .with(authenticatedMember(memberId.toString())),
+        )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.status", equalTo("READY")))
-            .andExpect(jsonPath("$.data.feedback.summary", equalTo("이번 사이클 요약")))
-            .andExpect(jsonPath("$.data.feedback.strengths[0].text", equalTo("관수 기록을 꾸준히 남겼습니다.")))
-            .andExpect(jsonPath("$.data.feedback.strengths[0].basis").doesNotExist())
-            .andExpect(jsonPath("$.data.citations").doesNotExist())
+            .andExpect(jsonPath("$.success", equalTo(true)))
+            .andExpect(jsonPath("$.data.reportId", equalTo(reportId.toString())))
+            .andExpect(jsonPath("$.data.feedbacks.length()", equalTo(3)))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedbackId", equalTo(wateringFeedbackId.toString())))
+            .andExpect(jsonPath("$.data.feedbacks[0].workType", equalTo("WATERING")))
+            .andExpect(jsonPath("$.data.feedbacks[0].status", equalTo("READY")))
+            .andExpect(jsonPath("$.data.feedbacks[0].inputPrepared", equalTo(true)))
+            .andExpect(jsonPath("$.data.feedbacks[0].failureCode").isEmpty())
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.summary", equalTo("관수 작업 요약")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.strengths[0].text", equalTo("수분 상태를 꾸준히 확인했어요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.improvements[0].text", equalTo("관수 간격도 함께 비교해 보세요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.nextActions[0].text", equalTo("내일 토양 수분을 다시 확인하세요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].createdAt", equalTo("2026-07-14T10:00:00")))
+            .andExpect(jsonPath("$.data.feedbacks[0].updatedAt", equalTo("2026-07-14T10:01:00")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.strengths[0].basis").doesNotExist())
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.nextCycleActions").doesNotExist())
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.citations").doesNotExist())
+            .andExpect(jsonPath("$.data.feedbacks[0].citations").doesNotExist())
+            .andExpect(jsonPath("$.data.feedbacks[1].workType", equalTo("FERTILIZING")))
+            .andExpect(jsonPath("$.data.feedbacks[1].status", equalTo("PENDING")))
+            .andExpect(jsonPath("$.data.feedbacks[1].inputPrepared", equalTo(false)))
+            .andExpect(jsonPath("$.data.feedbacks[1].feedback").isEmpty())
+            .andExpect(jsonPath("$.data.feedbacks[2].workType", equalTo("HARVEST")))
+            .andExpect(jsonPath("$.data.feedbacks[2].status", equalTo("FAILED")))
+            .andExpect(jsonPath("$.data.feedbacks[2].failureCode", equalTo("STRUCTURED_OUTPUT_INVALID")))
+            .andExpect(jsonPath("$.data.feedbacks[2].feedback").isEmpty())
+            .andExpect(jsonPath("$.data.status").doesNotExist())
+            .andExpect(jsonPath("$.data.feedback").doesNotExist())
+
+    }
+
+    @Test
+    fun `completed report without generated feedback returns an empty collection`() {
+        `when`(queryService.get(memberId, reportId)).thenReturn(
+            ReportFeedbackListResult(reportId = reportId, feedbacks = emptyList()),
+        )
+
+        mockMvc.perform(
+            get("/api/v1/farming-reports/{reportId}/feedback", reportId)
+                .with(authenticatedMember(memberId.toString())),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.reportId", equalTo(reportId.toString())))
+            .andExpect(jsonPath("$.data.feedbacks").isArray)
+            .andExpect(jsonPath("$.data.feedbacks").isEmpty())
     }
 
     @Test
@@ -74,6 +137,37 @@ class ReportFeedbackControllerTest(
             .andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.error.code", equalTo("AUTH_001")))
     }
+
+    @Test
+    fun `report feedback propagates report not found`() {
+        `when`(queryService.get(memberId, reportId))
+            .thenThrow(BusinessException(ErrorCode.REPORT_NOT_FOUND))
+
+        mockMvc.perform(
+            get("/api/v1/farming-reports/{reportId}/feedback", reportId)
+                .with(authenticatedMember(memberId.toString())),
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.error.code", equalTo("REPORT_001")))
+    }
+
+    private fun feedback(
+        feedbackId: UUID,
+        workType: WorkType,
+        status: ReportFeedbackStatus,
+        inputPrepared: Boolean = false,
+        failureCode: String? = null,
+        content: ReportFeedbackResultContent? = null,
+    ) = ReportFeedbackDetailResult(
+        feedbackId = feedbackId,
+        workType = workType,
+        status = status,
+        inputPrepared = inputPrepared,
+        failureCode = failureCode,
+        content = content,
+        createdAt = LocalDateTime.of(2026, 7, 14, 10, 0),
+        updatedAt = LocalDateTime.of(2026, 7, 14, 10, 1),
+    )
 
     private fun authenticatedMember(memberId: String): RequestPostProcessor = RequestPostProcessor { request ->
         SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken(
