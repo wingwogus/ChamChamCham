@@ -1,6 +1,7 @@
 package com.chamchamcham.application.coaching.recordfeedback.lifecycle
 
 import mu.KotlinLogging
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -9,6 +10,7 @@ import org.springframework.transaction.event.TransactionalEventListener
 class RecordFeedbackPreparationListener(
     private val preparationService: RecordFeedbackPreparationService,
 ) {
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun on(event: RecordFeedbackPreparationRequested) {
         runCatching { preparationService.prepare(event) }

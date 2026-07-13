@@ -22,6 +22,7 @@ import com.chamchamcham.application.farming.FarmingRecordService
 import com.chamchamcham.application.report.FarmingCycleReportProjectionService
 import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedbackActionCategory
 import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedbackActionDue
+import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedback
 import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedbackRepository
 import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedbackStatus
 import com.chamchamcham.domain.crop.Crop
@@ -46,6 +47,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.test.context.ActiveProfiles
 import java.time.LocalDateTime
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -105,8 +107,7 @@ class RecordFeedbackLifecycleIntegrationTest @Autowired constructor(
         val recordId = farmingRecordService.create(wateringCreateCommand()).id
 
         val record = farmingRecordRepository.findById(recordId).orElseThrow()
-        val feedback = recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, 1)
-            ?: error("record feedback must be created")
+        val feedback = awaitReadyFeedback(recordId, 1)
 
         assertThat(record.sourceRevision).isEqualTo(1)
         assertThat(feedback.status).isEqualTo(RecordFeedbackStatus.READY)
@@ -123,8 +124,7 @@ class RecordFeedbackLifecycleIntegrationTest @Autowired constructor(
         val recordId = farmingRecordService.create(wateringCreateCommand()).id
 
         val record = farmingRecordRepository.findById(recordId).orElseThrow()
-        val feedback = recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, 1)
-            ?: error("record feedback must be created")
+        val feedback = awaitReadyFeedback(recordId, 1)
         val feedbackId = requireNotNull(feedback.id)
         val snapshot = requireNotNull(feedback.inputSnapshot)
         val statusResult = queryService.get(requireNotNull(member.id), recordId)
@@ -176,14 +176,14 @@ class RecordFeedbackLifecycleIntegrationTest @Autowired constructor(
     @Test
     fun `update stales the prior revision and prepares a new ready snapshot`() {
         val recordId = farmingRecordService.create(wateringCreateCommand()).id
+        awaitReadyFeedback(recordId, 1)
 
         farmingRecordService.update(wateringUpdateCommand(recordId))
+        val second = awaitReadyFeedback(recordId, 2)
 
         val record = farmingRecordRepository.findById(recordId).orElseThrow()
         val first = recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, 1)
             ?: error("first revision feedback must exist")
-        val second = recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, 2)
-            ?: error("second revision feedback must exist")
 
         assertThat(record.sourceRevision).isEqualTo(2)
         assertThat(first.status).isEqualTo(RecordFeedbackStatus.STALE)
@@ -195,6 +195,7 @@ class RecordFeedbackLifecycleIntegrationTest @Autowired constructor(
     @Test
     fun `delete stales active feedback without creating a replacement`() {
         val recordId = farmingRecordService.create(wateringCreateCommand()).id
+        awaitReadyFeedback(recordId, 1)
 
         farmingRecordService.delete(FarmingRecordCommand.Delete(memberId = requireNotNull(member.id), recordId = recordId))
 
@@ -206,6 +207,21 @@ class RecordFeedbackLifecycleIntegrationTest @Autowired constructor(
         assertThat(record.sourceRevision).isEqualTo(2)
         assertThat(feedback.status).isEqualTo(RecordFeedbackStatus.STALE)
         assertThat(recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, 2)).isNull()
+    }
+
+    private fun awaitReadyFeedback(recordId: UUID, revision: Long): RecordFeedback {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        var lastStatus: RecordFeedbackStatus? = null
+        while (System.nanoTime() < deadline) {
+            val feedback = recordFeedbackRepository.findByRecord_IdAndSourceRevision(recordId, revision)
+            lastStatus = feedback?.status
+            if (feedback?.status == RecordFeedbackStatus.READY) return feedback
+            if (feedback?.status == RecordFeedbackStatus.FAILED) {
+                error("record feedback failed: recordId=$recordId revision=$revision code=${feedback.failureCode}")
+            }
+            Thread.sleep(25)
+        }
+        error("record feedback did not become READY: recordId=$recordId revision=$revision lastStatus=$lastStatus")
     }
 
     private fun wateringCreateCommand() = FarmingRecordCommand.Create(
