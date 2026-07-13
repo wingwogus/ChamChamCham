@@ -289,7 +289,7 @@ class RecordFeedbackGenerationServiceTest {
         return RecordFeedbackContent(
             goodPoint = validItem(
                 basis = "점적관수",
-                text = "점적관수로 토양 상태를 확인한 점이 좋았어요.",
+                text = "흙 상태를 살핀 점은 잘했어요.",
                 refs = listOf(recordCitationId),
             ),
             nextActions = listOf(
@@ -297,14 +297,14 @@ class RecordFeedbackGenerationServiceTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.WEATHER,
                     basis = "비 예보",
-                    text = "비 예보 전 배수로 막힘을 먼저 확인하세요.",
+                    text = "비 오기 전 물길을 정리하세요.",
                     refs = listOf("weather:2026-07-04"),
                 ),
                 validAction(
                     due = RecordFeedbackActionDue.NEXT_CHECK,
                     category = RecordFeedbackActionCategory.IRRIGATION,
                     basis = "토양 상태",
-                    text = "다음 점검 때 토양 상태를 다시 살펴보세요.",
+                    text = "다음에 흙 상태를 살펴보세요.",
                     refs = listOf(recordCitationId, documentCitationId),
                 ),
             ),

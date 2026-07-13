@@ -23,7 +23,7 @@ class RecordFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `rejects text outside 15 to 60 characters and unknown evidence`() {
+    fun `rejects text outside 15 to 19 characters and unknown evidence`() {
         val invalid = validResult().copy(
             goodPoint = validItem(text = "짧음", refs = listOf("unknown")),
         )
@@ -46,11 +46,11 @@ class RecordFeedbackOutputValidatorTest {
     @Test
     fun `allows a hidden basis while rejecting blank fields and wrong action count`() {
         val invalid = RecordFeedbackContent(
-            goodPoint = validItem(basis = " ", text = "점적관수로 토양 상태를 확인한 점이 좋았어요."),
+            goodPoint = validItem(basis = " ", text = "흙 상태를 살핀 점은 잘했어요."),
             nextActions = listOf(
                 validAction(
                     basis = "비 예보",
-                    text = "배수로 주변을 먼저 확인해 주세요.",
+                    text = "배수로 막힌 흙을 치우세요.",
                     refs = listOf("weather:2026-07-04"),
                 ),
             ),
@@ -67,7 +67,7 @@ class RecordFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `accepts text at exact 15 and 60 character boundaries`() {
+    fun `accepts text at exact 15 and 25 character boundaries`() {
         val valid = validResult().copy(
             goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("토양", 15)),
             nextActions = listOf(
@@ -75,7 +75,7 @@ class RecordFeedbackOutputValidatorTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.WEATHER,
                     basis = "비예보",
-                    text = textOfLengthWithBasis("비예보", 60),
+                    text = textOfLengthWithBasis("비예보", 25),
                     refs = listOf("weather:2026-07-04"),
                 ),
                 validAction(basis = "토양", text = textOfLengthWithBasis("토양", 15)),
@@ -93,7 +93,7 @@ class RecordFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `rejects text at 14 and 61 character boundaries`() {
+    fun `rejects text at 14 and 26 character boundaries`() {
         val invalid = validResult().copy(
             goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("토양", 14)),
             nextActions = listOf(
@@ -101,7 +101,7 @@ class RecordFeedbackOutputValidatorTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.WEATHER,
                     basis = "비예보",
-                    text = textOfLengthWithBasis("비예보", 61),
+                    text = textOfLengthWithBasis("비예보", 26),
                     refs = listOf("weather:2026-07-04"),
                 ),
                 validAction(),
@@ -120,7 +120,7 @@ class RecordFeedbackOutputValidatorTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.WEATHER,
                     basis = "비 예보",
-                    text = "비 예보 전 배수로 막힘을 먼저 확인하세요.",
+                    text = "비 오기 전 물길을 정리하세요.",
                     refs = listOf("weather:2026-07-04"),
                 ),
                 validAction(),
@@ -128,7 +128,7 @@ class RecordFeedbackOutputValidatorTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.PEST_DISEASE,
                     basis = "토양 상태",
-                    text = "토양 상태 변화와 병해 흔적을 함께 보세요.",
+                    text = "잎 앞뒤를 자세히 살펴보세요.",
                     refs = listOf("doc-1"),
                 ),
             ),
@@ -183,14 +183,14 @@ class RecordFeedbackOutputValidatorTest {
                     due = RecordFeedbackActionDue.THIS_WEEK,
                     category = RecordFeedbackActionCategory.WEATHER,
                     basis = "비 예보",
-                    text = "비 예보 전 배수로 막힘을 먼저 확인하세요.",
+                    text = "비 오기 전 물길을 정리하세요.",
                     refs = listOf("weather:2026-07-04"),
                 ),
                 validAction(
                     due = RecordFeedbackActionDue.NEXT_CHECK,
                     category = category,
                     basis = "토양 상태",
-                    text = "다음 점검 때 토양 상태를 다시 살펴보세요.",
+                    text = "다음에 흙 상태를 살펴보세요.",
                     refs = refs,
                 ),
             ),
@@ -199,7 +199,7 @@ class RecordFeedbackOutputValidatorTest {
 
     private fun validItem(
         basis: String = "점적관수",
-        text: String = "점적관수로 토양 상태를 확인한 점이 좋았어요.",
+        text: String = "흙 상태를 살핀 점은 잘했어요.",
         refs: List<String> = listOf(context.recordCitationId()),
     ): RecordFeedbackGoodPoint {
         return RecordFeedbackGoodPoint(
@@ -213,7 +213,7 @@ class RecordFeedbackOutputValidatorTest {
         due: RecordFeedbackActionDue = RecordFeedbackActionDue.NEXT_CHECK,
         category: RecordFeedbackActionCategory = RecordFeedbackActionCategory.IRRIGATION,
         basis: String = "토양 상태",
-        text: String = "다음 점검 때 토양 상태를 다시 살펴보세요.",
+        text: String = "다음에 흙 상태를 살펴보세요.",
         refs: List<String> = listOf(context.recordCitationId(), "doc-1"),
     ): RecordFeedbackAction {
         return RecordFeedbackAction(
