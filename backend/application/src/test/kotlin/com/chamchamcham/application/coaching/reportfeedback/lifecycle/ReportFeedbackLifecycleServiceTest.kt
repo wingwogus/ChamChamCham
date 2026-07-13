@@ -21,6 +21,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
@@ -32,7 +33,8 @@ import java.util.UUID
 class ReportFeedbackLifecycleServiceTest {
     private val memberId = UUID.randomUUID()
     private val reportId = UUID.randomUUID()
-    private val feedbackId = UUID.randomUUID()
+    private val wateringFeedbackId = UUID.randomUUID()
+    private val harvestFeedbackId = UUID.randomUUID()
     private lateinit var member: Member
     private lateinit var report: FarmingCycleReport
 
@@ -74,29 +76,42 @@ class ReportFeedbackLifecycleServiceTest {
     }
 
     @Test
-    fun `enqueue creates pending feedback and publishes preparation request for a completed report`() {
-        `when`(feedbackRepository.findByReport_Id(reportId)).thenReturn(null)
-        `when`(feedbackRepository.save(Mockito.any(ReportFeedback::class.java))).thenAnswer { invocation ->
-            invocation.getArgument<ReportFeedback>(0).also { setId(it, feedbackId) }
+    fun `enqueue creates ordered pending feedback for every recorded work type`() {
+        `when`(feedbackRepository.existsByReport_Id(reportId)).thenReturn(false)
+        `when`(feedbackRepository.saveAll(Mockito.anyList<ReportFeedback>())).thenAnswer { invocation ->
+            invocation.getArgument<List<ReportFeedback>>(0).also { feedbacks ->
+                setId(feedbacks[0], wateringFeedbackId)
+                setId(feedbacks[1], harvestFeedbackId)
+            }
         }
 
-        val feedback = service.enqueue(report)
+        val feedbacks = service.enqueue(
+            report,
+            setOf(WorkType.HARVEST, WorkType.WATERING),
+        )
 
-        assertThat(feedback.report).isSameAs(report)
-        val event = ArgumentCaptor.forClass(ReportFeedbackPreparationRequested::class.java)
-        verify(eventPublisher).publishEvent(event.capture())
-        assertThat(event.value.memberId).isEqualTo(memberId)
-        assertThat(event.value.reportId).isEqualTo(reportId)
+        assertThat(feedbacks.map(ReportFeedback::workType))
+            .containsExactly(WorkType.WATERING, WorkType.HARVEST)
+        assertThat(feedbacks).allMatch { it.report === report }
+        val events = ArgumentCaptor.forClass(ReportFeedbackPreparationRequested::class.java)
+        verify(eventPublisher, times(2)).publishEvent(events.capture())
+        assertThat(events.allValues.map(ReportFeedbackPreparationRequested::feedbackId))
+            .containsExactly(wateringFeedbackId, harvestFeedbackId)
+        assertThat(events.allValues.map(ReportFeedbackPreparationRequested::workType))
+            .containsExactly(WorkType.WATERING, WorkType.HARVEST)
+        assertThat(events.allValues).allMatch { it.memberId == memberId && it.reportId == reportId }
     }
 
     @Test
-    fun `enqueue returns existing feedback without another event`() {
-        val existing = ReportFeedback.pending(member, report)
-        `when`(feedbackRepository.findByReport_Id(reportId)).thenReturn(existing)
+    fun `enqueue returns the existing work type collection without another event`() {
+        val existing = listOf(ReportFeedback.pending(member, report, WorkType.WATERING))
+        `when`(feedbackRepository.existsByReport_Id(reportId)).thenReturn(true)
+        `when`(feedbackRepository.findAllByReport_IdAndMember_Id(reportId, memberId)).thenReturn(existing)
 
-        assertThat(service.enqueue(report)).isSameAs(existing)
+        assertThat(service.enqueue(report, setOf(WorkType.WATERING, WorkType.HARVEST)))
+            .containsExactlyElementsOf(existing)
 
-        verify(feedbackRepository, never()).save(Mockito.any())
+        verify(feedbackRepository, never()).saveAll(Mockito.anyList<ReportFeedback>())
         verify(eventPublisher, never()).publishEvent(Mockito.any())
     }
 

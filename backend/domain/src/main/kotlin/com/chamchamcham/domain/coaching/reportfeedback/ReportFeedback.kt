@@ -153,8 +153,5 @@ class ReportFeedback(
                 status = ReportFeedbackStatus.PENDING,
             )
 
-        @Deprecated("Specify the report work type explicitly")
-        fun pending(member: Member, report: FarmingCycleReport): ReportFeedback =
-            pending(member, report, WorkType.HARVEST)
     }
 }

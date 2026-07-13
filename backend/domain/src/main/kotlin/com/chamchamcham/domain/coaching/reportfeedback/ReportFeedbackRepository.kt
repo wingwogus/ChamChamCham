@@ -14,12 +14,6 @@ interface ReportFeedbackRepository : JpaRepository<ReportFeedback, UUID> {
 
     fun findByIdAndMember_Id(id: UUID, memberId: UUID): ReportFeedback?
 
-    @Deprecated("Report feedback is now a report/work-type collection")
-    fun findByReport_Id(reportId: UUID): ReportFeedback?
-
-    @Deprecated("Report feedback is now a report/work-type collection")
-    fun findByReport_IdAndMember_Id(reportId: UUID, memberId: UUID): ReportFeedback?
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select feedback from ReportFeedback feedback where feedback.id = :id and feedback.member.id = :memberId")
     fun findByIdAndMemberIdForUpdate(

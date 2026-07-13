@@ -54,7 +54,10 @@ class FarmingCycleReportProjectionService(
                 ?: FarmingCycleReport.create(farm.owner, farm, crop, projection)
             reportRepository.save(report)
             if (report.status == FarmingCycleReportStatus.COMPLETED) {
-                reportFeedbackLifecycleService.enqueue(report)
+                reportFeedbackLifecycleService.enqueue(
+                    report = report,
+                    workTypes = slice.records.map(CycleReportSourceRecord::workType).toSet(),
+                )
             }
         }
 

@@ -30,27 +30,45 @@ class ReportFeedbackGenerationHandler(
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun on(event: ReportFeedbackGenerationRequested) {
-        val snapshot = feedbackRepository.findByReport_IdAndMember_Id(event.reportId, event.memberId)?.inputSnapshot ?: return
+        val feedback = feedbackRepository.findByIdAndMember_Id(event.feedbackId, event.memberId) ?: return
+        if (
+            feedback.status != ReportFeedbackStatus.PENDING ||
+            feedback.report.id != event.reportId ||
+            feedback.workType != event.workType
+        ) return
+        val snapshot = feedback.inputSnapshot ?: return
         val context = try {
             objectMapper.convertValue(snapshot, ReportFeedbackContext::class.java)
         } catch (_: RuntimeException) {
-            return finishFailed(event, ReportFeedbackFailureCode.INVALID_CONTEXT_SNAPSHOT)
+            return finishFailed(event, snapshot, ReportFeedbackFailureCode.INVALID_CONTEXT_SNAPSHOT)
+        }
+        if (context.report.id != event.reportId || context.workType != event.workType) {
+            return finishFailed(event, snapshot, ReportFeedbackFailureCode.INVALID_CONTEXT_SNAPSHOT)
         }
         val result = try {
             generationService.generate(context)
         } catch (failure: ReportFeedbackGenerationFailure) {
-            return finishFailed(event, failure.code)
+            return finishFailed(event, snapshot, failure.code)
         } catch (_: RuntimeException) {
-            return finishFailed(event, ReportFeedbackFailureCode.UNEXPECTED)
+            return finishFailed(event, snapshot, ReportFeedbackFailureCode.UNEXPECTED)
         }
-        finishReady(event, result)
+        finishReady(event, snapshot, result)
     }
 
-    private fun finishReady(event: ReportFeedbackGenerationRequested, result: ReportFeedbackGenerationResult) {
+    private fun finishReady(
+        event: ReportFeedbackGenerationRequested,
+        expectedSnapshot: Map<String, Any?>,
+        result: ReportFeedbackGenerationResult,
+    ) {
         writeTransaction.executeWithoutResult {
             val feedback = feedbackRepository.findByIdAndMemberIdForUpdate(event.feedbackId, event.memberId)
                 ?: return@executeWithoutResult
-            if (feedback.status != ReportFeedbackStatus.PENDING || feedback.report.id != event.reportId) return@executeWithoutResult
+            if (
+                feedback.status != ReportFeedbackStatus.PENDING ||
+                feedback.report.id != event.reportId ||
+                feedback.workType != event.workType ||
+                feedback.inputSnapshot != expectedSnapshot
+            ) return@executeWithoutResult
             feedback.markReady(
                 summary = result.content.summary,
                 items = result.content.items().map { ReportFeedbackItemDraft(it.section, it.item.basis, it.item.text) },
@@ -63,11 +81,20 @@ class ReportFeedbackGenerationHandler(
         }
     }
 
-    private fun finishFailed(event: ReportFeedbackGenerationRequested, code: ReportFeedbackFailureCode) {
+    private fun finishFailed(
+        event: ReportFeedbackGenerationRequested,
+        expectedSnapshot: Map<String, Any?>,
+        code: ReportFeedbackFailureCode,
+    ) {
         writeTransaction.executeWithoutResult {
             val feedback = feedbackRepository.findByIdAndMemberIdForUpdate(event.feedbackId, event.memberId)
                 ?: return@executeWithoutResult
-            if (feedback.status == ReportFeedbackStatus.PENDING && feedback.report.id == event.reportId) {
+            if (
+                feedback.status == ReportFeedbackStatus.PENDING &&
+                feedback.report.id == event.reportId &&
+                feedback.workType == event.workType &&
+                feedback.inputSnapshot == expectedSnapshot
+            ) {
                 feedback.markFailed(code.name)
             }
         }
