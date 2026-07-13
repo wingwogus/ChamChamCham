@@ -102,8 +102,111 @@ PSIS_PESTICIDE_BASE_URL=http://psis.rda.go.kr/openApi/service.do \
 현재 pesticide/pest/pesticide_application/pesticide_sync_job 테이블에 실데이터가 없다는 전제로
 진행한다. 문제가 발견되면 네 테이블을 truncate한 뒤 Step 1부터 다시 실행한다.
 
-## dev/prod 스키마 준비
+## 서버(dev/prod) 반영 — dump/restore 핸드오프
 
-dev/prod는 `ddl-auto: none`이고 Flyway가 없으므로, 이번 변경으로 추가된
-`pesticide_sync_job` 테이블(및 관련 컬럼)을 배포 전에 수동으로 준비해야 한다. 로컬에서
-`ddl-auto: create`로 생성한 DDL을 참고해 dev/prod 스키마에 반영한다.
+dev/prod는 `ddl-auto: none`이고 Flyway가 없다. 즉 앱이 부팅해도 테이블을 스스로 만들지
+않으므로, **농약 4개 테이블(스키마)과 카탈로그 데이터(약 14만 건)를 서버 DB에 직접 넣어줘야**
+한다. 서버에서 PSIS API를 다시 호출(수천 회, ~1시간)하는 대신, **로컬에 이미 적재·검증한
+데이터를 그대로 덤프해 서버에 붓는다.** `pg_dump`가 만든 파일 하나에 `CREATE TABLE`(스키마)
++ 인덱스 + 외래키 + 데이터가 모두 들어가므로, 별도의 DDL 스크립트는 필요 없다.
+
+> 대상 테이블: `pesticide`, `pest`, `pesticide_application`(← 두 테이블을 참조하는 외래키 보유),
+> `pesticide_sync_job`(잡 이력용, 스키마만 필요하고 데이터는 옮기지 않음). 이 4개는 서로만
+> 참조하고 `member` 등 다른 테이블과 얽히지 않으므로 이 묶음만으로 완결적이다.
+
+작업은 두 사람으로 나뉜다. **Part A는 이 앱을 빌드/실행하는 사람(=덤프 파일 제작)**, **Part B는
+서버 DB 접근 권한을 가진 사람(=서버에 적용)**. Part B는 이 대화 맥락 없이도 단독으로 수행 가능하도록
+아래에 모든 명령을 적어 둔다.
+
+### Part A. 덤프 파일 만들기 (앱 담당자, 로컬)
+
+전제: 로컬 Postgres(도커 컨테이너 `ccc-postgres`, 5444)에 `PesticideSyncManualLoaderTest`로
+데이터가 적재되어 있고 `[verify]` 단언이 통과한 상태.
+
+```bash
+docker exec ccc-postgres pg_dump -U chamchamcham -d chamchamchamdb \
+  -t pesticide -t pest -t pesticide_application -t pesticide_sync_job \
+  --exclude-table-data=pesticide_sync_job \
+  --clean --if-exists --no-owner --no-privileges \
+  > pesticide-seed.sql
+```
+
+- `--exclude-table-data=pesticide_sync_job`: 잡 이력 테이블은 **구조만** 만들고 로컬 잡 로그는
+  옮기지 않는다.
+- `--clean --if-exists`: 파일 맨 앞에 `DROP TABLE IF EXISTS ...`가 붙어, 서버에서 **다시 적용해도**
+  깨지지 않는다(기존 4개 테이블을 지우고 새로 만든다 — 서버에 이 데이터 외 보존할 것이 없다는 전제).
+- `--no-owner --no-privileges`: 로컬 롤/권한 구문을 빼서 서버 계정에 그대로 적용되게 한다.
+
+만들어진 파일을 확인한다(사람 눈으로 첫 줄과 데이터량 정도만).
+
+```bash
+ls -lh pesticide-seed.sql          # 파일 크기(수십 MB 수준이면 정상)
+grep -c "^COPY " pesticide-seed.sql # COPY 블록이 3개(pesticide/pest/application) 보이면 정상
+```
+
+이 `pesticide-seed.sql` 파일을 Part B 담당자에게 전달한다(사내 스토리지/첨부 등). **파일에 비밀값은
+없다**(공개 카탈로그 데이터 + 스키마뿐, API 키/토큰 없음).
+
+### Part B. 서버 DB에 적용 (서버 담당자) — 처음 하는 사람용 전체 절차
+
+받는 것: `pesticide-seed.sql` 파일 하나. 필요한 것: 서버 PostgreSQL 접속 정보와 `psql` 클라이언트.
+**dev에 먼저 적용해 확인한 뒤 prod에 적용한다.**
+
+1. **psql 준비 확인** — 로컬에 psql이 없으면 설치한다(macOS `brew install libpq`, Ubuntu
+   `apt-get install postgresql-client`). 서버 DB로 나가는 네트워크(방화벽/VPN)가 열려 있어야 한다.
+
+2. **접속 확인** — 접속 문자열을 환경변수로 둔다(히스토리에 비밀번호가 남지 않게 `read`로 입력).
+   `<...>`는 실제 값으로 바꾼다.
+
+   ```bash
+   read -s -p "DB URL 입력: " DBURL; echo
+   # 형식 예: postgresql://<사용자>:<비밀번호>@<호스트>:<포트>/<DB이름>
+   psql "$DBURL" -c "select version();"   # 버전 문구가 출력되면 접속 성공
+   ```
+
+3. **(안전장치) 현재 상태 백업** — 만약 이미 같은 테이블이 있다면 먼저 백업한다. 없으면 이 단계는
+   에러 없이 빈 결과가 나오니 넘어가도 된다.
+
+   ```bash
+   pg_dump "$DBURL" -t pesticide -t pest -t pesticide_application -t pesticide_sync_job \
+     --no-owner --no-privileges > server-pesticide-backup-$(date +%Y%m%d).sql 2>/dev/null || true
+   ```
+
+4. **적용** — 오류가 나면 즉시 멈추도록 `ON_ERROR_STOP=1`을 준다.
+
+   ```bash
+   psql "$DBURL" -v ON_ERROR_STOP=1 -f pesticide-seed.sql
+   ```
+
+   중간에 멈추지 않고 끝까지 돌면 성공이다. `--clean` 덕분에 재실행해도 된다.
+
+5. **검증** — 건수가 0이 아니고, 조인이 맞물리는지 확인한다.
+
+   ```bash
+   psql "$DBURL" -c "
+     select 'pesticide' t, count(*) from pesticide
+     union all select 'pest', count(*) from pest
+     union all select 'pesticide_application', count(*) from pesticide_application;"
+   ```
+
+   `pesticide`/`pest`가 수천~수만, `pesticide_application`이 10만 안팎이면 정상이다(로컬 적재 시점의
+   `[verify]` 건수와 일치해야 한다).
+
+6. **앱 반영** — dev/prod 앱은 `ddl-auto: none`이라 이 테이블들을 건드리지 않는다. 이미 떠 있으면
+   재시작 없이도 조회 API(`GET /api/v1/pesticides`, `.../{id}/pests`)가 바로 실데이터를 반환한다.
+   단, **서버에 배포된 앱 빌드가 이번 농약 기능(엔티티)을 포함**하고 있어야 한다.
+
+7. **dev 확인 후 prod 반복** — 3~5단계를 prod 접속 문자열로 한 번 더 수행한다.
+
+**롤백**: 문제가 생기면 4단계 파일을 다시 적용하거나(멱등), 3단계 백업 파일을 `psql "$DBURL" -f
+server-pesticide-backup-YYYYMMDD.sql`로 되돌린다. 완전히 비우려면
+`truncate pesticide_application, pest, pesticide restart identity cascade;`.
+
+> ⛔ **절대 금지**: 이 서버 DB를 로컬 앱/로더가 `local` 프로필(`ddl-auto: create`)로 바라보게 하면
+> 부팅 순간 스키마째 삭제된다. 로더는 로컬 DB 전용이다.
+
+### 이 라운드의 다른 스키마 변경 (참고)
+
+Phase 1 기록 항목 개선(`feat/farming-record-refine` 브랜치)은 기존 farming 테이블의 컬럼을
+바꾼다(신규 `planting_method` 등 enum/단위 변경). 이는 옮길 데이터가 없어 덤프가 아니라 해당 PR의
+배포노트대로 스키마를 갱신해야 하며, **농약 반영과는 별개**다.
