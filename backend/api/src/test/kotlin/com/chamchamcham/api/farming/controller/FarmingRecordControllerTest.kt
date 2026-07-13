@@ -279,7 +279,7 @@ class FarmingRecordControllerTest(
     }
 
     @Test
-    fun `create record rejects planting without propagation method`() {
+    fun `create record rejects planting without planting method`() {
         val json = """
             {
               "farmId":"$farmId",
@@ -291,7 +291,7 @@ class FarmingRecordControllerTest(
               "memo":"오늘은 날씨가 좋아 하루 종일 파종 작업을 진행했고 별다른 문제 없이 마무리했습니다",
               "planting":{
                 "seedAmount":10,
-                "seedAmountUnit":"KG"
+                "seedAmountUnit":"G"
               }
             }
         """.trimIndent()

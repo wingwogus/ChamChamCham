@@ -21,23 +21,29 @@ class WorkTypeCatalogServiceTest {
     }
 
     @Test
-    fun `PLANTING has required detail with propagationMethod as the only required field`() {
+    fun `PLANTING has required detail with plantingMethod as the only required field`() {
         val planting = service.listWorkTypes().first { it.code == "PLANTING" }
 
         assertThat(planting.detailRequired).isTrue()
         assertThat(planting.fields.map { it.name }).containsExactly(
-            "seedAmount", "seedAmountUnit", "seedlingCount", "seedlingUnit", "propagationMethod"
+            "plantingMethod", "seedAmount", "seedAmountUnit", "seedlingCount", "seedlingUnit", "propagationMethod"
         )
-        assertThat(planting.fields.filter { it.required }.map { it.name }).containsExactly("propagationMethod")
+        assertThat(planting.fields.filter { it.required }.map { it.name }).containsExactly("plantingMethod")
+        val plantingMethodField = planting.fields.first { it.name == "plantingMethod" }
+        assertThat(plantingMethodField.type).isEqualTo(FieldValueType.ENUM)
+        assertThat(plantingMethodField.options).containsExactly(
+            WorkTypeResult.EnumOptionSummary("SEED", "씨앗 심기"),
+            WorkTypeResult.EnumOptionSummary("SEEDLING", "모종 심기")
+        )
         val propagationMethodField = planting.fields.first { it.name == "propagationMethod" }
-        assertThat(propagationMethodField.type).isEqualTo(FieldValueType.ENUM)
+        assertThat(propagationMethodField.required).isFalse()
         assertThat(propagationMethodField.options).containsExactly(
-            WorkTypeResult.EnumOptionSummary("SEED", "종자"),
-            WorkTypeResult.EnumOptionSummary("CUTTING", "삽목"),
-            WorkTypeResult.EnumOptionSummary("GRAFTING", "접목"),
-            WorkTypeResult.EnumOptionSummary("LAYERING", "취목"),
-            WorkTypeResult.EnumOptionSummary("DIVISION", "분주·분리"),
-            WorkTypeResult.EnumOptionSummary("TISSUE_CULTURE", "조직배양")
+            WorkTypeResult.EnumOptionSummary("CUTTING", "꺾꽂이"),
+            WorkTypeResult.EnumOptionSummary("GRAFTING", "접붙이기"),
+            WorkTypeResult.EnumOptionSummary("LAYERING", "휘묻이"),
+            WorkTypeResult.EnumOptionSummary("DIVISION", "포기나누기"),
+            WorkTypeResult.EnumOptionSummary("TISSUE_CULTURE", "조직 배양"),
+            WorkTypeResult.EnumOptionSummary("PURCHASED", "시판 구매")
         )
     }
 

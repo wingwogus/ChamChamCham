@@ -8,6 +8,7 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.IrrigationAmount
 import com.chamchamcham.domain.farming.IrrigationMethod
 import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PlantingMethod
 import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
 import com.chamchamcham.domain.farming.SeedlingUnit
@@ -29,10 +30,17 @@ object WorkTypeFieldCatalog {
         WorkType.ETC -> emptyList()
     }
 
-    // propagationMethod=SEED면 seedAmount/seedAmountUnit만, 그 외 번식법이면 seedlingCount/seedlingUnit만
-    // 입력 가능하다(FarmingRecordDetailValidator.validatePlanting에서 강제). 이 목록 자체는 조건을
-    // 표현하지 않으므로 프론트는 검증 규칙을 별도로 반영해야 한다.
+    // plantingMethod=SEED면 seedAmount/seedAmountUnit만, plantingMethod=SEEDLING이면
+    // seedlingCount/seedlingUnit(+선택적으로 propagationMethod)만 입력 가능하다
+    // (FarmingRecordDetailValidator.validatePlanting에서 강제). 이 목록 자체는 조건을 표현하지
+    // 않으므로 프론트는 검증 규칙을 별도로 반영해야 한다.
     private val PLANTING_FIELDS: List<WorkTypeResult.FieldSummary> = listOf(
+        WorkTypeResult.FieldSummary(
+            name = "plantingMethod",
+            type = FieldValueType.ENUM,
+            required = true,
+            options = PlantingMethod.entries.map { WorkTypeResult.EnumOptionSummary(it.name, it.label) }
+        ),
         WorkTypeResult.FieldSummary(
             name = "seedAmount",
             type = FieldValueType.DECIMAL,
@@ -60,7 +68,7 @@ object WorkTypeFieldCatalog {
         WorkTypeResult.FieldSummary(
             name = "propagationMethod",
             type = FieldValueType.ENUM,
-            required = true,
+            required = false,
             options = PropagationMethod.entries.map { WorkTypeResult.EnumOptionSummary(it.name, it.label) }
         )
     )

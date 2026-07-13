@@ -8,6 +8,7 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.IrrigationAmount
 import com.chamchamcham.domain.farming.IrrigationMethod
 import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PlantingMethod
 import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
 import com.chamchamcham.domain.farming.SeedlingUnit
@@ -64,11 +65,12 @@ object FarmingRecordResult {
     )
 
     data class PlantingDetail(
+        val plantingMethod: PlantingMethod,
         val seedAmount: BigDecimal?,
         val seedAmountUnit: SeedAmountUnit?,
         val seedlingCount: Int?,
         val seedlingUnit: SeedlingUnit?,
-        val propagationMethod: PropagationMethod,
+        val propagationMethod: PropagationMethod?,
     )
 
     data class WateringDetail(

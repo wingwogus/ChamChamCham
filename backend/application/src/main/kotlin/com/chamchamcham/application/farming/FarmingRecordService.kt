@@ -173,6 +173,7 @@ class FarmingRecordService(
                 plantingRecordRepository.save(
                     PlantingRecord(
                         record = record,
+                        plantingMethod = detail.plantingMethod,
                         seedAmount = detail.seedAmount,
                         seedAmountUnit = detail.seedAmountUnit,
                         seedlingCount = detail.seedlingCount,
@@ -274,6 +275,7 @@ class FarmingRecordService(
         when (record.workType) {
             WorkType.PLANTING -> planting = plantingRecordRepository.findByRecord_Id(recordId)?.let {
                 FarmingRecordResult.PlantingDetail(
+                    plantingMethod = it.plantingMethod,
                     seedAmount = it.seedAmount,
                     seedAmountUnit = it.seedAmountUnit,
                     seedlingCount = it.seedlingCount,

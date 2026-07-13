@@ -10,6 +10,7 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.IrrigationAmount
 import com.chamchamcham.domain.farming.IrrigationMethod
 import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PlantingMethod
 import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
 import com.chamchamcham.domain.farming.SeedlingUnit
@@ -75,6 +76,9 @@ object FarmingRecordRequests {
     )
 
     data class PlantingDetailRequest(
+        @field:NotNull(message = "심기 방법을 선택해주세요")
+        val plantingMethod: PlantingMethod?,
+
         @field:DecimalMin(value = "0.01", message = "파종량은 0보다 커야 합니다")
         val seedAmount: BigDecimal? = null,
         val seedAmountUnit: SeedAmountUnit? = null,
@@ -83,8 +87,7 @@ object FarmingRecordRequests {
         val seedlingCount: Int? = null,
         val seedlingUnit: SeedlingUnit? = null,
 
-        @field:NotNull(message = "번식법을 선택해주세요")
-        val propagationMethod: PropagationMethod?,
+        val propagationMethod: PropagationMethod? = null,
     )
 
     data class WateringDetailRequest(
@@ -175,11 +178,12 @@ fun FarmingRecordRequests.SaveRecordRequest.toHarvestDetail(): FarmingRecordComm
 
 fun FarmingRecordRequests.PlantingDetailRequest.toCommand(): FarmingRecordCommand.PlantingDetail =
     FarmingRecordCommand.PlantingDetail(
+        plantingMethod = requireNotNull(plantingMethod),
         seedAmount = seedAmount,
         seedAmountUnit = seedAmountUnit,
         seedlingCount = seedlingCount,
         seedlingUnit = seedlingUnit,
-        propagationMethod = requireNotNull(propagationMethod),
+        propagationMethod = propagationMethod,
     )
 
 fun FarmingRecordRequests.WateringDetailRequest.toCommand(): FarmingRecordCommand.WateringDetail =
