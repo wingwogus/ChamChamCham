@@ -93,9 +93,6 @@ object RecordFeedbackOutputValidator {
             .filter { it.isNotBlank() }
             .filterNot { it in allowedEvidenceRefs.ids }
             .forEach { warnings += "unknown_evidence:$it" }
-        if (item.basis.isNotBlank() && item.text.isNotBlank() && !hasBasisTokenInText(item.basis, item.text)) {
-            warnings += "${prefix}_basis_token_missing"
-        }
     }
 
     private fun RecordFeedbackAction.asGoodPoint(): RecordFeedbackGoodPoint {
@@ -104,18 +101,6 @@ object RecordFeedbackOutputValidator {
             text = text,
             evidenceRefs = evidenceRefs,
         )
-    }
-
-    private fun hasBasisTokenInText(basis: String, text: String): Boolean {
-        val normalizedText = normalize(text)
-        return BASIS_TOKEN_REGEX.findAll(basis)
-            .map { normalize(it.value) }
-            .filter { it.length >= MIN_BASIS_TOKEN_LENGTH }
-            .any { it in normalizedText }
-    }
-
-    private fun normalize(value: String): String {
-        return value.lowercase().filter { it.isLetterOrDigit() }
     }
 
     private data class AllowedEvidenceRefs(
@@ -129,6 +114,4 @@ object RecordFeedbackOutputValidator {
     private const val MAX_ACTION_COUNT = 3
     private const val MIN_TEXT_LENGTH = 15
     private const val MAX_TEXT_LENGTH = 60
-    private const val MIN_BASIS_TOKEN_LENGTH = 2
-    private val BASIS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}]+")
 }

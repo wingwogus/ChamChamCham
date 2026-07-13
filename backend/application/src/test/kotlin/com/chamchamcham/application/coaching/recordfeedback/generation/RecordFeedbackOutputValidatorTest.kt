@@ -44,7 +44,7 @@ class RecordFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `rejects blank fields wrong action count and missing basis token`() {
+    fun `allows a hidden basis while rejecting blank fields and wrong action count`() {
         val invalid = RecordFeedbackContent(
             goodPoint = validItem(basis = " ", text = "점적관수로 토양 상태를 확인한 점이 좋았어요."),
             nextActions = listOf(
@@ -56,12 +56,14 @@ class RecordFeedbackOutputValidatorTest {
             ),
         )
 
-        assertThat(RecordFeedbackOutputValidator.validate(invalid, context, documents))
+        val warnings = RecordFeedbackOutputValidator.validate(invalid, context, documents)
+
+        assertThat(warnings)
             .contains(
                 "good_point_basis_blank",
                 "action_count",
-                "next_action_0_basis_token_missing",
             )
+        assertThat(warnings).doesNotContain("next_action_0_basis_token_missing")
     }
 
     @Test

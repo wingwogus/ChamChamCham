@@ -43,18 +43,22 @@ class RecordFeedbackPromptBuilder {
             잘한 점 text는 "<기록의 구체 행동>한 점은 잘했어요." 형식으로 작성한다.
             잘한 점에는 이유, 조언, 다음 행동을 덧붙이지 않는다.
             다음 행동은 2~3개만 작성한다.
-            다음 행동 text는 현재 근거나 목적을 먼저 말한 뒤 행동을 이어 한 문장으로 작성한다.
-            행동만 단독으로 쓰거나, 행동 뒤에 이유를 별도 문장으로 덧붙이지 않는다.
-            날씨 근거 행동은 "다음 주 비 예보가 있어 두둑 가장자리부터 배수 상태를 점검하세요."처럼 작성한다.
-            목적 근거 행동은 "다음 관수량을 조절할 수 있게 오늘 토양 수분을 확인하고 물주기 간격을 기록하세요."처럼 작성한다.
+            다음 행동 text는 농부가 바로 실행할 현장 작업만 한 문장으로 작성한다.
+            현재 날씨, 예보, 기록 내용, 생육 상황, 행동의 이유와 효과를 text에 쓰지 않는다.
+            전문용어와 추상 표현(관수, 배수 상태, 병해충 흔적, 생육 상태)을 쓰지 않는다.
+            "관수" 대신 "물을 주세요"처럼 일상말을 쓴다.
+            다음 행동에는 어디를, 무엇을, 어떻게 볼지 또는 할지를 포함한다.
+            병해충 행동은 공식문서 근거에 있는 눈으로 확인할 수 있는 증상만 구체적으로 쓴다.
+            근거에 없는 병 이름, 증상, 약 이름을 만들지 않는다.
+            기록 작성, 사진 촬영, 메모 작성은 기본 행동으로 추천하지 않는다.
             각 항목은 basis, text, evidenceRefs를 반드시 가진다.
             각 text는 15~60자로 작성한다. 강제로 자르지 말고, 길이를 맞춰 다시 쓴다.
-            basis에는 text 안에 그대로 들어갈 2글자 이상의 핵심 근거 단어를 포함한다.
+            basis와 evidenceRefs는 내부 검증용이다. text에 basis, 근거, citation id를 직접 쓰지 않는다.
             nextActions의 due는 TODAY, THIS_WEEK, NEXT_WEEK, NEXT_CHECK 중 하나만 사용한다.
             nextActions의 category는 WEATHER, PEST_DISEASE, IRRIGATION, FERTILIZING, PEST_CONTROL, HARVEST, CULTIVATION, GENERAL 중 하나만 사용한다.
             날씨 행동은 weather:current 또는 weather:<forecast-date> 근거가 있을 때만 작성한다.
             병해충 행동은 공식문서 근거가 있을 때만 작성한다.
-            행동은 확인, 기록, 비교, 라벨 확인처럼 보수적인 행동으로 작성한다.
+            행동은 물 주기, 막힌 곳 치우기, 잎 살펴보기, 라벨 확인처럼 구체적으로 작성한다.
             citationIds는 허용 citationIds에 명시된 값만 사용한다.
             대상 영농기록을 근거로 삼을 때는 record citation id를 사용한다.
             날씨 근거를 삼을 때는 weather:current 또는 weather:<forecast-date> citation id를 사용한다.
