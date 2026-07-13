@@ -42,7 +42,7 @@ class ReportFeedbackGenerationHandler(
             return finishFailed(event, snapshot, ReportFeedbackFailureCode.INVALID_CONTEXT_SNAPSHOT)
         }
         if (context.report.id != event.reportId || context.workType != event.workType) {
-            return finishFailed(event, snapshot, ReportFeedbackFailureCode.INVALID_CONTEXT_SNAPSHOT)
+            return finishFailed(event, snapshot, ReportFeedbackFailureCode.INVALID_CONTEXT)
         }
         val result = try {
             generationService.generate(context)

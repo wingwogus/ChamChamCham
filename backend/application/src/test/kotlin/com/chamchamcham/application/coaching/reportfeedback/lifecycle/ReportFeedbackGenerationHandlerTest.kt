@@ -204,6 +204,22 @@ class ReportFeedbackGenerationHandlerTest {
         verify(generationService, never()).generate(anyContext())
     }
 
+    @Test
+    fun `well formed snapshot for a different work type fails as invalid context`() {
+        val target = pendingFeedback(
+            workType = WorkType.WATERING,
+            context = context(WorkType.HARVEST),
+        )
+        val event = generationEvent(WorkType.WATERING)
+        stubTarget(event, target)
+
+        handler.on(event)
+
+        assertThat(target.status).isEqualTo(ReportFeedbackStatus.FAILED)
+        assertThat(target.failureCode).isEqualTo(ReportFeedbackFailureCode.INVALID_CONTEXT.name)
+        verify(generationService, never()).generate(anyContext())
+    }
+
     private fun pendingFeedback(
         workType: WorkType,
         id: UUID = feedbackId,

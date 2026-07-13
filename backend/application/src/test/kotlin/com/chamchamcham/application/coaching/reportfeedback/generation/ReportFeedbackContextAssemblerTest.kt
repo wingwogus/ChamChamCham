@@ -18,6 +18,7 @@ import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.report.CycleReportStatistics
 import com.chamchamcham.domain.report.FarmingCycleReport
 import com.chamchamcham.domain.report.FarmingCycleReportProjection
+import com.chamchamcham.domain.report.FarmingCycleReportQueryRepository
 import com.chamchamcham.domain.report.FarmingCycleReportRepository
 import com.chamchamcham.domain.report.FarmingCycleReportStatus
 import com.chamchamcham.domain.report.FarmingCycleStartBasis
@@ -28,6 +29,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import java.math.BigDecimal
@@ -49,6 +51,7 @@ class ReportFeedbackContextAssemblerTest {
     private val endsAt = LocalDateTime.of(2026, 7, 1, 9, 0)
 
     @Mock private lateinit var reportRepository: FarmingCycleReportRepository
+    @Mock private lateinit var reportQueryRepository: FarmingCycleReportQueryRepository
     @Mock private lateinit var sourceLoader: FarmingCycleReportSourceLoader
 
     @Test
@@ -109,6 +112,37 @@ class ReportFeedbackContextAssemblerTest {
     }
 
     @Test
+    fun `assemble uses the canonical final harvest boundary when reports have the same end time`() {
+        val report = completedReport(
+            id = reportId,
+            finalHarvestId = targetFinalHarvestId,
+            startsAt = startsAt,
+            endsAt = endsAt,
+            statistics = CycleReportStatistics(watering = WateringStatistics(recordCount = 1)),
+        )
+        val previous = completedReport(
+            id = previousReportId,
+            finalHarvestId = previousFinalHarvestId,
+            startsAt = startsAt.minusYears(1),
+            endsAt = endsAt,
+            statistics = CycleReportStatistics(watering = WateringStatistics(recordCount = 2)),
+        )
+        stubReports(report, previous)
+        `when`(sourceLoader.load(ReportScope(memberId, farmId, cropId))).thenReturn(cycleRecords())
+
+        val context = assembler().assemble(memberId, reportId, WorkType.WATERING)
+
+        assertThat(context.previousReport?.id).isEqualTo(previousReportId)
+        verify(reportQueryRepository).findPreviousCompleted(
+            memberId,
+            farmId,
+            cropId,
+            endsAt,
+            targetFinalHarvestId,
+        )
+    }
+
+    @Test
     fun `assemble rejects a work type absent from the target slice`() {
         val report = completedReport(
             id = reportId,
@@ -128,6 +162,7 @@ class ReportFeedbackContextAssemblerTest {
 
     private fun assembler() = ReportFeedbackContextAssembler(
         reportRepository = reportRepository,
+        reportQueryRepository = reportQueryRepository,
         sourceLoader = sourceLoader,
         partitioner = FarmingCyclePartitioner(),
         objectMapper = jacksonObjectMapper(),
@@ -136,13 +171,12 @@ class ReportFeedbackContextAssemblerTest {
     private fun stubReports(report: FarmingCycleReport, previous: FarmingCycleReport?) {
         `when`(reportRepository.findByIdAndMember_Id(reportId, memberId)).thenReturn(report)
         `when`(
-            reportRepository.findTopByMember_IdAndFarm_IdAndCrop_IdAndStatusAndEndsAtBeforeAndIdNotOrderByEndsAtDescIdDesc(
+            reportQueryRepository.findPreviousCompleted(
                 memberId,
                 farmId,
                 cropId,
-                FarmingCycleReportStatus.COMPLETED,
-                endsAt,
-                reportId,
+                requireNotNull(report.endsAt),
+                requireNotNull(report.finalHarvestRecord?.id),
             ),
         ).thenReturn(previous)
     }

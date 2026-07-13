@@ -9,6 +9,7 @@ import com.chamchamcham.application.report.CycleReportSourceRecord
 import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.report.CycleReportStatistics
 import com.chamchamcham.domain.report.FarmingCycleReport
+import com.chamchamcham.domain.report.FarmingCycleReportQueryRepository
 import com.chamchamcham.domain.report.FarmingCycleReportRepository
 import com.chamchamcham.domain.report.FarmingCycleReportStatus
 import com.fasterxml.jackson.core.type.TypeReference
@@ -20,6 +21,7 @@ import java.util.UUID
 @Component
 class ReportFeedbackContextAssembler(
     private val reportRepository: FarmingCycleReportRepository,
+    private val reportQueryRepository: FarmingCycleReportQueryRepository,
     private val sourceLoader: FarmingCycleReportSourceLoader,
     private val partitioner: FarmingCyclePartitioner,
     private val objectMapper: ObjectMapper,
@@ -55,13 +57,12 @@ class ReportFeedbackContextAssembler(
         if (records.isEmpty()) {
             throw ReportFeedbackGenerationFailure(ReportFeedbackFailureCode.INVALID_CONTEXT)
         }
-        val previous = reportRepository.findTopByMember_IdAndFarm_IdAndCrop_IdAndStatusAndEndsAtBeforeAndIdNotOrderByEndsAtDescIdDesc(
+        val previous = reportQueryRepository.findPreviousCompleted(
             memberId = memberId,
             farmId = requireNotNull(report.farm.id),
             cropId = requireNotNull(report.crop.id),
-            status = FarmingCycleReportStatus.COMPLETED,
-            beforeEndsAt = requireNotNull(report.endsAt),
-            excludedReportId = reportId,
+            endsAt = requireNotNull(report.endsAt),
+            finalHarvestRecordId = requireNotNull(report.finalHarvestRecord?.id),
         )
 
         val previousContext = previous?.toPreviousReport(workType)
