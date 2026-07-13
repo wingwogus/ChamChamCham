@@ -28,8 +28,9 @@ class PsisPesticideResponseParser {
         }
         val document = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
 
-        val items = (0 until document.getElementsByTagName("item").length).map { index ->
-            val itemElement = document.getElementsByTagName("item").item(index) as Element
+        val itemNodes = document.getElementsByTagName("item")
+        val items = (0 until itemNodes.length).map { index ->
+            val itemElement = itemNodes.item(index) as Element
             val children = itemElement.childNodes
             (0 until children.length)
                 .mapNotNull { children.item(it) as? Element }

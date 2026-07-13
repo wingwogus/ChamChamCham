@@ -36,13 +36,7 @@ class PesticideSyncService(
         var createdApplicationCount = 0
 
         while (true) {
-            val body = transport.get(
-                mapOf(
-                    "pageNo" to pageNo.toString(),
-                    "numOfRows" to pageSize.toString(),
-                    "type" to "xml",
-                )
-            )
+            val body = transport.get(pageQuery(pageNo = pageNo, numOfRows = pageSize))
             val envelope = responseParser.parseEnvelope(body)
             failOnUpstreamError(envelope)
             val rawRows = envelope.items
@@ -69,13 +63,7 @@ class PesticideSyncService(
     }
 
     fun probe(rows: Int = DEFAULT_PROBE_ROWS): PesticideProbeResult {
-        val body = transport.get(
-            mapOf(
-                "pageNo" to "1",
-                "numOfRows" to rows.toString(),
-                "type" to "xml",
-            )
-        )
+        val body = transport.get(pageQuery(pageNo = 1, numOfRows = rows))
         val envelope = responseParser.parseEnvelope(body)
         failOnUpstreamError(envelope)
 
@@ -102,6 +90,14 @@ class PesticideSyncService(
             detail = mapOf("resultCode" to resultCode, "resultMsg" to envelope.resultMsg),
         )
     }
+
+    // pageNo/numOfRows만 다르고 나머지는 동일하므로 sync/probe가 같은 쿼리 형태를 공유한다.
+    // type 파라미터명이 실제 엔드포인트에서 다르면(dataType/_type 등) 여기 한 곳만 고치면 된다.
+    private fun pageQuery(pageNo: Int, numOfRows: Int): Map<String, String> = mapOf(
+        "pageNo" to pageNo.toString(),
+        "numOfRows" to numOfRows.toString(),
+        "type" to "xml",
+    )
 
     private fun upsertRows(rows: List<PsisPesticideRow>): Int {
         var created = 0
