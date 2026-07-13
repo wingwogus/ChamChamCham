@@ -368,3 +368,24 @@ import SwiftUI
         .background(Color.Background.subtle)
     }
 }
+
+#Preview("FarmCard") {
+    ScrollView {
+        VStack(spacing: Spacing.md) {
+            FarmCard(
+                farmName: "행복농장",
+                roadAddress: "경기도 이천시 …",
+                crops: ["인삼", "고추", "배추", "무", "파"]
+            )
+            FarmCard(
+                farmName: "행복농장",
+                roadAddress: "경기도 이천시 …",
+                crops: ["인삼", "고추"],
+                isSelected: true
+            )
+            FarmCard()
+        }
+        .padding()
+        .background(Color.Background.subtle)
+    }
+}

@@ -1,15 +1,17 @@
 //
-//  MyPageViewModel.swift
+//  SettingsViewModel.swift
 //  ChamChamCham
 //
-//  Created by iyungui on 7/12/26.
+//  Created by iyungui on 7/13/26.
 //
 
 import Observation
 
+/// Settings screen actions migrated from the former MyPage placeholder: logout and account
+/// withdrawal. Withdrawal has no deployed API yet, so it surfaces an explanatory message.
 @Observable
 @MainActor
-final class MyPageViewModel {
+final class SettingsViewModel {
     var isSubmitting = false
     var message: String?
 

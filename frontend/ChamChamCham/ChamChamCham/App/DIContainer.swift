@@ -51,6 +51,10 @@ extension DIContainer {
         RemoteMediaUploadRepository(apiClient: apiClient)
     }
 
+    func makeFarmRepository() -> some FarmRepository {
+        RemoteFarmRepository(apiClient: apiClient)
+    }
+
     func makeCropCatalogService() -> some CropCatalogService {
         RemoteCropCatalogService(apiClient: apiClient)
     }

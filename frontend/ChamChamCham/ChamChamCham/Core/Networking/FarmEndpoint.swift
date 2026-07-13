@@ -10,8 +10,16 @@ import Foundation
 enum FarmEndpoint: Endpoint {
     case list
     case create(SaveFarmRequestDTO)
+    case delete(UUID)
 
-    var path: String { "api/v1/farms" }
+    var path: String {
+        switch self {
+        case .list, .create:
+            "api/v1/farms"
+        case let .delete(id):
+            "api/v1/farms/\(id.uuidString.lowercased())"
+        }
+    }
 
     var method: HTTPMethod {
         switch self {
@@ -19,12 +27,14 @@ enum FarmEndpoint: Endpoint {
             .get
         case .create:
             .post
+        case .delete:
+            .delete
         }
     }
 
     var body: (any Encodable & Sendable)? {
         switch self {
-        case .list:
+        case .list, .delete:
             nil
         case let .create(request):
             request

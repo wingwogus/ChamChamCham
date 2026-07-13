@@ -106,6 +106,8 @@ struct PreviewFarmRepository: FarmRepository {
     func createFarm(_ request: SaveFarmRequestDTO) async throws -> StandaloneFarmResponseDTO {
         throw OnboardingSubmissionError.missingRequiredField("preview")
     }
+
+    func deleteFarm(id: UUID) async throws {}
 }
 
 extension OnboardingViewModel {
