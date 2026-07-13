@@ -33,6 +33,12 @@ class PsisPesticideRowMapper {
         )
     }
 
+    fun diagnoseRequired(raw: Map<String, String>): Map<String, Boolean> = mapOf(
+        "itemName" to (raw.firstNotBlank(ITEM_NAME_KEYS) != null),
+        "cropName" to (raw.firstNotBlank(CROP_NAME_KEYS) != null),
+        "pestName" to (raw.firstNotBlank(PEST_NAME_KEYS) != null),
+    )
+
     private fun Map<String, String>.firstNotBlank(keys: List<String>): String? =
         keys.firstNotNullOfOrNull { this[it]?.trim()?.takeIf(String::isNotEmpty) }
 

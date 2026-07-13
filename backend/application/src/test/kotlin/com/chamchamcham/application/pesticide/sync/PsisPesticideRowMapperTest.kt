@@ -43,4 +43,29 @@ class PsisPesticideRowMapperTest {
 
         assertNull(mapper.map(raw))
     }
+
+    @Test
+    fun `diagnoseRequired resolves all required fields for a well-formed row`() {
+        val raw = mapOf(
+            "prdtNm" to "만코제브 수화제",
+            "cropNm" to "감자",
+            "aplyPestNm" to "역병",
+        )
+
+        val diagnosis = mapper.diagnoseRequired(raw)
+
+        assertEquals(mapOf("itemName" to true, "cropName" to true, "pestName" to true), diagnosis)
+    }
+
+    @Test
+    fun `diagnoseRequired marks a field false when its tag is renamed or absent`() {
+        val raw = mapOf(
+            "prdtNm" to "만코제브 수화제",
+            "cropNm" to "감자",
+        )
+
+        val diagnosis = mapper.diagnoseRequired(raw)
+
+        assertEquals(mapOf("itemName" to true, "cropName" to true, "pestName" to false), diagnosis)
+    }
 }
