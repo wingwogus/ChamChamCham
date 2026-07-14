@@ -1,5 +1,16 @@
 package com.chamchamcham.application.coaching.reportfeedback.generation
 
+import com.chamchamcham.application.coaching.common.CoachingTextPolicy
+import com.chamchamcham.application.coaching.common.toCoachingText
+import com.chamchamcham.domain.crop.CropUsePartCategory
+import com.chamchamcham.domain.farming.FertilizerMaterialCategory
+import com.chamchamcham.domain.farming.FertilizingMethod
+import com.chamchamcham.domain.farming.IrrigationAmount
+import com.chamchamcham.domain.farming.IrrigationMethod
+import com.chamchamcham.domain.farming.PesticideCategory
+import com.chamchamcham.domain.farming.PropagationMethod
+import com.chamchamcham.domain.farming.WeedingMethod
+import com.chamchamcham.domain.farming.WorkType
 import org.springframework.stereotype.Component
 
 @Component
@@ -8,46 +19,318 @@ class ReportFeedbackPromptBuilder {
         context: ReportFeedbackContext,
         evidence: List<ReportFeedbackEvidence>,
     ): ReportFeedbackPrompt {
-        val previous = context.previousReport?.let {
-            "직전 완료 리포트(report:${it.id}): ${it.startsAt}~${it.endsAt}, 통계=${it.statistics}"
-        } ?: "직전 완료 리포트 없음"
-        val records = context.records.joinToString("\n") {
-            "- record:${it.id} ${it.workedAt} ${it.workType} memo=${it.memo} details=${it.details}"
-        }
+        val records = context.records.joinToString("\n", transform = ::formatRecord)
         val documents = evidence.joinToString("\n") { "- ${it.id}: ${it.title} / ${it.content}" }
         val allowedEvidenceRefs = buildList {
             context.records.forEach { add("- record:${it.id} : 대상 영농기록") }
             context.previousReport?.let { add("- report:${it.id} : 직전 완료 리포트") }
             evidence.forEach { add("- ${it.id} : ${it.title}") }
         }.joinToString("\n")
+
         return ReportFeedbackPrompt(
-            system = """
-                당신은 약용작물 재배 회고 코치다. 제공된 근거에 없는 수치나 사실을 만들지 않는다.
-                지정된 대상 작업 타입 하나만 회고하고 다른 작업을 비교하거나 권고하지 않는다.
-                summary, strengths, improvements, nextActions를 구조화해 응답한다.
-                strengths, improvements, nextActions는 근거가 없으면 빈 배열로 응답해도 된다.
-                각 항목은 basis, text, evidenceRefs를 가져야 한다.
-                evidenceRefs에는 허용 evidenceRefs에 나열된 값을 정확히 그대로 사용한다.
-                통계 필드명이나 통계값은 evidenceRefs로 사용하지 않는다.
-                기술 문서가 없으면 기술 권고를 억지로 만들지 말고 기록 근거의 코칭만 제공한다.
-                같은 항목을 반복하지 말고, 선택한 작업의 다음 행동은 실행 방법이 드러나게 작성한다.
-                summary와 모든 text는 친근한 존댓말로 끝낸다.
-                다음 행동은 "~하세요."처럼, 회고와 요약은 "~했어요."처럼 작성한다.
-            """.trimIndent(),
+            system = systemPrompt(),
             user = buildString {
                 appendLine("허용 evidenceRefs:")
-                appendLine(allowedEvidenceRefs)
+                appendLine(allowedEvidenceRefs.ifBlank { "없음" })
                 appendLine()
                 appendLine("대상 리포트: ${context.report.farmName} / ${context.report.cropName}")
-                appendLine("작업 타입: ${context.workType.name} (${context.workType.label})")
+                appendLine("대상 작업: ${context.workType.toCoachingText()}")
                 appendLine("기간: ${context.report.startsAt}~${context.report.endsAt}")
-                appendLine("통계: ${context.report.statistics}")
-                appendLine(previous)
+                appendLine("현재 작업 통계:")
+                formatStatistics(context.workType, context.report.statistics)
+                    .forEach { appendLine("- $it") }
+                appendLine(formatPreviousReport(context))
                 appendLine("대상 기록:")
                 appendLine(records)
                 appendLine("공식 기술 문서:")
                 append(documents.ifBlank { "없음" })
             },
         )
+    }
+
+    private fun systemPrompt(): String {
+        return """
+            당신은 약용작물 재배 회고 코치다. 제공된 근거에 없는 수치나 사실을 만들지 않는다.
+            지정된 대상 작업 타입 하나만 회고하고 다른 작업을 비교하거나 권고하지 않는다.
+            직전 리포트 비교는 제공된 동일 작업 통계만 사용하고 이전 기록이나 메모를 본 것처럼 말하지 않는다.
+            summary, strengths, improvements, nextActions를 구조화해 응답한다.
+            strengths, improvements, nextActions는 근거가 없으면 빈 배열로 응답해도 된다.
+            각 항목은 basis, text, evidenceRefs를 가져야 한다.
+            evidenceRefs에는 허용 evidenceRefs에 나열된 값을 정확히 그대로 사용한다.
+            통계 필드명이나 통계값은 evidenceRefs로 사용하지 않는다.
+            기술 문서가 없으면 기술 권고를 억지로 만들지 말고 기록 근거의 코칭만 제공한다.
+            같은 항목을 반복하지 말고, 선택한 작업의 다음 행동은 실행 방법이 드러나게 작성한다.
+            summary와 모든 text는 친근한 존댓말로 끝낸다.
+            다음 행동은 "~하세요."처럼, 회고와 요약은 "~했어요."처럼 작성한다.
+        """.trimIndent() + "\n" + CoachingTextPolicy.promptInstructions
+    }
+
+    private fun formatPreviousReport(context: ReportFeedbackContext): String {
+        val previous = context.previousReport ?: return "직전 완료 리포트 없음"
+        return buildString {
+            appendLine(
+                "직전 완료 리포트(report:${previous.id}): " +
+                    "${previous.startsAt}~${previous.endsAt}",
+            )
+            formatStatistics(context.workType, previous.statistics, prefix = "직전 ")
+                .forEach { appendLine("- $it") }
+        }.trim()
+    }
+
+    private fun formatRecord(record: ReportFeedbackRecord): String {
+        return buildString {
+            append("- record:${record.id} ${record.workedAt} ${record.workType.toCoachingText()}")
+            append(" / 메모: ${record.memo}")
+            formatRecordDetails(record.workType, record.details).forEach { detail ->
+                append("\n  - $detail")
+            }
+        }
+    }
+
+    private fun formatRecordDetails(
+        workType: WorkType,
+        details: Map<String, Any?>,
+    ): List<String> = buildList {
+        details["weatherCondition"]?.toString()?.takeIf(String::isNotBlank)
+            ?.let { add("기록 당시 날씨: $it") }
+        details.number("weatherTemperature")?.let { add("기록 당시 기온: ${it}도") }
+        (details["hasPhoto"] as? Boolean)?.let { add("사진 첨부: ${if (it) "있음" else "없음"}") }
+
+        when (workType) {
+            WorkType.PLANTING -> details.nested("planting")?.let { detail ->
+                detail.categoryCode("propagationMethod")?.propagationText()
+                    ?.let { add("심은 방법: $it") }
+                detail.number("quantity")?.let { quantity ->
+                    detail["quantityUnit"]?.toString()?.unitText()?.let { unit ->
+                        add("심은 양: $quantity$unit")
+                    }
+                }
+            }
+
+            WorkType.WATERING -> details.nested("watering")?.let { detail ->
+                detail.categoryCode("amount")?.irrigationAmountText()
+                    ?.let { add("물 준 양: $it") }
+                detail.categoryCode("method")?.irrigationMethodText()
+                    ?.let { add("물을 준 방법: $it") }
+            }
+
+            WorkType.FERTILIZING -> details.nested("fertilizing")?.let { detail ->
+                detail.categoryCode("materialCategory")?.fertilizerMaterialText()
+                    ?.let { add("거름 종류: $it") }
+                detail.number("amountKg")?.let { add("거름 양: ${it}킬로그램") }
+                detail.categoryCode("applicationMethod")?.fertilizingMethodText()
+                    ?.let { add("거름을 준 방법: $it") }
+            }
+
+            WorkType.PEST_CONTROL -> details.nested("pestControl")?.let { detail ->
+                detail.categoryCode("pesticideCategory")?.pesticideCategoryText()
+                    ?.let { add("약 종류: $it") }
+                detail.number("pesticideAmount")?.let { amount ->
+                    detail["pesticideAmountUnit"]?.toString()?.unitText()?.let { unit ->
+                        add("약 사용량: $amount$unit")
+                    }
+                }
+                detail.number("totalSprayAmountLiters")
+                    ?.let { add("약을 섞은 물의 양: ${it}리터") }
+                detail["pestTarget"]?.toString()?.takeIf(String::isNotBlank)
+                    ?.let { add("관리 대상: $it") }
+            }
+
+            WorkType.WEEDING -> details.nested("weeding")?.let { detail ->
+                detail.categoryCode("method")?.weedingMethodText()
+                    ?.let { add("풀을 정리한 방법: $it") }
+            }
+
+            WorkType.HARVEST -> details.nested("harvest")?.let { detail ->
+                detail.number("amountKg")?.let { add("수확량: ${it}킬로그램") }
+                detail.categoryCode("medicinalPart")?.cropPartText()
+                    ?.let { add("수확한 부위: $it") }
+                detail.number("growthPeriodMonths")?.let { add("기른 기간: ${it.toInt()}개월") }
+                (detail["isFinalHarvest"] as? Boolean)
+                    ?.let { add("마지막 수확: ${if (it) "네" else "아니요"}") }
+            }
+
+            WorkType.PRUNING, WorkType.ETC -> Unit
+        }
+    }
+
+    private fun formatStatistics(
+        workType: WorkType,
+        statistics: Map<String, Any?>,
+        prefix: String = "",
+    ): List<String> = buildList {
+        statistics.number("recordCount")?.let { add("${prefix}기록 횟수: ${it.toInt()}회") }
+        statistics["firstWorkedOn"]?.toString()?.let { add("${prefix}첫 작업일: $it") }
+        statistics["lastWorkedOn"]?.toString()?.let { add("${prefix}마지막 작업일: $it") }
+        statistics.number("averageIntervalDays")?.let { add("${prefix}평균 작업 간격: ${it}일") }
+        statistics.number("photoAttachedRecordCount")
+            ?.let { add("${prefix}사진을 붙인 기록: ${it.toInt()}회") }
+        statistics.number("averageTemperatureC")?.let { add("${prefix}평균 기온: ${it}도") }
+
+        when (workType) {
+            WorkType.PLANTING -> addAll(
+                statistics.distribution("propagationMethods", "code", prefix, { it.propagationText() }),
+            )
+
+            WorkType.WATERING -> {
+                addAll(
+                    statistics.distribution(
+                        "amountDistribution",
+                        "code",
+                        prefix,
+                        { it.irrigationAmountText() },
+                        label = "물 준 양",
+                    ),
+                )
+                addAll(
+                    statistics.distribution(
+                        "methodDistribution",
+                        "code",
+                        prefix,
+                        { it.irrigationMethodText() },
+                        label = "물을 준 방법",
+                    ),
+                )
+            }
+
+            WorkType.FERTILIZING -> {
+                statistics.number("totalAmountKg")?.let { add("${prefix}거름 총량: ${it}킬로그램") }
+                statistics.number("averageAmountKg")?.let { add("${prefix}한 번 평균 거름 양: ${it}킬로그램") }
+                addAll(
+                    statistics.distribution(
+                        "materialCategories",
+                        "code",
+                        prefix,
+                        { it.fertilizerMaterialText() },
+                        label = "거름 종류",
+                    ),
+                )
+                addAll(
+                    statistics.distribution(
+                        "methodDistribution",
+                        "code",
+                        prefix,
+                        { it.fertilizingMethodText() },
+                        label = "거름을 준 방법",
+                    ),
+                )
+            }
+
+            WorkType.PEST_CONTROL -> {
+                addAll(
+                    statistics.distribution(
+                        "categoryDistribution",
+                        "code",
+                        prefix,
+                        { it.pesticideCategoryText() },
+                        label = "약 종류",
+                    ),
+                )
+                statistics.listOfMaps("pesticideAmounts").forEach { item ->
+                    val amount = item.number("amount") ?: return@forEach
+                    val unit = item["unit"]?.toString()?.unitText() ?: return@forEach
+                    add("${prefix}약 사용량: $amount$unit")
+                }
+                statistics.number("totalSprayAmountLiters")
+                    ?.let { add("${prefix}약을 섞은 물의 총량: ${it}리터") }
+                statistics.listOfMaps("targets").forEach { item ->
+                    val target = item["target"]?.toString()?.takeIf(String::isNotBlank) ?: return@forEach
+                    val count = item.number("count")?.toInt() ?: return@forEach
+                    add("${prefix}관리 대상: $target ${count}회")
+                }
+            }
+
+            WorkType.WEEDING -> addAll(
+                statistics.distribution(
+                    "methodDistribution",
+                    "code",
+                    prefix,
+                    { it.weedingMethodText() },
+                    label = "풀을 정리한 방법",
+                ),
+            )
+
+            WorkType.HARVEST -> {
+                statistics.number("totalAmountKg")?.let { add("${prefix}총수확량: ${it}킬로그램") }
+                statistics.number("averageAmountKg")?.let { add("${prefix}한 번 평균 수확량: ${it}킬로그램") }
+                addAll(
+                    statistics.distribution(
+                        "medicinalParts",
+                        "code",
+                        prefix,
+                        { it.cropPartText() },
+                        label = "수확한 부위",
+                    ),
+                )
+                statistics.number("finalGrowthPeriodMonths")
+                    ?.let { add("${prefix}마지막 수확까지 기른 기간: ${it.toInt()}개월") }
+            }
+
+            WorkType.PRUNING, WorkType.ETC -> Unit
+        }
+    }
+
+    private fun Map<String, Any?>.distribution(
+        listKey: String,
+        codeKey: String,
+        prefix: String,
+        labeler: (String) -> String?,
+        label: String = "심은 방법",
+    ): List<String> = listOfMaps(listKey).mapNotNull { item ->
+        val value = item[codeKey]?.toString()?.let(labeler) ?: return@mapNotNull null
+        val count = item.number("count")?.toInt()
+            ?: item.number("recordCount")?.toInt()
+            ?: return@mapNotNull null
+        "$prefix$label: $value ${count}회"
+    }
+
+    private fun Map<String, Any?>.number(key: String): Number? = this[key] as? Number
+
+    private fun Map<String, Any?>.nested(key: String): Map<String, Any?>? = this[key].asStringMap()
+
+    private fun Map<String, Any?>.categoryCode(key: String): String? =
+        nested(key)?.get("code")?.toString()?.takeIf(String::isNotBlank)
+
+    private fun Map<String, Any?>.listOfMaps(key: String): List<Map<String, Any?>> =
+        (this[key] as? List<*>)?.mapNotNull { it.asStringMap() }.orEmpty()
+
+    private fun Any?.asStringMap(): Map<String, Any?>? {
+        val source = this as? Map<*, *> ?: return null
+        return source.entries.mapNotNull { (key, value) ->
+            (key as? String)?.let { it to value }
+        }.toMap()
+    }
+
+    private fun String.propagationText(): String? =
+        PropagationMethod.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.irrigationAmountText(): String? =
+        IrrigationAmount.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.irrigationMethodText(): String? =
+        IrrigationMethod.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.fertilizerMaterialText(): String? =
+        FertilizerMaterialCategory.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.fertilizingMethodText(): String? =
+        FertilizingMethod.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.pesticideCategoryText(): String? =
+        PesticideCategory.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.weedingMethodText(): String? =
+        WeedingMethod.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.cropPartText(): String? =
+        CropUsePartCategory.entries.firstOrNull { it.name == this }?.toCoachingText()
+
+    private fun String.unitText(): String? = when (this) {
+        "KG" -> "킬로그램"
+        "G" -> "그램"
+        "ML" -> "밀리리터"
+        "L" -> "리터"
+        "JU" -> "포기"
+        else -> null
     }
 }

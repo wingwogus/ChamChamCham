@@ -44,6 +44,34 @@ class ReportFeedbackGenerationServiceTest {
     }
 
     @Test
+    fun `language failure is retried with a fixed diagnostic code only`() {
+        val generatedText = "WATERING 관수 흐름을 확인했어요."
+        val client = FakeChatClient(
+            validContent().copy(summary = generatedText),
+            validContent(),
+        )
+
+        service(client).generate(context())
+
+        assertThat(client.attempts).isEqualTo(2)
+        assertThat(client.requestSpec.userTexts.last())
+            .contains("summary_text_language")
+            .doesNotContain(generatedText, "WATERING 관수")
+    }
+
+    @Test
+    fun `two language failures end as structured output invalid`() {
+        val invalid = validContent().copy(summary = "WATERING 관수 흐름을 확인했어요.")
+        val client = FakeChatClient(invalid, invalid)
+
+        assertThatThrownBy { service(client).generate(context()) }
+            .isInstanceOfSatisfying(ReportFeedbackGenerationFailure::class.java) {
+                assertThat(it.code).isEqualTo(ReportFeedbackFailureCode.STRUCTURED_OUTPUT_INVALID)
+            }
+        assertThat(client.attempts).isEqualTo(2)
+    }
+
+    @Test
     fun `unknown evidence value is not echoed into retry prompt`() {
         val privateValue = "private-model-value"
         val client = FakeChatClient(
@@ -132,21 +160,21 @@ class ReportFeedbackGenerationServiceTest {
     )
 
     private fun validContent() = ReportFeedbackContent(
-        summary = "이번 관수 기록의 흐름을 확인했어요.",
+        summary = "이번 물 주기 기록의 흐름을 확인했어요.",
         strengths = listOf(item()),
         improvements = emptyList(),
         nextActions = emptyList(),
     )
 
     private fun invalidToneContent() = validContent().copy(
-        summary = "이번 관수 기록의 흐름을 확인했습니다.",
+        summary = "이번 물 주기 기록의 흐름을 확인했습니다.",
     )
 
     private fun item(
         evidenceRefs: List<String> = listOf("record:$recordId"),
     ) = ReportFeedbackContentItem(
         basis = "관수 기록 1회",
-        text = "관수 기록을 남겨 작업 흐름을 확인하기 좋았어요.",
+        text = "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.",
         evidenceRefs = evidenceRefs,
     )
 

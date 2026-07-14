@@ -117,7 +117,7 @@ class ReportFeedbackGenerationHandlerTest {
         handler.on(event)
 
         assertThat(target.status).isEqualTo(ReportFeedbackStatus.READY)
-        assertThat(target.summary).isEqualTo("이번 관수 기록의 흐름을 확인했어요.")
+        assertThat(target.summary).isEqualTo("이번 물 주기 기록의 흐름을 확인했어요.")
         assertThat(target.items()).isEmpty()
         assertThat(sibling.status).isEqualTo(ReportFeedbackStatus.PENDING)
         assertThat(generated.workType).isEqualTo(WorkType.WATERING)
@@ -273,7 +273,7 @@ class ReportFeedbackGenerationHandlerTest {
 
     private fun emptyItemResult() = ReportFeedbackGenerationResult(
         content = ReportFeedbackContent(
-            summary = "이번 관수 기록의 흐름을 확인했어요.",
+            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
             strengths = emptyList(),
             improvements = emptyList(),
             nextActions = emptyList(),

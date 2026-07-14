@@ -57,10 +57,10 @@ class ReportFeedbackControllerTest(
                         status = ReportFeedbackStatus.READY,
                         inputPrepared = true,
                         content = ReportFeedbackResultContent(
-                            summary = "관수 작업 요약",
-                            strengths = listOf(ReportFeedbackItemResult("수분 상태를 꾸준히 확인했어요.")),
-                            improvements = listOf(ReportFeedbackItemResult("관수 간격도 함께 비교해 보세요.")),
-                            nextActions = listOf(ReportFeedbackItemResult("내일 토양 수분을 다시 확인하세요.")),
+                            summary = "물 주기 작업을 살펴봤어요.",
+                            strengths = listOf(ReportFeedbackItemResult("흙이 마른 정도를 꾸준히 확인했어요.")),
+                            improvements = listOf(ReportFeedbackItemResult("물을 준 간격도 함께 비교해 보세요.")),
+                            nextActions = listOf(ReportFeedbackItemResult("내일 흙이 마른 정도를 다시 확인하세요.")),
                         ),
                     ),
                     feedback(
@@ -92,10 +92,10 @@ class ReportFeedbackControllerTest(
             .andExpect(jsonPath("$.data.feedbacks[0].status", equalTo("READY")))
             .andExpect(jsonPath("$.data.feedbacks[0].inputPrepared", equalTo(true)))
             .andExpect(jsonPath("$.data.feedbacks[0].failureCode").isEmpty())
-            .andExpect(jsonPath("$.data.feedbacks[0].feedback.summary", equalTo("관수 작업 요약")))
-            .andExpect(jsonPath("$.data.feedbacks[0].feedback.strengths[0].text", equalTo("수분 상태를 꾸준히 확인했어요.")))
-            .andExpect(jsonPath("$.data.feedbacks[0].feedback.improvements[0].text", equalTo("관수 간격도 함께 비교해 보세요.")))
-            .andExpect(jsonPath("$.data.feedbacks[0].feedback.nextActions[0].text", equalTo("내일 토양 수분을 다시 확인하세요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.summary", equalTo("물 주기 작업을 살펴봤어요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.strengths[0].text", equalTo("흙이 마른 정도를 꾸준히 확인했어요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.improvements[0].text", equalTo("물을 준 간격도 함께 비교해 보세요.")))
+            .andExpect(jsonPath("$.data.feedbacks[0].feedback.nextActions[0].text", equalTo("내일 흙이 마른 정도를 다시 확인하세요.")))
             .andExpect(jsonPath("$.data.feedbacks[0].createdAt", equalTo("2026-07-14T10:00:00")))
             .andExpect(jsonPath("$.data.feedbacks[0].updatedAt", equalTo("2026-07-14T10:01:00")))
             .andExpect(jsonPath("$.data.feedbacks[0].feedback.strengths[0].basis").doesNotExist())
