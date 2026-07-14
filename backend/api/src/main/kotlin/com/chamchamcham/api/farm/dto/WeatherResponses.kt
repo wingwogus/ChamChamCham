@@ -13,7 +13,9 @@ object WeatherResponses {
         val observedAt: LocalDateTime,
         val address: String,
         val precipitationProbability: Int?,
-        val forecast: List<ForecastDayResponse>
+        val forecast: List<ForecastDayResponse>,
+        val humidity: Int?,
+        val windSpeed: Double?
     ) {
         companion object {
             fun from(result: FarmWeatherResult.CurrentDetail): CurrentWeatherResponse =
@@ -23,7 +25,9 @@ object WeatherResponses {
                     observedAt = result.snapshot.observedAt,
                     address = result.roadAddress,
                     precipitationProbability = result.precipitationProbability,
-                    forecast = result.forecast.map { ForecastDayResponse.from(it) }
+                    forecast = result.forecast.map { ForecastDayResponse.from(it) },
+                    humidity = result.snapshot.humidity,
+                    windSpeed = result.snapshot.windSpeed
                 )
         }
     }

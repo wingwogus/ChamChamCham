@@ -48,7 +48,9 @@ class FarmWeatherControllerTest(
                 snapshot = WeatherSnapshot(
                     temperature = 14,
                     skyCondition = "맑음",
-                    observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+                    observedAt = LocalDateTime.of(2026, 7, 8, 10, 0),
+                    humidity = 65,
+                    windSpeed = 2.3
                 ),
                 roadAddress = "서울시 강남구",
                 precipitationProbability = null,
@@ -66,6 +68,8 @@ class FarmWeatherControllerTest(
             .andExpect(jsonPath("$.data.weatherCondition", equalTo("맑음")))
             .andExpect(jsonPath("$.data.observedAt", equalTo("2026-07-08T10:00:00")))
             .andExpect(jsonPath("$.data.address", equalTo("서울시 강남구")))
+            .andExpect(jsonPath("$.data.humidity", equalTo(65)))
+            .andExpect(jsonPath("$.data.windSpeed", equalTo(2.3)))
     }
 
     @Test
