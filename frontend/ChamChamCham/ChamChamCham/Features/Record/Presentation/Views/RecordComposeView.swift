@@ -33,7 +33,7 @@ struct RecordComposeView: View {
             AppTopAppBar(
                 title: "기록하기",
                 isDetail: true,
-                leading: .init("chevron.left") { dismiss() }
+                leading: .init(.asset("arrow_back_ios_new")) { dismiss() }
             )
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -235,7 +235,8 @@ struct RecordComposeView: View {
                         Text(vm.selectedPesticide?.itemName ?? "사용한 농약을 선택해주세요.")
                             .foregroundStyle(vm.selectedPesticide == nil ? Color.Text.muted : Color.Text.default)
                         Spacer()
-                        Image(systemName: "chevron.down").foregroundStyle(Color.Icon.subtle)
+                        AppIconView(source: .asset("keyboard_arrow_down"), size: 16)
+                            .foregroundStyle(Color.Icon.subtle)
                     }
                     .appTypography(.bodyLarge)
                     .frame(minHeight: 56).padding(.horizontal, 16)
@@ -304,7 +305,10 @@ struct RecordComposeView: View {
                     ForEach(Array(vm.mediaIds.enumerated()), id: \.offset) { index, _ in
                         AppImageUploadSlot(label: "", onRemove: { vm.removeImage(at: index) }) {
                             RoundedRectangle(cornerRadius: 8).fill(Color.Object.muted)
-                                .overlay(Image(systemName: "photo").foregroundStyle(Color.Icon.disabled))
+                                .overlay(
+                                    AppIconView(source: .asset("photo"), size: 24)
+                                        .foregroundStyle(Color.Icon.disabled)
+                                )
                         }
                     }
                     if vm.canAddMorePhotos {
@@ -402,7 +406,8 @@ private struct AppImagePlaceholderSlot: View {
                     ProgressView()
                 } else {
                     VStack(spacing: 2) {
-                        Image(systemName: "camera.fill").font(.system(size: 24)).foregroundStyle(Color.Icon.subtle)
+                        AppIconView(source: .asset("photo_camera"), size: 24)
+                            .foregroundStyle(Color.Icon.subtle)
                         Text("\(count)/5").appTypography(.bodyMedium).foregroundStyle(Color.Text.subtle)
                     }
                 }
