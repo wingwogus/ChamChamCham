@@ -123,7 +123,8 @@ class ReportFeedbackGenerationHandler(
     private companion object {
         val logger = KotlinLogging.logger {}
         val SAFE_ITEM_DIAGNOSTIC = Regex(
-            "^(comparison|strength|improvement|next_action)_(basis_blank|text_blank|evidence_refs_blank)$",
+            "^(comparison|strength|improvement|next_action)_" +
+                "(count|basis_blank|text_blank|text_paragraph|evidence_refs_blank)$",
         )
         val SAFE_VALIDATION_DIAGNOSTICS = setOf(
             "summary_blank",

@@ -52,6 +52,23 @@ class ReportFeedbackGenerationServiceTest {
     }
 
     @Test
+    fun `section shape failures are retried with safe diagnostic codes`() {
+        val generatedText = "다음에는 흙 속을 확인하세요.\n젖은 깊이도 함께 살펴보세요."
+        val invalid = validContent().copy(
+            strengths = emptyList(),
+            nextActions = listOf(item(text = generatedText)),
+        )
+        val client = FakeChatClient(invalid, validContent())
+
+        service(client).generate(context())
+
+        assertThat(client.attempts).isEqualTo(2)
+        assertThat(client.requestSpec.userTexts.last())
+            .contains("strength_count", "next_action_text_paragraph")
+            .doesNotContain(generatedText)
+    }
+
+    @Test
     fun `English summary is accepted without retry`() {
         val generatedText = "WATERING 흐름을 확인했어요."
         val client = FakeChatClient(
@@ -286,8 +303,8 @@ class ReportFeedbackGenerationServiceTest {
         summary = "이번 물 주기 기록의 흐름을 확인했어요.",
         comparisons = listOf(comparisonItem()),
         strengths = listOf(item()),
-        improvements = emptyList(),
-        nextActions = emptyList(),
+        improvements = listOf(item(text = "물의 양이 알맞았는지 더 살펴볼 필요가 있어요.")),
+        nextActions = listOf(item(text = "다음에는 물을 준 뒤 흙 속까지 젖었는지 확인하세요.")),
     )
 
     private fun item(

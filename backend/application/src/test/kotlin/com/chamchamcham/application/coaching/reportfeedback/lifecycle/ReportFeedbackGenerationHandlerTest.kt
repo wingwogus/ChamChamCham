@@ -232,7 +232,10 @@ class ReportFeedbackGenerationHandlerTest {
         `when`(generationService.generate(anyContext())).thenThrow(
             ReportFeedbackGenerationFailure(
                 ReportFeedbackFailureCode.STRUCTURED_OUTPUT_INVALID,
-                IllegalStateException("comparison_not_available,unknown_evidence:untrusted-generated-value"),
+                IllegalStateException(
+                    "comparison_not_available,strength_count,next_action_text_paragraph," +
+                        "unknown_evidence:untrusted-generated-value",
+                ),
             ),
         )
 
@@ -243,6 +246,8 @@ class ReportFeedbackGenerationHandlerTest {
             .contains("report feedback generation failed")
             .contains("STRUCTURED_OUTPUT_INVALID")
             .contains("comparison_not_available")
+            .contains("strength_count")
+            .contains("next_action_text_paragraph")
             .contains("unknown_evidence")
             .doesNotContain("untrusted-generated-value")
     }

@@ -12,10 +12,23 @@ object ReportFeedbackOutputValidator {
         if (content.summary.isBlank()) {
             warnings += "summary_blank"
         }
-        val items = content.items()
-        if (content.comparisons.isNotEmpty() && context.comparisons.isEmpty()) {
-            warnings += "comparison_not_available"
+        if (context.comparisons.isEmpty()) {
+            if (content.comparisons.isNotEmpty()) {
+                warnings += "comparison_not_available"
+            }
+        } else if (content.comparisons.size != 1) {
+            warnings += "comparison_count"
         }
+        if (content.strengths.size != 1) {
+            warnings += "strength_count"
+        }
+        if (content.improvements.size != 1) {
+            warnings += "improvement_count"
+        }
+        if (content.nextActions.size != 1) {
+            warnings += "next_action_count"
+        }
+        val items = content.items()
 
         val currentReportRef = "report:${context.report.id}"
         val previousReportRef = context.previousReport?.let { "report:${it.id}" }
@@ -32,6 +45,9 @@ object ReportFeedbackOutputValidator {
             }
             if (item.text.isBlank()) {
                 warnings += "${structured.section.name.lowercase()}_text_blank"
+            }
+            if (item.text.any { it == '\r' || it == '\n' }) {
+                warnings += "${structured.section.name.lowercase()}_text_paragraph"
             }
             if (item.evidenceRefs.none { it.isNotBlank() }) {
                 warnings += "${structured.section.name.lowercase()}_evidence_refs_blank"

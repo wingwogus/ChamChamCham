@@ -88,19 +88,7 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `allows polite Korean comparison grounded in current and previous reports`() {
-        val content = ReportFeedbackContent(
-            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
-            comparisons = listOf(
-                ReportFeedbackContentItem(
-                    basis = "직전보다 기록 1회 증가",
-                    text = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
-                    evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
-                ),
-            ),
-            strengths = emptyList(),
-            improvements = emptyList(),
-            nextActions = emptyList(),
-        )
+        val content = validContent()
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
     }
@@ -108,18 +96,13 @@ class ReportFeedbackOutputValidatorTest {
     @Test
     fun `allows stylistic deviations but still rejects unknown evidence in comparison`() {
         val unknown = "report:${UUID.randomUUID()}"
-        val content = ReportFeedbackContent(
-            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+        val content = validContent().copy(
             comparisons = listOf(
-                ReportFeedbackContentItem(
-                    basis = "comparison",
+                comparisonItem(
                     text = "WATERING 기록이 늘었다.",
                     evidenceRefs = listOf("report:$reportId", "report:$previousReportId", unknown),
                 ),
             ),
-            strengths = emptyList(),
-            improvements = emptyList(),
-            nextActions = emptyList(),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
@@ -134,12 +117,9 @@ class ReportFeedbackOutputValidatorTest {
             evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
         )
         val repeatedWithDifferentBasis = comparison.copy(basis = "이번 기록과 직전 기록의 차이")
-        val content = ReportFeedbackContent(
-            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+        val content = validContent().copy(
             comparisons = listOf(comparison),
             strengths = listOf(repeatedWithDifferentBasis),
-            improvements = emptyList(),
-            nextActions = emptyList(),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
@@ -147,52 +127,77 @@ class ReportFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `allows a grounded summary when every item list is empty`() {
-        val content = ReportFeedbackContent(
-            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+    fun `requires exactly one item for each mandatory paragraph section`() {
+        val content = validContent().copy(
             strengths = emptyList(),
-            improvements = emptyList(),
+            improvements = listOf(
+                item(),
+                item(text = "흙 속 수분도 함께 확인할 필요가 있어요."),
+            ),
             nextActions = emptyList(),
         )
 
-        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .containsExactly("strength_count", "improvement_count", "next_action_count")
+    }
+
+    @Test
+    fun `requires one comparison paragraph when server comparison exists`() {
+        val content = validContent(comparisons = emptyList())
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .containsExactly("comparison_count")
+    }
+
+    @Test
+    fun `allows no comparison paragraph when server comparison is unavailable`() {
+        val unavailableContext = context.copy(previousReport = null, comparisons = emptyList())
+        val content = validContent(comparisons = emptyList())
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, unavailableContext, emptyList()))
+            .isEmpty()
+    }
+
+    @Test
+    fun `rejects line breaks inside a section paragraph`() {
+        val content = validContent().copy(
+            nextActions = listOf(
+                item(text = "다음에는 흙 속을 확인하세요.\n젖은 깊이도 함께 살펴보세요."),
+            ),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .containsExactly("next_action_text_paragraph")
     }
 
     @Test
     fun `allows record-backed feedback without a retrieved technical document`() {
-        val content = ReportFeedbackContent(
+        val content = validContent().copy(
             summary = "이번 물 주기 기록을 꾸준히 남겼어요.",
             strengths = listOf(item("관수 1회", "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.")),
-            improvements = emptyList(),
-            nextActions = emptyList(),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
     }
 
     @Test
-    fun `rejects an unknown evidence reference while allowing a duplicate item`() {
-        val item = item("관수 1회", "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.")
-        val content = ReportFeedbackContent(
-            summary = "이번 물 주기 기록을 확인했어요.",
-            strengths = listOf(item, item),
-            improvements = listOf(item("기록 부족", "다음에는 물 준 양을 함께 기록하세요.", "record:${UUID.randomUUID()}")),
-            nextActions = emptyList(),
+    fun `rejects multiple items and an unknown evidence reference`() {
+        val duplicate = item()
+        val unknown = "record:${UUID.randomUUID()}"
+        val content = validContent().copy(
+            strengths = listOf(duplicate, duplicate),
+            improvements = listOf(item(evidenceRef = unknown)),
         )
 
-        val warnings = ReportFeedbackOutputValidator.validate(content, context, emptyList())
-
-        assertThat(warnings).hasSize(1)
-        assertThat(warnings.single()).startsWith("unknown_evidence:")
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .contains("strength_count", "unknown_evidence:$unknown")
     }
 
     @Test
     fun `allows a summary and item text with formal honorifics`() {
-        val content = ReportFeedbackContent(
+        val content = validContent().copy(
             summary = "이번 물 주기 기록을 꾸준히 남겼습니다.",
             strengths = listOf(item("관수 1회", "물 준 기록을 남겨 작업 흐름을 확인할 수 있습니다.")),
-            improvements = emptyList(),
-            nextActions = emptyList(),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
@@ -201,7 +206,7 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `allows English and Korean farming terms in public report text`() {
-        val content = ReportFeedbackContent(
+        val content = validContent().copy(
             summary = "WATERING 흐름을 확인했어요.",
             strengths = listOf(item("DRIP 관수", "DRIP으로 물을 준 점은 좋았어요.")),
             improvements = listOf(item("토양", "토양 수분을 더 확인하세요.")),
@@ -214,7 +219,7 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `allows English in every report item section`() {
-        val content = ReportFeedbackContent(
+        val content = validContent().copy(
             summary = "이번 물 주기 기록을 확인했어요.",
             strengths = listOf(item("기록", "DRIP 방식을 꾸준히 사용했어요.")),
             improvements = listOf(item("양", "다음에는 kg 단위 대신 한글로 기록하세요.")),
@@ -238,19 +243,17 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `allows technical language in internal basis`() {
-        val content = ReportFeedbackContent(
+        val content = validContent().copy(
             summary = "이번 물 주기 기록을 확인했어요.",
             strengths = listOf(item("WATERING DRIP 관수", "물 준 방법을 꾸준히 지킨 점은 좋았어요.")),
-            improvements = emptyList(),
-            nextActions = emptyList(),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
     }
 
     private fun item(
-        basis: String,
-        text: String,
+        basis: String = "관수 1회",
+        text: String = "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.",
         evidenceRef: String = "record:$recordId",
     ) = ReportFeedbackContentItem(
         basis = basis,
@@ -258,18 +261,31 @@ class ReportFeedbackOutputValidatorTest {
         evidenceRefs = listOf(evidenceRef),
     )
 
-    private fun contentWithComparison(evidenceRefs: List<String>) = ReportFeedbackContent(
+    private fun comparisonItem(
+        evidenceRefs: List<String> = listOf("report:$reportId", "report:$previousReportId"),
+        text: String = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+    ) = ReportFeedbackContentItem(
+        basis = "직전보다 기록 1회 증가",
+        text = text,
+        evidenceRefs = evidenceRefs,
+    )
+
+    private fun validContent(
+        comparisons: List<ReportFeedbackContentItem> = listOf(comparisonItem()),
+    ) = ReportFeedbackContent(
         summary = "이번 물 주기 기록의 흐름을 확인했어요.",
-        comparisons = listOf(
-            ReportFeedbackContentItem(
-                basis = "직전보다 기록 1회 증가",
-                text = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
-                evidenceRefs = evidenceRefs,
-            ),
+        comparisons = comparisons,
+        strengths = listOf(item()),
+        improvements = listOf(
+            item("물의 양", "물의 양이 알맞았는지 더 살펴볼 필요가 있어요."),
         ),
-        strengths = emptyList(),
-        improvements = emptyList(),
-        nextActions = emptyList(),
+        nextActions = listOf(
+            item("흙 속 수분", "다음에는 물을 준 뒤 흙 속까지 젖었는지 확인하세요."),
+        ),
+    )
+
+    private fun contentWithComparison(evidenceRefs: List<String>) = validContent(
+        comparisons = listOf(comparisonItem(evidenceRefs = evidenceRefs)),
     )
 
     private fun serverComparison() = ReportFeedbackComparison(

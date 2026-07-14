@@ -165,7 +165,8 @@ class ReportFeedbackGenerationService(
         const val GENERAL_CROP_NAME = "GENERAL"
         const val MAX_STRUCTURED_OUTPUT_ATTEMPTS = 2
         val SAFE_ITEM_WARNING = Regex(
-            "^(comparison|strength|improvement|next_action)_(basis_blank|text_blank|evidence_refs_blank)$",
+            "^(comparison|strength|improvement|next_action)_" +
+                "(count|basis_blank|text_blank|text_paragraph|evidence_refs_blank)$",
         )
         val SAFE_RETRY_WARNINGS = setOf(
             "summary_blank",
