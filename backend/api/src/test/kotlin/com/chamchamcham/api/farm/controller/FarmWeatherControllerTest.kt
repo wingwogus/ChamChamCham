@@ -4,6 +4,7 @@ import com.chamchamcham.api.exception.GlobalExceptionHandler
 import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.application.security.TokenProvider
+import com.chamchamcham.application.weather.FarmWeatherResult
 import com.chamchamcham.application.weather.FarmWeatherService
 import com.chamchamcham.application.weather.WeatherSnapshot
 import org.hamcrest.Matchers.equalTo
@@ -40,10 +41,16 @@ class FarmWeatherControllerTest(
     @Test
     fun `returns current weather snapshot`() {
         `when`(farmWeatherService.getCurrentWeather(memberId, farmId)).thenReturn(
-            WeatherSnapshot(
-                temperature = 14,
-                skyCondition = "맑음",
-                observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+            FarmWeatherResult.CurrentDetail(
+                snapshot = WeatherSnapshot(
+                    temperature = 14,
+                    skyCondition = "맑음",
+                    observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+                ),
+                roadAddress = "서울시 강남구",
+                precipitationProbability = null,
+                forecast = emptyList(),
+                uvIndex = null
             )
         )
 
@@ -55,6 +62,34 @@ class FarmWeatherControllerTest(
             .andExpect(jsonPath("$.data.temperature", equalTo(14)))
             .andExpect(jsonPath("$.data.weatherCondition", equalTo("맑음")))
             .andExpect(jsonPath("$.data.observedAt", equalTo("2026-07-08T10:00:00")))
+            .andExpect(jsonPath("$.data.address", equalTo("서울시 강남구")))
+    }
+
+    @Test
+    fun `returns current weather for default farm without farmId`() {
+        `when`(farmWeatherService.getCurrentWeather(memberId)).thenReturn(
+            FarmWeatherResult.CurrentDetail(
+                snapshot = WeatherSnapshot(
+                    temperature = 14,
+                    skyCondition = "맑음",
+                    observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+                ),
+                roadAddress = "서울시 강남구",
+                precipitationProbability = null,
+                forecast = emptyList(),
+                uvIndex = null
+            )
+        )
+
+        mockMvc.perform(
+            get("/api/v1/farms/weather")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.temperature", equalTo(14)))
+            .andExpect(jsonPath("$.data.weatherCondition", equalTo("맑음")))
+            .andExpect(jsonPath("$.data.observedAt", equalTo("2026-07-08T10:00:00")))
+            .andExpect(jsonPath("$.data.address", equalTo("서울시 강남구")))
     }
 
     @Test

@@ -54,7 +54,8 @@ class FarmWeatherServiceTest {
 
         val result = service.getCurrentWeather(memberId, farmId)
 
-        assertThat(result).isEqualTo(snapshot)
+        assertThat(result.snapshot).isEqualTo(snapshot)
+        assertThat(result.roadAddress).isEqualTo("서울시 강남구")
     }
 
     @Test
@@ -83,6 +84,43 @@ class FarmWeatherServiceTest {
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode")
             .isEqualTo(ErrorCode.WEATHER_LOCATION_REQUIRED)
+
+        verifyNoInteractions(weatherProvider)
+    }
+
+    @Test
+    fun `농지 ID 없이 조회하면 가장 먼저 등록한 농지의 날씨를 반환한다`() {
+        val farm = Farm(
+            id = farmId,
+            owner = member,
+            name = "약초농장",
+            roadAddress = "서울시 강남구",
+            latitude = 37.5665,
+            longitude = 126.9780
+        )
+        val snapshot = WeatherSnapshot(
+            temperature = 14,
+            skyCondition = "맑음",
+            observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+        )
+        `when`(farmRepository.findFirstByOwnerIdOrderByCreatedAtAsc(memberId)).thenReturn(farm)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(weatherProvider.fetchCurrentWeather(37.5665, 126.9780)).thenReturn(snapshot)
+
+        val result = service.getCurrentWeather(memberId)
+
+        assertThat(result.snapshot).isEqualTo(snapshot)
+        assertThat(result.roadAddress).isEqualTo("서울시 강남구")
+    }
+
+    @Test
+    fun `농지 ID 없이 조회할 때 농지가 없으면 FARM_NOT_FOUND를 던진다`() {
+        `when`(farmRepository.findFirstByOwnerIdOrderByCreatedAtAsc(memberId)).thenReturn(null)
+
+        assertThatThrownBy { service.getCurrentWeather(memberId) }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.FARM_NOT_FOUND)
 
         verifyNoInteractions(weatherProvider)
     }

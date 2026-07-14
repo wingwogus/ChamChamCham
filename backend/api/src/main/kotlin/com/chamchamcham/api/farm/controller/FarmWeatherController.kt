@@ -23,8 +23,16 @@ class FarmWeatherController(
         @AuthenticationPrincipal memberId: String?,
         @PathVariable farmId: UUID
     ): ResponseEntity<ApiResponse<WeatherResponses.CurrentWeatherResponse>> {
-        val snapshot = farmWeatherService.getCurrentWeather(parseMemberId(memberId), farmId)
-        return ResponseEntity.ok(ApiResponse.ok(WeatherResponses.CurrentWeatherResponse.from(snapshot)))
+        val result = farmWeatherService.getCurrentWeather(parseMemberId(memberId), farmId)
+        return ResponseEntity.ok(ApiResponse.ok(WeatherResponses.CurrentWeatherResponse.from(result)))
+    }
+
+    @GetMapping("/weather")
+    fun getCurrentWeatherForDefaultFarm(
+        @AuthenticationPrincipal memberId: String?
+    ): ResponseEntity<ApiResponse<WeatherResponses.CurrentWeatherResponse>> {
+        val result = farmWeatherService.getCurrentWeather(parseMemberId(memberId))
+        return ResponseEntity.ok(ApiResponse.ok(WeatherResponses.CurrentWeatherResponse.from(result)))
     }
 
     private fun parseMemberId(memberId: String?): UUID {
