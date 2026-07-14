@@ -21,6 +21,8 @@ struct RecordListView: View {
     @State private var activeSheet: RecordFilterKind?
     @State private var isSpeedDialOpen = false
     @State private var showCompose = false
+    @State private var path: [UUID] = []
+    @State private var toastMessage: String?
     private let horizontalInset: CGFloat = 20
 
     init(repository: any RecordRepository, mediaUpload: any MediaUploadRepository) {
@@ -30,9 +32,10 @@ struct RecordListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             recordTabContent
         }
+        .recordToast(message: $toastMessage)
     }
 
     private var recordTabContent: some View {
@@ -60,7 +63,10 @@ struct RecordListView: View {
         .task { await viewModel.onAppear() }
         .fullScreenCover(isPresented: $showCompose) {
             NavigationStack {
-                RecordComposeView(repository: repository, mediaUpload: mediaUpload) {
+                RecordComposeView(repository: repository, mediaUpload: mediaUpload) { newRecordId in
+                    // 작성 완료 → 방금 만든 기록 상세로 이동 + 완료 토스트 + 리스트 갱신.
+                    path.append(newRecordId)
+                    toastMessage = "영농 기록 작성이 완료되었습니다."
                     Task { await viewModel.reload() }
                 }
             }

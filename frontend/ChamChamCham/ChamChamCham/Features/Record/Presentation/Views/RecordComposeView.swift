@@ -15,12 +15,12 @@ struct RecordComposeView: View {
     @State private var showPesticidePicker = false
     @State private var photoItem: PhotosPickerItem?
     @Environment(\.dismiss) private var dismiss
-    private let onComplete: () -> Void
+    private let onComplete: (UUID) -> Void
 
     init(
         repository: any RecordRepository,
         mediaUpload: any MediaUploadRepository,
-        onComplete: @escaping () -> Void
+        onComplete: @escaping (UUID) -> Void
     ) {
         _viewModel = State(initialValue: RecordComposeViewModel(repository: repository, mediaUpload: mediaUpload))
         self.onComplete = onComplete
@@ -62,7 +62,7 @@ struct RecordComposeView: View {
             }
         }
         .onChange(of: vm.createdRecordId) { _, newValue in
-            if newValue != nil { onComplete(); dismiss() }
+            if let newValue { onComplete(newValue); dismiss() }
         }
     }
 
