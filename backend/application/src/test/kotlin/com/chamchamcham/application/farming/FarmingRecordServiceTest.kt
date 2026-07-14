@@ -23,9 +23,9 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.PestControlRecord
 import com.chamchamcham.domain.farming.PestControlRecordRepository
 import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PlantingMethod
 import com.chamchamcham.domain.farming.PlantingRecord
 import com.chamchamcham.domain.farming.PlantingRecordRepository
-import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
 import com.chamchamcham.domain.farming.SprayAmountUnit
 import com.chamchamcham.domain.farming.WateringRecordRepository
@@ -249,9 +249,9 @@ class FarmingRecordServiceTest {
         val command = baseCommand(
             workType = WorkType.PLANTING,
             planting = FarmingRecordCommand.PlantingDetail(
+                plantingMethod = PlantingMethod.SEED,
                 seedAmount = BigDecimal.TEN,
-                seedAmountUnit = SeedAmountUnit.KG,
-                propagationMethod = PropagationMethod.SEED,
+                seedAmountUnit = SeedAmountUnit.G,
             ),
         )
 
@@ -262,7 +262,7 @@ class FarmingRecordServiceTest {
         val captor = ArgumentCaptor.forClass(PlantingRecord::class.java)
         verify(plantingRecordRepository).save(captor.capture())
         assertEquals(BigDecimal.TEN, captor.value.seedAmount)
-        assertEquals(SeedAmountUnit.KG, captor.value.seedAmountUnit)
+        assertEquals(SeedAmountUnit.G, captor.value.seedAmountUnit)
         verifyNoInteractions(harvestRecordRepository, wateringRecordRepository, fertilizingRecordRepository, pestControlRecordRepository, weedingRecordRepository)
     }
 
@@ -543,9 +543,9 @@ class FarmingRecordServiceTest {
             updateCommand(
                 workType = WorkType.PLANTING,
                 planting = FarmingRecordCommand.PlantingDetail(
+                    plantingMethod = PlantingMethod.SEED,
                     seedAmount = BigDecimal.ONE,
-                    seedAmountUnit = SeedAmountUnit.KG,
-                    propagationMethod = PropagationMethod.SEED,
+                    seedAmountUnit = SeedAmountUnit.G,
                 ),
             )
         )

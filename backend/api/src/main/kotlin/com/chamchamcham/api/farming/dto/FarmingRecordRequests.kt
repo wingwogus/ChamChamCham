@@ -10,6 +10,7 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.IrrigationAmount
 import com.chamchamcham.domain.farming.IrrigationMethod
 import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PlantingMethod
 import com.chamchamcham.domain.farming.PropagationMethod
 import com.chamchamcham.domain.farming.SeedAmountUnit
 import com.chamchamcham.domain.farming.SeedlingUnit
@@ -75,6 +76,9 @@ object FarmingRecordRequests {
     )
 
     data class PlantingDetailRequest(
+        @field:NotNull(message = "심기 방법을 선택해주세요")
+        val plantingMethod: PlantingMethod?,
+
         @field:DecimalMin(value = "0.01", message = "파종량은 0보다 커야 합니다")
         val seedAmount: BigDecimal? = null,
         val seedAmountUnit: SeedAmountUnit? = null,
@@ -83,8 +87,7 @@ object FarmingRecordRequests {
         val seedlingCount: Int? = null,
         val seedlingUnit: SeedlingUnit? = null,
 
-        @field:NotNull(message = "번식법을 선택해주세요")
-        val propagationMethod: PropagationMethod?,
+        val propagationMethod: PropagationMethod? = null,
     )
 
     data class WateringDetailRequest(
@@ -125,13 +128,12 @@ object FarmingRecordRequests {
         val harvestAmount: BigDecimal? = null,
         val harvestAmountUnknown: Boolean = false,
 
-        @field:NotNull(message = "수확 부위를 선택해주세요")
-        val medicinalPart: CropUsePartCategory?,
+        val medicinalPart: CropUsePartCategory? = null,
         val harvestSource: HarvestSource = HarvestSource.CULTIVATED,
 
         @field:Min(value = 1, message = "재배기간은 1 이상이어야 합니다")
-        val growthPeriod: Int,
-        val growthPeriodUnit: GrowthPeriodUnit,
+        val growthPeriod: Int? = null,
+        val growthPeriodUnit: GrowthPeriodUnit? = null,
 
         @field:NotNull(message = "마지막 수확 여부를 선택해주세요")
         val isLastHarvest: Boolean?,
@@ -175,11 +177,12 @@ fun FarmingRecordRequests.SaveRecordRequest.toHarvestDetail(): FarmingRecordComm
 
 fun FarmingRecordRequests.PlantingDetailRequest.toCommand(): FarmingRecordCommand.PlantingDetail =
     FarmingRecordCommand.PlantingDetail(
+        plantingMethod = requireNotNull(plantingMethod),
         seedAmount = seedAmount,
         seedAmountUnit = seedAmountUnit,
         seedlingCount = seedlingCount,
         seedlingUnit = seedlingUnit,
-        propagationMethod = requireNotNull(propagationMethod),
+        propagationMethod = propagationMethod,
     )
 
 fun FarmingRecordRequests.WateringDetailRequest.toCommand(): FarmingRecordCommand.WateringDetail =
@@ -210,7 +213,7 @@ fun FarmingRecordRequests.HarvestDetailRequest.toCommand(): FarmingRecordCommand
     FarmingRecordCommand.HarvestDetail(
         harvestAmount = harvestAmount,
         amountUnknown = harvestAmountUnknown,
-        medicinalPart = requireNotNull(medicinalPart),
+        medicinalPart = medicinalPart,
         harvestSource = harvestSource,
         growthPeriod = growthPeriod,
         growthPeriodUnit = growthPeriodUnit,
