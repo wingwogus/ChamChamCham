@@ -15,7 +15,6 @@ import com.chamchamcham.domain.farming.FarmingRecordMediaRepository
 import com.chamchamcham.domain.farming.FarmingRecordQueryRepository
 import com.chamchamcham.domain.farming.FarmingRecordRepository
 import com.chamchamcham.domain.farming.FertilizingRecordRepository
-import com.chamchamcham.domain.farming.GrowthPeriodUnit
 import com.chamchamcham.domain.farming.HarvestRecord
 import com.chamchamcham.domain.farming.HarvestRecordRepository
 import com.chamchamcham.domain.farming.EntryMode
@@ -368,7 +367,6 @@ class FarmingRecordServiceTest {
                 harvestAmount = BigDecimal.TEN,
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = false,
             ),
         )
@@ -395,7 +393,6 @@ class FarmingRecordServiceTest {
                 amountUnknown = true,
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = false,
             ),
         )
@@ -517,7 +514,6 @@ class FarmingRecordServiceTest {
                     harvestAmount = BigDecimal.TEN,
                     medicinalPart = CropUsePartCategory.ROOT_BARK,
                     growthPeriod = 2,
-                    growthPeriodUnit = GrowthPeriodUnit.YEAR,
                     isLastHarvest = false,
                 ),
             )
@@ -640,7 +636,6 @@ class FarmingRecordServiceTest {
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = true,
             )
         )

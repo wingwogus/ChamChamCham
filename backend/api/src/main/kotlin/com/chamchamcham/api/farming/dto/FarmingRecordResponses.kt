@@ -4,7 +4,6 @@ import com.chamchamcham.application.farming.FarmingRecordResult
 import com.chamchamcham.domain.crop.CropUsePartCategory
 import com.chamchamcham.domain.farming.FertilizerAmountUnit
 import com.chamchamcham.domain.farming.FertilizingMethod
-import com.chamchamcham.domain.farming.GrowthPeriodUnit
 import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.IrrigationAmount
 import com.chamchamcham.domain.farming.IrrigationMethod
@@ -208,8 +207,7 @@ object FarmingRecordResponses {
         val amountUnknown: Boolean,
         val medicinalPart: CropUsePartCategory?,
         val harvestSource: HarvestSource,
-        val growthPeriod: Int?,
-        val growthPeriodUnit: GrowthPeriodUnit?,
+        val growthPeriod: Int,
         val isLastHarvest: Boolean,
     ) {
         companion object {
@@ -219,7 +217,6 @@ object FarmingRecordResponses {
                 medicinalPart = result.medicinalPart,
                 harvestSource = result.harvestSource,
                 growthPeriod = result.growthPeriod,
-                growthPeriodUnit = result.growthPeriodUnit,
                 isLastHarvest = result.isLastHarvest,
             )
         }

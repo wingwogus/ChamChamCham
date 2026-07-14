@@ -236,7 +236,6 @@ class FarmingRecordService(
                         medicinalPart = detail.medicinalPart,
                         harvestSource = detail.harvestSource,
                         growthPeriod = detail.growthPeriod,
-                        growthPeriodUnit = detail.growthPeriodUnit,
                         isLastHarvest = detail.isLastHarvest,
                     )
                 )
@@ -330,7 +329,6 @@ class FarmingRecordService(
                     medicinalPart = it.medicinalPart,
                     harvestSource = it.harvestSource,
                     growthPeriod = it.growthPeriod,
-                    growthPeriodUnit = it.growthPeriodUnit,
                     isLastHarvest = it.isLastHarvest,
                 )
             }

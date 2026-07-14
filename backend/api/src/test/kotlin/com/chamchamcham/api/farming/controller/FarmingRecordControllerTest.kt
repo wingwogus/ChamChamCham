@@ -7,7 +7,6 @@ import com.chamchamcham.application.farming.FarmingRecordSearchCondition
 import com.chamchamcham.application.farming.FarmingRecordService
 import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.domain.crop.CropUsePartCategory
-import com.chamchamcham.domain.farming.GrowthPeriodUnit
 import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.WorkType
 import org.hamcrest.Matchers.equalTo
@@ -139,6 +138,18 @@ class FarmingRecordControllerTest(
     }
 
     @Test
+    fun `create record rejects missing growth period`() {
+        mockMvc.perform(
+            post("/api/v1/farming-records")
+                .with(authenticatedMember(memberId.toString()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(saveRecordJson(growthPeriod = "null"))
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
     fun `create record rejects blank fertilizing material name`() {
         val json = """
             {
@@ -168,7 +179,7 @@ class FarmingRecordControllerTest(
     }
 
     @Test
-    fun `create record accepts harvest without medicinal part or growth period`() {
+    fun `create record accepts harvest without medicinal part`() {
         val command = FarmingRecordCommand.Create(
             memberId = memberId,
             farmId = farmId,
@@ -181,6 +192,7 @@ class FarmingRecordControllerTest(
             harvest = FarmingRecordCommand.HarvestDetail(
                 harvestAmount = BigDecimal.TEN,
                 harvestSource = HarvestSource.CULTIVATED,
+                growthPeriod = 2,
                 isLastHarvest = true,
             ),
         )
@@ -198,6 +210,7 @@ class FarmingRecordControllerTest(
               "harvest":{
                 "harvestAmount":10,
                 "harvestSource":"CULTIVATED",
+                "growthPeriod":2,
                 "isLastHarvest":true
               }
             }
@@ -229,7 +242,6 @@ class FarmingRecordControllerTest(
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = true,
             ),
         )
@@ -249,7 +261,6 @@ class FarmingRecordControllerTest(
                 "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
                 "growthPeriod":2,
-                "growthPeriodUnit":"YEAR",
                 "isLastHarvest":true
               }
             }
@@ -279,8 +290,7 @@ class FarmingRecordControllerTest(
                 "harvestAmount":10,
                 "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
-                "growthPeriod":2,
-                "growthPeriodUnit":"YEAR"
+                "growthPeriod":2
               }
             }
         """.trimIndent()
@@ -489,7 +499,6 @@ class FarmingRecordControllerTest(
                 "medicinalPart":"ROOT_BARK",
                 "harvestSource":"CULTIVATED",
                 "growthPeriod":$growthPeriod,
-                "growthPeriodUnit":"YEAR",
                 "isLastHarvest":true
               },
               "mediaIds":$mediaIdsJson
@@ -512,7 +521,6 @@ class FarmingRecordControllerTest(
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = true,
             ),
             mediaIds = listOf(mediaId),
@@ -534,7 +542,6 @@ class FarmingRecordControllerTest(
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = true,
             ),
             mediaIds = listOf(mediaId),
@@ -576,7 +583,6 @@ class FarmingRecordControllerTest(
                 medicinalPart = CropUsePartCategory.ROOT_BARK,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 2,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = true,
             ),
             images = listOf(FarmingRecordResult.MediaItem(mediaId = mediaId, url = "https://example.test/1.jpg")),

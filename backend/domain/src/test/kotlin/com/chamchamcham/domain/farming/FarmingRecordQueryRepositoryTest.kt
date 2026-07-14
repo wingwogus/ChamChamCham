@@ -337,7 +337,6 @@ class FarmingRecordQueryRepositoryTest @Autowired constructor(
                 medicinalPart = medicinalPart,
                 harvestSource = HarvestSource.CULTIVATED,
                 growthPeriod = 1,
-                growthPeriodUnit = GrowthPeriodUnit.YEAR,
                 isLastHarvest = false,
             ),
             now
