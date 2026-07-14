@@ -14,8 +14,11 @@ struct MainTabView: View {
         TabView {
             HomeView()
                 .tabItem { Label("홈", systemImage: "house") }
-            Text("영농기록")
-                .tabItem { Label("영농기록", systemImage: "list.bullet") }
+            RecordListView(
+                repository: container.makeRecordRepository(),
+                mediaUpload: container.makeMediaUploadRepository()
+            )
+            .tabItem { Label("영농기록", systemImage: "list.bullet") }
             CommunityView(container: container)
                 .tabItem { Label("커뮤니티", systemImage: "person.3") }
             ProfileMainView(container: container)

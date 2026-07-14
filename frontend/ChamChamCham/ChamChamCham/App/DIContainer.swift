@@ -66,4 +66,8 @@ extension DIContainer {
     func makeMemberProfileRepository() -> some MemberProfileRepository {
         RemoteMemberProfileRepository(apiClient: apiClient)
     }
+
+    func makeRecordRepository() -> some RecordRepository {
+        RemoteRecordRepository(apiClient: apiClient)
+    }
 }
