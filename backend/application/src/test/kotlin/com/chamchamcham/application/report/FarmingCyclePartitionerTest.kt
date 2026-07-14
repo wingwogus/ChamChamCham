@@ -45,15 +45,18 @@ class FarmingCyclePartitionerTest {
     }
 
     @Test
-    fun `equal timestamps are deterministically ordered by id`() {
-        val slices = partitioner.partition(
-            listOf(
-                harvest("02", day = 1, final = true),
-                record("01", day = 1, WorkType.WATERING),
-            ),
+    fun `equal worked timestamps are ordered by created time then id`() {
+        val oldestCreatedId = id("03")
+        val newerCreatedId = id("01")
+        val newestCreatedId = id("02")
+        val equalWorkedAtRecords = listOf(
+            record("02", day = 1, WorkType.WATERING, createdDay = 3),
+            record("03", day = 1, WorkType.WATERING, createdDay = 2),
+            record("01", day = 1, WorkType.WATERING, createdDay = 3),
         )
 
-        assertThat(slices.single().records.map { it.id }).containsExactly(id("01"), id("02"))
+        assertThat(partitioner.partition(equalWorkedAtRecords).flatMap(CycleSlice::records).map { it.id })
+            .containsExactly(oldestCreatedId, newerCreatedId, newestCreatedId)
     }
 
     private fun harvest(number: String, day: Long, final: Boolean): CycleReportSourceRecord =
@@ -74,10 +77,12 @@ class FarmingCyclePartitionerTest {
         day: Long,
         workType: WorkType,
         harvest: HarvestReportSource? = null,
+        createdDay: Long = day,
     ): CycleReportSourceRecord =
         CycleReportSourceRecord(
             id = id(number),
             workedAt = LocalDateTime.of(2026, 1, 1, 9, 0).plusDays(day),
+            createdAt = LocalDateTime.of(2026, 1, 1, 9, 0).plusDays(createdDay),
             workType = workType,
             weatherCondition = "맑음",
             weatherTemperature = 20,

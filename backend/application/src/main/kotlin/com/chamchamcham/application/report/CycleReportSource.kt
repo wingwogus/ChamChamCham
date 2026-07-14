@@ -59,6 +59,7 @@ data class HarvestReportSource(
 data class CycleReportSourceRecord(
     val id: UUID,
     val workedAt: LocalDateTime,
+    val createdAt: LocalDateTime = workedAt,
     val workType: WorkType,
     val weatherCondition: String,
     val weatherTemperature: Int,

@@ -41,6 +41,7 @@ class FarmingCycleReportSourceLoader(
             CycleReportSourceRecord(
                 id = recordId,
                 workedAt = record.workedAt,
+                createdAt = record.createdAt,
                 workType = record.workType,
                 weatherCondition = record.weatherCondition,
                 weatherTemperature = record.weatherTemperature,

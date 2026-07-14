@@ -8,7 +8,11 @@ import org.springframework.stereotype.Component
 class FarmingCyclePartitioner {
     fun partition(records: List<CycleReportSourceRecord>): List<CycleSlice> {
         val sorted = records.sortedWith(
-            compareBy(CycleReportSourceRecord::workedAt, CycleReportSourceRecord::id),
+            compareBy(
+                CycleReportSourceRecord::workedAt,
+                CycleReportSourceRecord::createdAt,
+                CycleReportSourceRecord::id,
+            ),
         )
         if (sorted.isEmpty()) return emptyList()
 

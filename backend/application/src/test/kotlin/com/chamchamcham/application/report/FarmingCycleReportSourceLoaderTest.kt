@@ -81,6 +81,8 @@ class FarmingCycleReportSourceLoaderTest {
             .isTrue()
         assertThat(records.single { it.workType == WorkType.PRUNING }.planting).isNull()
         assertThat(records.single { it.workType == WorkType.ETC }.hasPhoto).isTrue()
+        assertThat(records.single { it.workType == WorkType.PLANTING }.createdAt)
+            .isEqualTo(LocalDateTime.of(2026, 7, 1, 8, 1))
     }
 
     @Test
@@ -219,7 +221,12 @@ class FarmingCycleReportSourceLoaderTest {
             weatherTemperature = 24,
             memo = "memo",
             entryMode = EntryMode.MANUAL,
-        )
+        ).also { record ->
+            com.chamchamcham.domain.common.BaseTimeEntity::class.java
+                .getDeclaredField("createdAt")
+                .apply { isAccessible = true }
+                .set(record, LocalDateTime.of(2026, 7, 1, 8, 0).plusMinutes(hour))
+        }
 
     private fun uuid(value: String): UUID = UUID.fromString(value)
 

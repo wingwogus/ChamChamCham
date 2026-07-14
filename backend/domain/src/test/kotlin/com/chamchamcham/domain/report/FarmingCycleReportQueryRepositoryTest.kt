@@ -23,8 +23,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.TestPropertySource
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -159,6 +161,113 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
         ).isEqualTo(previous.id)
     }
 
+    @Test
+    fun `work item projection filters completed positive statistics and orders report cards`() {
+        val otherFarm = persist(
+            Farm(owner = member, name = "다른 약초농장", roadAddress = "서울시 마포구"),
+            baseTime,
+        )
+        val otherCrop = persist(
+            Crop(externalNo = 423, name = "감초", usePartCategory = CropUsePartCategory.ROOT_BARK),
+            baseTime,
+        )
+        val latest = persistCompleted(
+            endedAt = day(40),
+            statistics = CycleReportStatistics(
+                watering = WateringStatistics(recordCount = 2, lastWorkedOn = day(38).toLocalDate()),
+                harvest = HarvestStatistics(recordCount = 1, lastWorkedOn = day(40).toLocalDate()),
+            ),
+        )
+        val sameEndOtherScope = persistCompleted(
+            farm = otherFarm,
+            crop = otherCrop,
+            endedAt = day(40),
+            statistics = CycleReportStatistics(
+                planting = PlantingStatistics(recordCount = 3, lastWorkedOn = day(15).toLocalDate()),
+                etc = CommonOnlyStatistics(recordCount = 0, lastWorkedOn = day(16).toLocalDate()),
+            ),
+        )
+        persistCompleted(
+            owner = otherMember,
+            endedAt = day(50),
+            statistics = CycleReportStatistics(
+                watering = WateringStatistics(recordCount = 9, lastWorkedOn = day(50).toLocalDate()),
+            ),
+        )
+        persistActive()
+        persistSuperseded(endedAt = day(60))
+        entityManager.flush()
+        entityManager.clear()
+
+        val all = repository.searchCompletedWorkItems(
+            workCondition(farmId = null, cropId = null, size = 20),
+        ).rows
+
+        assertThat(all.map { it.reportId to it.workType })
+            .containsExactlyElementsOf(
+                all.sortedWith(
+                    compareByDescending<FarmingCycleReportQueryRepository.WorkItem> { it.endsAt }
+                        .thenByDescending { it.reportId }
+                        .thenBy { it.workType.ordinal },
+                ).map { it.reportId to it.workType },
+            )
+        assertThat(all.map { it.reportId to it.workType })
+            .containsExactlyInAnyOrder(
+                requireNotNull(latest.id) to WorkType.WATERING,
+                requireNotNull(latest.id) to WorkType.HARVEST,
+                requireNotNull(sameEndOtherScope.id) to WorkType.PLANTING,
+            )
+        assertThat(all.map { it.recordCount }).containsExactlyInAnyOrder(2, 1, 3)
+        assertThat(all.map { it.lastWorkedOn })
+            .containsExactlyInAnyOrder(
+                day(38).toLocalDate(),
+                day(40).toLocalDate(),
+                day(15).toLocalDate(),
+            )
+
+        assertThat(repository.searchCompletedWorkItems(workCondition(farmId = farmId, cropId = null)).rows)
+            .allMatch { it.reportId == latest.id }
+        assertThat(repository.searchCompletedWorkItems(workCondition(farmId = null, cropId = cropId)).rows)
+            .allMatch { it.reportId == latest.id }
+        assertThat(
+            repository.searchCompletedWorkItems(
+                workCondition(farmId = null, cropId = null, workType = WorkType.PLANTING),
+            ).rows.map { it.reportId },
+        ).containsExactly(sameEndOtherScope.id)
+    }
+
+    @Test
+    fun `work item cursor cuts between work types of one report without overlap`() {
+        val report = persistCompleted(
+            endedAt = day(30),
+            statistics = CycleReportStatistics(
+                watering = WateringStatistics(recordCount = 2, lastWorkedOn = day(20).toLocalDate()),
+                harvest = HarvestStatistics(recordCount = 1, lastWorkedOn = day(30).toLocalDate()),
+            ),
+        )
+        entityManager.flush()
+        entityManager.clear()
+
+        val firstPage = repository.searchCompletedWorkItems(workCondition(size = 1)).rows
+        val first = firstPage.single()
+        val secondPage = repository.searchCompletedWorkItems(
+            workCondition(
+                cursor = FarmingCycleReportQueryRepository.WorkItemCursor(
+                    endsAt = first.endsAt,
+                    reportId = first.reportId,
+                    workType = first.workType,
+                ),
+                size = 2,
+            ),
+        ).rows
+
+        assertThat(first.reportId).isEqualTo(report.id)
+        assertThat(first.workType).isEqualTo(WorkType.WATERING)
+        assertThat(secondPage.map { it.reportId to it.workType })
+            .containsExactly(requireNotNull(report.id) to WorkType.HARVEST)
+        assertThat((firstPage + secondPage).map { it.reportId to it.workType }).doesNotHaveDuplicates()
+    }
+
     private fun persistActive(): FarmingCycleReport =
         persistReport(
             projection = FarmingCycleReportProjection(
@@ -177,6 +286,7 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
         farm: Farm? = null,
         crop: Crop = this.crop,
         endedAt: LocalDateTime = day(10),
+        statistics: CycleReportStatistics = CycleReportStatistics.empty(),
     ): FarmingCycleReport {
         val reportFarm = farm ?: if (owner === member) this.farm else persist(
             Farm(owner = owner, name = "다른 농장", roadAddress = "서울시 서초구"),
@@ -199,7 +309,7 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
                 startBasis = FarmingCycleStartBasis.FIRST_RECORD,
                 finalHarvestRecord = finalHarvest,
                 statisticsSchemaVersion = 1,
-                statistics = CycleReportStatistics.empty(),
+                statistics = statistics,
             ),
         )
     }
@@ -265,6 +375,22 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
             size = size,
         )
 
+    private fun workCondition(
+        farmId: UUID? = this.farmId,
+        cropId: UUID? = this.cropId,
+        workType: WorkType? = null,
+        cursor: FarmingCycleReportQueryRepository.WorkItemCursor? = null,
+        size: Int = 20,
+    ): FarmingCycleReportQueryRepository.WorkItemSearchCondition =
+        FarmingCycleReportQueryRepository.WorkItemSearchCondition(
+            memberId = memberId,
+            farmId = farmId,
+            cropId = cropId,
+            workType = workType,
+            cursor = cursor,
+            size = size,
+        )
+
     private fun day(day: Long): LocalDateTime = baseTime.plusDays(day)
 
     private fun <T : BaseTimeEntity> persist(entity: T, createdAt: LocalDateTime): T {
@@ -298,7 +424,8 @@ class TestCycleReportJsonFormatMapper : FormatMapper {
         wrapperOptions: WrapperOptions,
     ): T {
         if (javaType.javaTypeClass == CycleReportStatistics::class.java) {
-            return CycleReportStatistics.empty() as T
+            val key = charSequence.toString().substringAfter("\"key\":\"").substringBefore('"')
+            return requireNotNull(statisticsByKey[key]) { "Missing test statistics for key $key" } as T
         }
         return javaType.fromString(charSequence)
     }
@@ -309,8 +436,14 @@ class TestCycleReportJsonFormatMapper : FormatMapper {
         wrapperOptions: WrapperOptions,
     ): String {
         if (value is CycleReportStatistics) {
-            return "{}"
+            val key = UUID.randomUUID().toString()
+            statisticsByKey[key] = value
+            return "{\"key\":\"$key\"}"
         }
         return javaType.toString(value)
+    }
+
+    companion object {
+        private val statisticsByKey = ConcurrentHashMap<String, CycleReportStatistics>()
     }
 }

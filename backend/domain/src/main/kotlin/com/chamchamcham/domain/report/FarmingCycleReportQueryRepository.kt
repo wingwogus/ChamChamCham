@@ -1,5 +1,7 @@
 package com.chamchamcham.domain.report
 
+import com.chamchamcham.domain.farming.WorkType
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -21,7 +23,42 @@ interface FarmingCycleReportQueryRepository {
         val rows: List<FarmingCycleReport>,
     )
 
+    data class WorkItemCursor(
+        val endsAt: LocalDateTime,
+        val reportId: UUID,
+        val workType: WorkType,
+    )
+
+    data class WorkItemSearchCondition(
+        val memberId: UUID,
+        val farmId: UUID?,
+        val cropId: UUID?,
+        val workType: WorkType?,
+        val cursor: WorkItemCursor?,
+        val size: Int,
+    )
+
+    data class WorkItem(
+        val reportId: UUID,
+        val farmId: UUID,
+        val farmName: String,
+        val cropId: UUID,
+        val cropName: String,
+        val startsAt: LocalDateTime,
+        val endsAt: LocalDateTime,
+        val finalHarvestRecordId: UUID,
+        val workType: WorkType,
+        val recordCount: Int,
+        val lastWorkedOn: LocalDate?,
+    )
+
+    data class WorkItemSearchResult(
+        val rows: List<WorkItem>,
+    )
+
     fun searchCompleted(condition: SearchCondition): SearchResult
+
+    fun searchCompletedWorkItems(condition: WorkItemSearchCondition): WorkItemSearchResult
 
     fun findPreviousCompleted(
         memberId: UUID,
