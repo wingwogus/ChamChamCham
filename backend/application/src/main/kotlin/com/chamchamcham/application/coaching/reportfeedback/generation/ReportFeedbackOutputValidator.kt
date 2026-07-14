@@ -21,6 +21,7 @@ object ReportFeedbackOutputValidator {
         val items = content.items()
 
         val allowedRefs = buildSet {
+            add("report:${context.report.id}")
             context.records.forEach { add("record:${it.id}") }
             context.previousReport?.let { add("report:${it.id}") }
             documents.forEach { add(it.id) }
@@ -45,7 +46,7 @@ object ReportFeedbackOutputValidator {
             }
             item.evidenceRefs.filter { it.isNotBlank() && it !in allowedRefs }
                 .forEach { warnings += "unknown_evidence:$it" }
-            val key = listOf(structured.section.name, item.basis, item.text)
+            val key = listOf(item.basis, item.text)
                 .joinToString("|") { it.lowercase().filter(Char::isLetterOrDigit) }
             if (!seen.add(key)) {
                 warnings += "duplicate_item"

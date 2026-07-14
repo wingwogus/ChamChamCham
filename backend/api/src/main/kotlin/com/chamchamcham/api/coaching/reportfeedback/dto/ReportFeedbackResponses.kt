@@ -48,6 +48,7 @@ object ReportFeedbackResponses {
 
     data class FeedbackResponse(
         val summary: String,
+        val comparisons: List<ItemResponse>,
         val strengths: List<ItemResponse>,
         val improvements: List<ItemResponse>,
         val nextActions: List<ItemResponse>,
@@ -55,6 +56,7 @@ object ReportFeedbackResponses {
         companion object {
             fun from(source: ReportFeedbackResultContent) = FeedbackResponse(
                 summary = source.summary,
+                comparisons = source.comparisons.map(ItemResponse::from),
                 strengths = source.strengths.map(ItemResponse::from),
                 improvements = source.improvements.map(ItemResponse::from),
                 nextActions = source.nextActions.map(ItemResponse::from),

@@ -173,7 +173,12 @@ class FarmingWorkReportControllerTest(
             .andExpect(jsonPath("$.data.feedback.status", equalTo("READY")))
             .andExpect(jsonPath("$.data.feedback.content.summary", equalTo("물 주기를 잘 이어갔어요.")))
             .andExpect(jsonPath("$.data.feedback.content.comparisons").isArray)
-            .andExpect(jsonPath("$.data.feedback.content.comparisons").isEmpty)
+            .andExpect(
+                jsonPath(
+                    "$.data.feedback.content.comparisons[0].text",
+                    equalTo("직전 재배보다 물 주기 기록이 한 번 늘었어요."),
+                ),
+            )
             .andExpect(jsonPath("$.data.feedback.content.strengths[0].text", equalTo("흙 상태를 살폈어요.")))
 
         verify(service).getDetail(memberId, reportId, WorkType.WATERING)
@@ -303,6 +308,7 @@ class FarmingWorkReportControllerTest(
         status = ReportFeedbackStatus.READY,
         content = ReportFeedbackResultContent(
             summary = "물 주기를 잘 이어갔어요.",
+            comparisons = listOf(ReportFeedbackItemResult("직전 재배보다 물 주기 기록이 한 번 늘었어요.")),
             strengths = listOf(ReportFeedbackItemResult("흙 상태를 살폈어요.")),
             improvements = emptyList(),
             nextActions = listOf(ReportFeedbackItemResult("내일 흙을 확인하세요.")),

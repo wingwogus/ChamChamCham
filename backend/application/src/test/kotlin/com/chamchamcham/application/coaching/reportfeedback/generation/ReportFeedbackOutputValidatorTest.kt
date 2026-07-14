@@ -8,6 +8,7 @@ import java.util.UUID
 
 class ReportFeedbackOutputValidatorTest {
     private val reportId = UUID.randomUUID()
+    private val previousReportId = UUID.randomUUID()
     private val recordId = UUID.randomUUID()
     private val context = ReportFeedbackContext(
         schemaVersion = REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION,
@@ -29,9 +30,73 @@ class ReportFeedbackOutputValidatorTest {
                 details = emptyMap(),
             ),
         ),
-        previousReport = null,
+        previousReport = ReportFeedbackPreviousReport(
+            id = previousReportId,
+            startsAt = LocalDateTime.of(2025, 3, 1, 9, 0),
+            endsAt = LocalDateTime.of(2025, 7, 1, 9, 0),
+            statistics = mapOf("recordCount" to 1),
+        ),
         warnings = emptyList(),
     )
+
+    @Test
+    fun `allows polite Korean comparison grounded in current and previous reports`() {
+        val content = ReportFeedbackContent(
+            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+            comparisons = listOf(
+                ReportFeedbackContentItem(
+                    basis = "직전보다 기록 1회 증가",
+                    text = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+                    evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
+                ),
+            ),
+            strengths = emptyList(),
+            improvements = emptyList(),
+            nextActions = emptyList(),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
+    }
+
+    @Test
+    fun `rejects informal English and unknown evidence in comparison`() {
+        val unknown = "report:${UUID.randomUUID()}"
+        val content = ReportFeedbackContent(
+            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+            comparisons = listOf(
+                ReportFeedbackContentItem(
+                    basis = "comparison",
+                    text = "WATERING 기록이 늘었다.",
+                    evidenceRefs = listOf(unknown),
+                ),
+            ),
+            strengths = emptyList(),
+            improvements = emptyList(),
+            nextActions = emptyList(),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .contains("comparison_text_tone", "comparison_text_english", "unknown_evidence:$unknown")
+    }
+
+    @Test
+    fun `rejects the same fact repeated across comparison and another section`() {
+        val repeated = ReportFeedbackContentItem(
+            basis = "직전보다 기록 1회 증가",
+            text = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+            evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
+        )
+        val content = ReportFeedbackContent(
+            summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+            comparisons = listOf(repeated),
+            strengths = listOf(repeated),
+            improvements = emptyList(),
+            nextActions = emptyList(),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .contains("duplicate_item")
+    }
 
     @Test
     fun `allows a grounded summary when every item list is empty`() {

@@ -25,6 +25,7 @@ class ReportFeedbackContextAssembler(
     private val sourceLoader: FarmingCycleReportSourceLoader,
     private val partitioner: FarmingCyclePartitioner,
     private val objectMapper: ObjectMapper,
+    private val comparisonCalculator: ReportFeedbackComparisonCalculator,
 ) {
     @Transactional(readOnly = true)
     fun assemble(memberId: UUID, reportId: UUID, workType: WorkType): ReportFeedbackContext {
@@ -66,12 +67,18 @@ class ReportFeedbackContextAssembler(
         )
 
         val previousContext = previous?.toPreviousReport(workType)
+        val comparisons = if (previousContext == null) {
+            emptyList()
+        } else {
+            comparisonCalculator.calculate(workType, report.statistics, requireNotNull(previous).statistics)
+        }
         return ReportFeedbackContext(
             schemaVersion = REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION,
             workType = workType,
             report = report.toContextReport(workType),
             records = records,
             previousReport = previousContext,
+            comparisons = comparisons,
             warnings = when {
                 previous == null -> listOf("previous_report_unavailable")
                 previousContext == null -> listOf("previous_work_type_unavailable")
@@ -86,20 +93,33 @@ class ReportFeedbackContextAssembler(
         cropName = crop.name,
         startsAt = startsAt,
         endsAt = requireNotNull(endsAt),
+        sourceRevision = sourceRevision,
         statistics = statistics.toWorkTypeMap(workType),
     )
 
     private fun FarmingCycleReport.toPreviousReport(workType: WorkType): ReportFeedbackPreviousReport? {
-        val selectedStatistics = statistics.toWorkTypeMap(workType)
-        if ((selectedStatistics["recordCount"] as? Number)?.toInt() == 0) {
+        if (statistics.recordCountFor(workType) == 0) {
             return null
         }
+        val selectedStatistics = statistics.toWorkTypeMap(workType)
         return ReportFeedbackPreviousReport(
             id = requireNotNull(id),
             startsAt = startsAt,
             endsAt = requireNotNull(endsAt),
+            sourceRevision = sourceRevision,
             statistics = selectedStatistics,
         )
+    }
+
+    private fun CycleReportStatistics.recordCountFor(workType: WorkType): Int = when (workType) {
+        WorkType.PLANTING -> planting.recordCount
+        WorkType.WATERING -> watering.recordCount
+        WorkType.FERTILIZING -> fertilizing.recordCount
+        WorkType.PEST_CONTROL -> pestControl.recordCount
+        WorkType.WEEDING -> weeding.recordCount
+        WorkType.PRUNING -> pruning.recordCount
+        WorkType.HARVEST -> harvest.recordCount
+        WorkType.ETC -> etc.recordCount
     }
 
     private fun CycleReportStatistics.toWorkTypeMap(workType: WorkType): Map<String, Any?> {

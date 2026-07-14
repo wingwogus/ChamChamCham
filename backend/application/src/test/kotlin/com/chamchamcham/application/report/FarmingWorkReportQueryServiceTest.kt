@@ -95,6 +95,7 @@ class FarmingWorkReportQueryServiceTest {
         )
         val feedbackContent = ReportFeedbackResultContent(
             summary = "물 주기 작업을 안정적으로 이어갔어요.",
+            comparisons = listOf(ReportFeedbackItemResult("직전 재배보다 물 주기 기록이 한 번 늘었어요.")),
             strengths = listOf(ReportFeedbackItemResult("흙 상태를 꾸준히 살폈어요.")),
             improvements = emptyList(),
             nextActions = listOf(ReportFeedbackItemResult("내일 흙을 다시 확인하세요.")),
@@ -130,7 +131,8 @@ class FarmingWorkReportQueryServiceTest {
         assertThat(detail.statistics.harvest).isNull()
         assertThat(detail.feedback.status).isEqualTo(ReportFeedbackStatus.READY)
         assertThat(detail.feedback.content).isSameAs(feedbackContent)
-        assertThat(detail.feedback.content?.comparisons).isEmpty()
+        assertThat(detail.feedback.content?.comparisons?.map { it.text })
+            .containsExactly("직전 재배보다 물 주기 기록이 한 번 늘었어요.")
         verify(feedbackQueryService).get(memberId, reportId)
     }
 

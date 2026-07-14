@@ -5,11 +5,13 @@ import com.chamchamcham.domain.farming.HarvestSource
 import com.chamchamcham.domain.farming.WorkType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
 
 class ReportFeedbackPromptBuilderTest {
     private val recordId = UUID.randomUUID()
+    private val currentReportId = UUID.randomUUID()
     private val previousReportId = UUID.randomUUID()
 
     @Test
@@ -31,6 +33,10 @@ class ReportFeedbackPromptBuilderTest {
             .contains("빈 배열")
             .contains("선택한 작업의 다음 행동은 실행 방법이 드러나게 작성한다.")
             .contains("summary와 모든 text는 친근한 존댓말로 끝낸다.")
+            .contains("comparisons")
+            .contains("서버가 계산한 비교값을 그대로 사용하고 다시 계산하지 않는다.")
+            .contains("comparisons에는 변화 사실만")
+            .contains("comparison, strength, improvement, next-action 사이에 같은 내용을 반복하지 않는다.")
             .contains(CoachingTextPolicy.promptInstructions)
             .doesNotContain("다음 사이클 계획")
         assertThat(prompt.user)
@@ -40,7 +46,9 @@ class ReportFeedbackPromptBuilderTest {
             .contains("물을 준 방법: 호스로 조금씩 물을 줌")
             .contains("직전 기록 횟수: 3회")
             .contains("record:$recordId")
+            .contains("report:$currentReportId")
             .contains("report:$previousReportId")
+            .contains("직전보다 기록 횟수가 1회 늘었고 변화율은 33.33퍼센트")
             .contains("document-1")
             .contains("황기 관수 기술", "관수 후 토양 수분을 확인한다.")
             .doesNotContain(
@@ -203,7 +211,7 @@ class ReportFeedbackPromptBuilderTest {
         schemaVersion = REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION,
         workType = WorkType.WATERING,
         report = ReportFeedbackReport(
-            id = UUID.randomUUID(),
+            id = currentReportId,
             farmName = "약초농장",
             cropName = "황기",
             startsAt = LocalDateTime.of(2026, 3, 1, 9, 0),
@@ -246,6 +254,17 @@ class ReportFeedbackPromptBuilderTest {
                 "methodDistribution" to listOf(
                     mapOf("code" to "DRIP", "label" to "점적관수", "count" to 3, "ratePct" to 100),
                 ),
+            ),
+        ),
+        comparisons = listOf(
+            ReportFeedbackComparison(
+                metricKey = "recordCount",
+                metricLabel = "기록 횟수",
+                currentValue = BigDecimal("4"),
+                previousValue = BigDecimal("3"),
+                difference = BigDecimal("1"),
+                relativeChangePct = BigDecimal("33.33"),
+                unit = "회",
             ),
         ),
         warnings = emptyList(),

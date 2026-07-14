@@ -28,12 +28,15 @@ import org.springframework.ai.vectorstore.filter.Filter
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.core.io.Resource
 import java.nio.charset.Charset
+import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
 import java.util.function.Consumer
 
 class ReportFeedbackGenerationServiceTest {
     private val recordId = UUID.randomUUID()
+    private val reportId = UUID.randomUUID()
+    private val previousReportId = UUID.randomUUID()
 
     @Test
     fun `validation failure is retried with safe diagnostic codes`() {
@@ -75,6 +78,22 @@ class ReportFeedbackGenerationServiceTest {
         assertThat(client.requestSpec.userTexts.last())
             .contains("next_action_text_english")
             .doesNotContain(generatedText, "DRIP")
+    }
+
+    @Test
+    fun `comparison English failure is retried with a fixed diagnostic code only`() {
+        val generatedText = "WATERING 기록이 늘었어요."
+        val client = FakeChatClient(
+            validContent().copy(comparisons = listOf(comparisonItem(text = generatedText))),
+            validContent(),
+        )
+
+        service(client).generate(context())
+
+        assertThat(client.attempts).isEqualTo(2)
+        assertThat(client.requestSpec.userTexts.last())
+            .contains("comparison_text_english")
+            .doesNotContain(generatedText, "WATERING")
     }
 
     @Test
@@ -157,7 +176,11 @@ class ReportFeedbackGenerationServiceTest {
         val result = service(FakeChatClient(validContent())).generate(context())
 
         assertThat(result.content.strengths).hasSize(1)
-        assertThat(result.citations.map { it["id"] }).containsExactly("record:$recordId")
+        assertThat(result.citations.map { it["id"] }).containsExactly(
+            "report:$reportId",
+            "report:$previousReportId",
+            "record:$recordId",
+        )
     }
 
     private fun service(
@@ -178,7 +201,7 @@ class ReportFeedbackGenerationServiceTest {
         schemaVersion = REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION,
         workType = WorkType.WATERING,
         report = ReportFeedbackReport(
-            id = UUID.randomUUID(),
+            id = reportId,
             farmName = "약초농장",
             cropName = "황기",
             startsAt = LocalDateTime.of(2026, 3, 1, 9, 0),
@@ -194,12 +217,29 @@ class ReportFeedbackGenerationServiceTest {
                 details = emptyMap(),
             ),
         ),
-        previousReport = null,
+        previousReport = ReportFeedbackPreviousReport(
+            id = previousReportId,
+            startsAt = LocalDateTime.of(2025, 3, 1, 9, 0),
+            endsAt = LocalDateTime.of(2025, 7, 1, 9, 0),
+            statistics = mapOf("recordCount" to 1),
+        ),
+        comparisons = listOf(
+            ReportFeedbackComparison(
+                metricKey = "recordCount",
+                metricLabel = "기록 횟수",
+                currentValue = BigDecimal("2"),
+                previousValue = BigDecimal("1"),
+                difference = BigDecimal("1"),
+                relativeChangePct = BigDecimal("100"),
+                unit = "회",
+            ),
+        ),
         warnings = emptyList(),
     )
 
     private fun validContent() = ReportFeedbackContent(
         summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+        comparisons = listOf(comparisonItem()),
         strengths = listOf(item()),
         improvements = emptyList(),
         nextActions = emptyList(),
@@ -216,6 +256,14 @@ class ReportFeedbackGenerationServiceTest {
         basis = "관수 기록 1회",
         text = text,
         evidenceRefs = evidenceRefs,
+    )
+
+    private fun comparisonItem(
+        text: String = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+    ) = ReportFeedbackContentItem(
+        basis = "직전보다 기록 1회 증가",
+        text = text,
+        evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
     )
 
     private class FakeVectorStore : VectorStore {

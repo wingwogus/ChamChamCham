@@ -16,6 +16,8 @@ import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.report.CycleReportStatistics
+import com.chamchamcham.domain.report.Coverage
+import com.chamchamcham.domain.report.FertilizingStatistics
 import com.chamchamcham.domain.report.FarmingCycleReport
 import com.chamchamcham.domain.report.FarmingCycleReportProjection
 import com.chamchamcham.domain.report.FarmingCycleReportQueryRepository
@@ -62,31 +64,52 @@ class ReportFeedbackContextAssemblerTest {
             startsAt = startsAt,
             endsAt = endsAt,
             statistics = CycleReportStatistics(
-                watering = WateringStatistics(recordCount = 1, averageIntervalDays = BigDecimal("3.5")),
+                watering = WateringStatistics(
+                    recordCount = 4,
+                    workedDayCount = 3,
+                    averageIntervalDays = BigDecimal("2.5"),
+                    photoAttachmentRatePct = BigDecimal("75"),
+                ),
             ),
-        )
+        ).also { setSourceRevision(it, 7) }
         val previous = completedReport(
             id = previousReportId,
             finalHarvestId = UUID.randomUUID(),
             startsAt = startsAt.minusYears(1),
             endsAt = endsAt.minusYears(1),
-            statistics = CycleReportStatistics(watering = WateringStatistics(recordCount = 2)),
-        )
+            statistics = CycleReportStatistics(
+                watering = WateringStatistics(
+                    recordCount = 3,
+                    workedDayCount = 2,
+                    averageIntervalDays = BigDecimal("4"),
+                    photoAttachmentRatePct = BigDecimal("50"),
+                ),
+            ),
+        ).also { setSourceRevision(it, 3) }
         stubReports(report, previous)
         `when`(sourceLoader.load(ReportScope(memberId, farmId, cropId))).thenReturn(cycleRecords())
 
         val context = assembler().assemble(memberId, reportId, WorkType.WATERING)
 
-        assertThat(context.schemaVersion).isEqualTo(2)
+        assertThat(context.schemaVersion).isEqualTo(3)
         assertThat(context.workType).isEqualTo(WorkType.WATERING)
         assertThat(context.records.map(ReportFeedbackRecord::id)).containsExactly(targetWateringId)
         assertThat(context.records).allMatch { it.workType == WorkType.WATERING }
         assertThat(context.report.statistics)
-            .containsEntry("recordCount", 1)
-            .containsEntry("averageIntervalDays", BigDecimal("3.5"))
+            .containsEntry("recordCount", 4)
+            .containsEntry("averageIntervalDays", BigDecimal("2.5"))
             .doesNotContainKeys("watering", "fertilizing", "harvest")
+        assertThat(context.report.sourceRevision).isEqualTo(7)
         assertThat(context.previousReport?.id).isEqualTo(previousReportId)
-        assertThat(context.previousReport?.statistics).containsEntry("recordCount", 2)
+        assertThat(context.previousReport?.sourceRevision).isEqualTo(3)
+        assertThat(context.previousReport?.statistics).containsEntry("recordCount", 3)
+        assertThat(context.comparisons.map(ReportFeedbackComparison::metricKey)).containsExactly(
+            "recordCount",
+            "workedDayCount",
+            "averageIntervalDays",
+            "photoAttachmentRatePct",
+        )
+        assertThat(context.comparisons.first().difference).isEqualByComparingTo("1")
     }
 
     @Test
@@ -108,7 +131,71 @@ class ReportFeedbackContextAssemblerTest {
         stubReports(report, previous)
         `when`(sourceLoader.load(ReportScope(memberId, farmId, cropId))).thenReturn(cycleRecords())
 
-        assertThat(assembler().assemble(memberId, reportId, WorkType.WATERING).previousReport).isNull()
+        val context = assembler().assemble(memberId, reportId, WorkType.WATERING)
+
+        assertThat(context.previousReport).isNull()
+        assertThat(context.comparisons).isEmpty()
+        assertThat(context.warnings).containsExactly("previous_work_type_unavailable")
+    }
+
+    @Test
+    fun `assemble leaves comparisons empty when there is no previous report`() {
+        val report = completedReport(
+            id = reportId,
+            finalHarvestId = targetFinalHarvestId,
+            startsAt = startsAt,
+            endsAt = endsAt,
+            statistics = CycleReportStatistics(watering = WateringStatistics(recordCount = 1)),
+        )
+        stubReports(report, null)
+        `when`(sourceLoader.load(ReportScope(memberId, farmId, cropId))).thenReturn(cycleRecords())
+
+        val context = assembler().assemble(memberId, reportId, WorkType.WATERING)
+
+        assertThat(context.previousReport).isNull()
+        assertThat(context.comparisons).isEmpty()
+        assertThat(context.warnings).containsExactly("previous_report_unavailable")
+    }
+
+    @Test
+    fun `assemble calculates selected typed quantity before map conversion and preserves coverage`() {
+        val report = completedReport(
+            id = reportId,
+            finalHarvestId = targetFinalHarvestId,
+            startsAt = startsAt,
+            endsAt = endsAt,
+            statistics = CycleReportStatistics(
+                fertilizing = FertilizingStatistics(
+                    recordCount = 2,
+                    workedDayCount = 2,
+                    totalAmountKg = BigDecimal("1.5000"),
+                    amountCoverage = Coverage(1, 2),
+                ),
+            ),
+        )
+        val previous = completedReport(
+            id = previousReportId,
+            finalHarvestId = UUID.randomUUID(),
+            startsAt = startsAt.minusYears(1),
+            endsAt = endsAt.minusYears(1),
+            statistics = CycleReportStatistics(
+                fertilizing = FertilizingStatistics(
+                    recordCount = 1,
+                    workedDayCount = 1,
+                    totalAmountKg = BigDecimal("1.0000"),
+                    amountCoverage = Coverage(1, 1),
+                ),
+            ),
+        )
+        stubReports(report, previous)
+        `when`(sourceLoader.load(ReportScope(memberId, farmId, cropId))).thenReturn(cycleRecords())
+
+        val comparison = assembler().assemble(memberId, reportId, WorkType.FERTILIZING)
+            .comparisons.single { it.metricKey == "fertilizing.totalAmountKg" }
+
+        assertThat(comparison.difference).isEqualByComparingTo("0.5")
+        assertThat(comparison.currentCoverage).isEqualTo(Coverage(1, 2))
+        assertThat(comparison.previousCoverage).isEqualTo(Coverage(1, 1))
     }
 
     @Test
@@ -166,6 +253,7 @@ class ReportFeedbackContextAssemblerTest {
         sourceLoader = sourceLoader,
         partitioner = FarmingCyclePartitioner(),
         objectMapper = jacksonObjectMapper(),
+        comparisonCalculator = ReportFeedbackComparisonCalculator(),
     )
 
     private fun stubReports(report: FarmingCycleReport, previous: FarmingCycleReport?) {
@@ -263,5 +351,11 @@ class ReportFeedbackContextAssemblerTest {
         val field = target.javaClass.getDeclaredField("id")
         field.isAccessible = true
         field.set(target, id)
+    }
+
+    private fun setSourceRevision(target: FarmingCycleReport, revision: Long) {
+        val field = target.javaClass.getDeclaredField("sourceRevision")
+        field.isAccessible = true
+        field.set(target, revision)
     }
 }

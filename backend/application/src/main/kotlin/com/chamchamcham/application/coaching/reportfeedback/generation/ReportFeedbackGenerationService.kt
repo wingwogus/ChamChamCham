@@ -149,6 +149,7 @@ class ReportFeedbackGenerationService(
             .mapNotNull { ref ->
                 when {
                     ref.startsWith("record:") -> mapOf("id" to ref, "sourceType" to RagSourceType.FARMING_RECORD.name)
+                    ref == "report:${context.report.id}" -> mapOf("id" to ref, "sourceType" to "FARMING_REPORT")
                     ref == "report:${context.previousReport?.id}" -> mapOf("id" to ref, "sourceType" to "FARMING_REPORT")
                     ref in documentsById -> mapOf(
                         "id" to ref,
@@ -164,7 +165,7 @@ class ReportFeedbackGenerationService(
         const val GENERAL_CROP_NAME = "GENERAL"
         const val MAX_STRUCTURED_OUTPUT_ATTEMPTS = 2
         val SAFE_ITEM_WARNING = Regex(
-            "^(strength|improvement|next_action)_(basis_blank|text_blank|text_tone|text_english|evidence_refs_blank)$",
+            "^(comparison|strength|improvement|next_action)_(basis_blank|text_blank|text_tone|text_english|evidence_refs_blank)$",
         )
         val SAFE_RETRY_WARNINGS = setOf(
             "summary_blank",

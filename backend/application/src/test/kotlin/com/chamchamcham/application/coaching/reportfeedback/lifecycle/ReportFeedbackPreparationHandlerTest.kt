@@ -4,6 +4,8 @@ import com.chamchamcham.application.coaching.reportfeedback.ReportFeedbackFailur
 import com.chamchamcham.application.coaching.reportfeedback.ReportFeedbackGenerationFailure
 import com.chamchamcham.application.coaching.reportfeedback.generation.REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackContext
+import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackComparison
+import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackPreviousReport
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackContextAssembler
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackRecord
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackReport
@@ -17,6 +19,7 @@ import com.chamchamcham.domain.farming.FarmingRecord
 import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.report.CycleReportStatistics
+import com.chamchamcham.domain.report.Coverage
 import com.chamchamcham.domain.report.FarmingCycleReport
 import com.chamchamcham.domain.report.FarmingCycleReportProjection
 import com.chamchamcham.domain.report.FarmingCycleReportStatus
@@ -43,6 +46,7 @@ import org.springframework.transaction.event.TransactionalEventListener
 import org.springframework.transaction.support.AbstractPlatformTransactionManager
 import org.springframework.transaction.support.DefaultTransactionStatus
 import java.time.LocalDateTime
+import java.math.BigDecimal
 import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
@@ -164,6 +168,15 @@ class ReportFeedbackPreparationHandlerTest {
         handler.on(event)
 
         assertThat(feedback.inputSnapshot).isNotNull
+        assertThat(feedback.inputSnapshot?.get("schemaVersion")).isEqualTo(3)
+        assertThat(feedback.inputSnapshot?.nested("report")?.get("sourceRevision")).isEqualTo(7L)
+        assertThat(feedback.inputSnapshot?.nested("previousReport")?.get("sourceRevision")).isEqualTo(3L)
+        val comparison = feedback.inputSnapshot?.listOfMaps("comparisons")?.single()
+        assertThat(comparison?.get("metricKey")).isEqualTo("recordCount")
+        assertThat(comparison?.get("difference")).isEqualTo(BigDecimal("1"))
+        assertThat(comparison?.nested("currentCoverage"))
+            .containsEntry("recordedCount", 3)
+            .containsEntry("targetCount", 4)
         verify(contextAssembler).assemble(memberId, reportId, WorkType.WATERING)
         val published = ArgumentCaptor.forClass(ReportFeedbackGenerationRequested::class.java)
         verify(eventPublisher).publishEvent(published.capture())
@@ -271,6 +284,7 @@ class ReportFeedbackPreparationHandlerTest {
         workType = WorkType.WATERING,
         report = ReportFeedbackReport(
             id = reportId,
+            sourceRevision = 7,
             farmName = report.farm.name,
             cropName = report.crop.name,
             startsAt = startsAt,
@@ -286,7 +300,26 @@ class ReportFeedbackPreparationHandlerTest {
                 details = emptyMap(),
             ),
         ),
-        previousReport = null,
+        comparisons = listOf(
+            ReportFeedbackComparison(
+                metricKey = "recordCount",
+                metricLabel = "기록 횟수",
+                currentValue = BigDecimal("4"),
+                previousValue = BigDecimal("3"),
+                difference = BigDecimal("1"),
+                relativeChangePct = BigDecimal("33.33"),
+                unit = "회",
+                currentCoverage = Coverage(3, 4),
+                previousCoverage = Coverage(2, 3),
+            ),
+        ),
+        previousReport = ReportFeedbackPreviousReport(
+            id = UUID.randomUUID(),
+            sourceRevision = 3,
+            startsAt = startsAt.minusYears(1),
+            endsAt = endsAt.minusYears(1),
+            statistics = mapOf("recordCount" to 3),
+        ),
         warnings = emptyList(),
     )
 
@@ -295,6 +328,14 @@ class ReportFeedbackPreparationHandlerTest {
         field.isAccessible = true
         field.set(target, id)
     }
+
+    private fun Map<String, Any?>.nested(key: String): Map<String, Any?>? =
+        (this[key] as? Map<*, *>)?.entries?.associate { (nestedKey, value) -> nestedKey.toString() to value }
+
+    private fun Map<String, Any?>.listOfMaps(key: String): List<Map<String, Any?>> =
+        (this[key] as? List<*>)?.mapNotNull { value ->
+            (value as? Map<*, *>)?.entries?.associate { (nestedKey, nestedValue) -> nestedKey.toString() to nestedValue }
+        }.orEmpty()
 
     private class NoOpTransactionManager : AbstractPlatformTransactionManager() {
         override fun doGetTransaction(): Any = Any()

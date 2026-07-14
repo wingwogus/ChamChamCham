@@ -5,6 +5,7 @@ import com.chamchamcham.application.coaching.reportfeedback.ReportFeedbackFailur
 import com.chamchamcham.application.coaching.reportfeedback.ReportFeedbackGenerationFailure
 import com.chamchamcham.application.coaching.reportfeedback.generation.REPORT_FEEDBACK_CONTEXT_SCHEMA_VERSION
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackContent
+import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackContentItem
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackContext
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackGenerationResult
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackGenerationService
@@ -12,6 +13,7 @@ import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFee
 import com.chamchamcham.application.coaching.reportfeedback.generation.ReportFeedbackReport
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedback
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackRepository
+import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackItemSection
 import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackStatus
 import com.chamchamcham.domain.crop.Crop
 import com.chamchamcham.domain.crop.CropUsePartCategory
@@ -122,6 +124,43 @@ class ReportFeedbackGenerationHandlerTest {
         assertThat(sibling.status).isEqualTo(ReportFeedbackStatus.PENDING)
         assertThat(generated.workType).isEqualTo(WorkType.WATERING)
         assertThat(generated.records).allMatch { it.workType == WorkType.WATERING }
+    }
+
+    @Test
+    fun `generation persists comparison rows before the other sections`() {
+        val target = pendingFeedback(WorkType.WATERING)
+        val event = generationEvent(WorkType.WATERING)
+        stubTarget(event, target)
+        `when`(generationService.generate(anyContext())).thenReturn(
+            ReportFeedbackGenerationResult(
+                content = ReportFeedbackContent(
+                    summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+                    comparisons = listOf(
+                        contentItem("직전보다 기록 1회 증가", "직전 재배보다 물 주기 기록이 한 번 늘었어요."),
+                    ),
+                    strengths = listOf(
+                        contentItem("현재 기록", "물 준 기록을 남겨 흐름을 확인하기 좋았어요."),
+                    ),
+                    improvements = emptyList(),
+                    nextActions = emptyList(),
+                ),
+                citations = emptyList(),
+                auditWarnings = emptyList(),
+                modelInfo = RagModelInfo(embedding = "embedding-test", chat = "chat-test"),
+            ),
+        )
+
+        handler.on(event)
+
+        assertThat(target.items().map { it.section }).containsExactly(
+            ReportFeedbackItemSection.COMPARISON,
+            ReportFeedbackItemSection.STRENGTH,
+        )
+        assertThat(target.items().map { it.displayOrder }).containsExactly(0, 1)
+        assertThat(target.items().map { it.text }).containsExactly(
+            "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+            "물 준 기록을 남겨 흐름을 확인하기 좋았어요.",
+        )
     }
 
     @Test
@@ -281,6 +320,12 @@ class ReportFeedbackGenerationHandlerTest {
         citations = emptyList(),
         auditWarnings = emptyList(),
         modelInfo = RagModelInfo(embedding = "embedding-test", chat = "chat-test"),
+    )
+
+    private fun contentItem(basis: String, text: String) = ReportFeedbackContentItem(
+        basis = basis,
+        text = text,
+        evidenceRefs = emptyList(),
     )
 
     private fun snapshot(context: ReportFeedbackContext): Map<String, Any?> =

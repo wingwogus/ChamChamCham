@@ -41,6 +41,7 @@ class ReportFeedbackQueryService(
         content = if (status == ReportFeedbackStatus.READY) {
             ReportFeedbackResultContent(
                 summary = requireNotNull(summary),
+                comparisons = itemsFor(ReportFeedbackItemSection.COMPARISON),
                 strengths = itemsFor(ReportFeedbackItemSection.STRENGTH),
                 improvements = itemsFor(ReportFeedbackItemSection.IMPROVEMENT),
                 nextActions = itemsFor(ReportFeedbackItemSection.NEXT_ACTION),

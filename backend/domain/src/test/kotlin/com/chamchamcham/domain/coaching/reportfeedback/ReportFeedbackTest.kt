@@ -70,6 +70,7 @@ class ReportFeedbackTest {
         feedback.markReady(
             summary = "이번 관수 작업은 간격을 안정적으로 유지했어요.",
             items = listOf(
+                item(ReportFeedbackItemSection.COMPARISON, "직전보다 기록 1회 증가", "직전 재배보다 물 주기 기록이 한 번 늘었어요."),
                 item(ReportFeedbackItemSection.STRENGTH, "관수 4회", "관수를 네 번 기록해 흐름을 확인하기 좋았어요."),
                 item(ReportFeedbackItemSection.IMPROVEMENT, "관수량 누락", "다음에는 관수량도 함께 기록하세요."),
                 item(ReportFeedbackItemSection.NEXT_ACTION, "다음 관수", "관수 전에 토양 수분을 확인하세요."),
@@ -84,9 +85,10 @@ class ReportFeedbackTest {
 
         assertThat(feedback.status).isEqualTo(ReportFeedbackStatus.READY)
         assertThat(feedback.summary).isEqualTo("이번 관수 작업은 간격을 안정적으로 유지했어요.")
-        assertThat(feedback.items().map(ReportFeedbackItem::displayOrder)).containsExactly(0, 1, 2, 3)
+        assertThat(feedback.items().map(ReportFeedbackItem::displayOrder)).containsExactly(0, 1, 2, 3, 4)
         assertThat(feedback.items().map(ReportFeedbackItem::section))
             .containsExactly(
+                ReportFeedbackItemSection.COMPARISON,
                 ReportFeedbackItemSection.STRENGTH,
                 ReportFeedbackItemSection.IMPROVEMENT,
                 ReportFeedbackItemSection.NEXT_ACTION,

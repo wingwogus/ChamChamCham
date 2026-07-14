@@ -22,6 +22,7 @@ class ReportFeedbackPromptBuilder {
         val records = context.records.joinToString("\n", transform = ::formatRecord)
         val documents = evidence.joinToString("\n") { "- ${it.id}: ${it.title} / ${it.content}" }
         val allowedEvidenceRefs = buildList {
+            add("- report:${context.report.id} : 현재 완료 리포트")
             context.records.forEach { add("- record:${it.id} : 대상 영농기록") }
             context.previousReport?.let { add("- report:${it.id} : 직전 완료 리포트") }
             evidence.forEach { add("- ${it.id} : ${it.title}") }
@@ -40,6 +41,12 @@ class ReportFeedbackPromptBuilder {
                 formatStatistics(context.workType, context.report.statistics)
                     .forEach { appendLine("- $it") }
                 appendLine(formatPreviousReport(context))
+                appendLine("서버가 계산한 직전 동일 작업 비교:")
+                if (context.comparisons.isEmpty()) {
+                    appendLine("없음")
+                } else {
+                    context.comparisons.forEach { appendLine("- ${formatComparison(it)}") }
+                }
                 appendLine("대상 기록:")
                 appendLine(records)
                 appendLine("공식 기술 문서:")
@@ -53,12 +60,15 @@ class ReportFeedbackPromptBuilder {
             당신은 약용작물 재배 회고 코치다. 제공된 근거에 없는 수치나 사실을 만들지 않는다.
             지정된 대상 작업 타입 하나만 회고하고 다른 작업을 비교하거나 권고하지 않는다.
             직전 리포트 비교는 제공된 동일 작업 통계만 사용하고 이전 기록이나 메모를 본 것처럼 말하지 않는다.
-            summary, strengths, improvements, nextActions를 구조화해 응답한다.
-            strengths, improvements, nextActions는 근거가 없으면 빈 배열로 응답해도 된다.
+            summary, comparisons, strengths, improvements, nextActions를 구조화해 응답한다.
+            comparisons, strengths, improvements, nextActions는 근거가 없으면 빈 배열로 응답해도 된다.
             각 항목은 basis, text, evidenceRefs를 가져야 한다.
             evidenceRefs에는 허용 evidenceRefs에 나열된 값을 정확히 그대로 사용한다.
             통계 필드명이나 통계값은 evidenceRefs로 사용하지 않는다.
             기술 문서가 없으면 기술 권고를 억지로 만들지 말고 기록 근거의 코칭만 제공한다.
+            서버가 계산한 비교값을 그대로 사용하고 다시 계산하지 않는다.
+            comparisons에는 변화 사실만 쉬운 문장으로 쓰고 칭찬, 문제 진단, 권고를 넣지 않는다.
+            comparison, strength, improvement, next-action 사이에 같은 내용을 반복하지 않는다.
             같은 항목을 반복하지 말고, 선택한 작업의 다음 행동은 실행 방법이 드러나게 작성한다.
             summary와 모든 text는 친근한 존댓말로 끝낸다.
             다음 행동은 "~하세요."처럼, 회고와 요약은 "~했어요."처럼 작성한다.
@@ -75,6 +85,34 @@ class ReportFeedbackPromptBuilder {
             formatStatistics(context.workType, previous.statistics, prefix = "직전 ")
                 .forEach { appendLine("- $it") }
         }.trim()
+    }
+
+    private fun formatComparison(comparison: ReportFeedbackComparison): String {
+        val unit = comparison.unit.unitText() ?: comparison.unit
+        val difference = comparison.difference
+        val direction = when {
+            difference.signum() > 0 -> "${difference.abs().toPlainString()}$unit 늘었고"
+            difference.signum() < 0 -> "${difference.abs().toPlainString()}$unit 줄었고"
+            else -> "변화가 없고"
+        }
+        val relative = comparison.relativeChangePct?.let {
+            " 변화율은 ${it.abs().toPlainString()}퍼센트예요."
+        } ?: " 변화율은 계산하지 않았어요."
+        val coverage = formatCoverage(comparison)
+        return "직전보다 ${comparison.metricLabel}${comparison.metricLabel.subjectParticle()} $direction$relative$coverage"
+    }
+
+    private fun formatCoverage(comparison: ReportFeedbackComparison): String {
+        val current = comparison.currentCoverage ?: return ""
+        val previous = comparison.previousCoverage ?: return ""
+        return " 입력 범위는 이번 ${current.recordedCount}/${current.targetCount}건, " +
+            "직전 ${previous.recordedCount}/${previous.targetCount}건이에요."
+    }
+
+    private fun String.subjectParticle(): String {
+        val last = lastOrNull() ?: return "가"
+        if (last !in '\uAC00'..'\uD7A3') return "가"
+        return if ((last.code - '\uAC00'.code) % 28 == 0) "가" else "이"
     }
 
     private fun formatRecord(record: ReportFeedbackRecord): String {

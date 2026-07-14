@@ -80,6 +80,8 @@ class ReportFeedbackQueryServiceTest {
         assertThat(ready.inputPrepared).isTrue()
         assertThat(ready.failureCode).isNull()
         assertThat(ready.content?.summary).isEqualTo("관수 작업 요약")
+        assertThat(ready.content?.comparisons?.map { it.text })
+            .containsExactly("직전 재배보다 물 주기 기록이 한 번 늘었어요.")
         assertThat(ready.content?.strengths?.map { it.text }).containsExactly("수분 상태를 꾸준히 확인했어요.")
         assertThat(ready.content?.improvements?.map { it.text }).containsExactly("관수 간격도 함께 비교해 보세요.")
         assertThat(ready.content?.nextActions?.map { it.text }).containsExactly("내일 토양 수분을 다시 확인하세요.")
@@ -153,6 +155,11 @@ class ReportFeedbackQueryServiceTest {
         it.markReady(
             summary = "관수 작업 요약",
             items = listOf(
+                ReportFeedbackItemDraft(
+                    ReportFeedbackItemSection.COMPARISON,
+                    "직전보다 기록 1회 증가",
+                    "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+                ),
                 ReportFeedbackItemDraft(ReportFeedbackItemSection.STRENGTH, "기록 근거", "수분 상태를 꾸준히 확인했어요."),
                 ReportFeedbackItemDraft(ReportFeedbackItemSection.IMPROVEMENT, "통계 근거", "관수 간격도 함께 비교해 보세요."),
                 ReportFeedbackItemDraft(ReportFeedbackItemSection.NEXT_ACTION, "기록 근거", "내일 토양 수분을 다시 확인하세요."),

@@ -4,11 +4,13 @@ import com.chamchamcham.domain.coaching.reportfeedback.ReportFeedbackItemSection
 
 data class ReportFeedbackContent(
     val summary: String,
+    val comparisons: List<ReportFeedbackContentItem> = emptyList(),
     val strengths: List<ReportFeedbackContentItem>,
     val improvements: List<ReportFeedbackContentItem>,
     val nextActions: List<ReportFeedbackContentItem>,
 ) {
     fun items(): List<ReportFeedbackStructuredItem> = buildList {
+        comparisons.forEach { add(ReportFeedbackStructuredItem(ReportFeedbackItemSection.COMPARISON, it)) }
         strengths.forEach { add(ReportFeedbackStructuredItem(ReportFeedbackItemSection.STRENGTH, it)) }
         improvements.forEach { add(ReportFeedbackStructuredItem(ReportFeedbackItemSection.IMPROVEMENT, it)) }
         nextActions.forEach { add(ReportFeedbackStructuredItem(ReportFeedbackItemSection.NEXT_ACTION, it)) }
