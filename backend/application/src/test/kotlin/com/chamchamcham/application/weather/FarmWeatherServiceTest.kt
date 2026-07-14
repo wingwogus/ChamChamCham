@@ -124,4 +124,66 @@ class FarmWeatherServiceTest {
 
         verifyNoInteractions(weatherProvider)
     }
+
+    @Test
+    fun `예보 조회에 성공하면 강수확률과 예보 목록을 채운다`() {
+        val farm = Farm(
+            id = farmId,
+            owner = member,
+            name = "약초농장",
+            roadAddress = "서울시 강남구",
+            latitude = 37.5665,
+            longitude = 126.9780
+        )
+        val snapshot = WeatherSnapshot(
+            temperature = 14,
+            skyCondition = "맑음",
+            observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+        )
+        val dailyForecasts = listOf(
+            DailyForecast(
+                date = java.time.LocalDate.of(2026, 7, 8),
+                minTemperature = 18,
+                maxTemperature = 29,
+                skyCondition = "맑음"
+            )
+        )
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(weatherProvider.fetchCurrentWeather(37.5665, 126.9780)).thenReturn(snapshot)
+        `when`(weatherProvider.fetchForecastPanel(37.5665, 126.9780))
+            .thenReturn(WeatherForecast(precipitationProbability = 30, dailyForecasts = dailyForecasts))
+
+        val result = service.getCurrentWeather(memberId, farmId)
+
+        assertThat(result.precipitationProbability).isEqualTo(30)
+        assertThat(result.forecast).isEqualTo(dailyForecasts)
+    }
+
+    @Test
+    fun `예보 조회가 실패해도 현재 날씨 응답은 성공하고 예보는 빈 상태로 채워진다`() {
+        val farm = Farm(
+            id = farmId,
+            owner = member,
+            name = "약초농장",
+            roadAddress = "서울시 강남구",
+            latitude = 37.5665,
+            longitude = 126.9780
+        )
+        val snapshot = WeatherSnapshot(
+            temperature = 14,
+            skyCondition = "맑음",
+            observedAt = LocalDateTime.of(2026, 7, 8, 10, 0)
+        )
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(weatherProvider.fetchCurrentWeather(37.5665, 126.9780)).thenReturn(snapshot)
+        `when`(weatherProvider.fetchForecastPanel(37.5665, 126.9780))
+            .thenThrow(BusinessException(ErrorCode.WEATHER_PROVIDER_UNAVAILABLE))
+
+        val result = service.getCurrentWeather(memberId, farmId)
+
+        assertThat(result.snapshot).isEqualTo(snapshot)
+        assertThat(result.roadAddress).isEqualTo("서울시 강남구")
+        assertThat(result.precipitationProbability).isNull()
+        assertThat(result.forecast).isEmpty()
+    }
 }

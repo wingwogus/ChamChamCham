@@ -47,4 +47,32 @@ class KmaBaseTimeResolverTest {
 
         assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260707", baseTime = "2330"))
     }
+
+    @Test
+    fun `단기예보는 발표시각 10분 전이면 직전 스케줄을 사용한다`() {
+        val result = KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 8, 17, 9))
+
+        assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260708", baseTime = "1400"))
+    }
+
+    @Test
+    fun `단기예보는 발표시각 10분 이후면 해당 스케줄을 사용한다`() {
+        val result = KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 8, 17, 10))
+
+        assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260708", baseTime = "1700"))
+    }
+
+    @Test
+    fun `단기예보는 스케줄 시각 사이에도 가장 최근 스케줄을 사용한다`() {
+        val result = KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 8, 16, 59))
+
+        assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260708", baseTime = "1400"))
+    }
+
+    @Test
+    fun `단기예보는 자정 이후 첫 스케줄 이전이면 전날 23시 스케줄로 롤오버한다`() {
+        val result = KmaBaseTimeResolver.resolveVilageFcst(LocalDateTime.of(2026, 7, 8, 1, 30))
+
+        assertThat(result).isEqualTo(KmaBaseDateTime(baseDate = "20260707", baseTime = "2300"))
+    }
 }

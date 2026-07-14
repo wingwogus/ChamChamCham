@@ -15,7 +15,9 @@ import org.springframework.test.web.client.response.MockRestResponseCreators.wit
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.web.client.RestClient
 import java.io.IOException
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class KmaWeatherProviderTest {
     private lateinit var server: MockRestServiceServer
@@ -108,12 +110,70 @@ class KmaWeatherProviderTest {
         assertThat(KmaWeatherProvider.skyConditionOf(sky = null, pty = null)).isEqualTo("정보없음")
     }
 
+    @Test
+    fun `base_time 02~14 응답은 4개의 예보일을 반환한다`() {
+        expectVilageFcst(withJson(VILAGE_FCST_4_DAYS_BODY))
+
+        val forecast = provider.fetchForecastPanel(37.5665, 126.9780)
+
+        assertThat(forecast.dailyForecasts).hasSize(4)
+        assertThat(forecast.dailyForecasts.map { it.date }).containsExactly(
+            LocalDate.of(2026, 7, 8),
+            LocalDate.of(2026, 7, 9),
+            LocalDate.of(2026, 7, 10),
+            LocalDate.of(2026, 7, 11)
+        )
+        val today = forecast.dailyForecasts.first()
+        assertThat(today.minTemperature).isEqualTo(18) // TMN@0600
+        assertThat(today.maxTemperature).isEqualTo(29) // TMX@1500
+        assertThat(today.skyCondition).isEqualTo("맑음") // 정오(1200)에 가장 가까운 SKY=1,PTY=0
+        server.verify()
+    }
+
+    @Test
+    fun `base_time 17~23 응답은 5개의 예보일을 반환하며 오늘 TMN_TMX가 없으면 TMP로 대체한다`() {
+        expectVilageFcst(withJson(VILAGE_FCST_5_DAYS_NO_TODAY_TMN_TMX_BODY))
+
+        val forecast = provider.fetchForecastPanel(37.5665, 126.9780)
+
+        assertThat(forecast.dailyForecasts).hasSize(5)
+        val today = forecast.dailyForecasts.first()
+        assertThat(today.minTemperature).isEqualTo(18) // TMN 없음 -> TMP 최솟값
+        assertThat(today.maxTemperature).isEqualTo(22) // TMX 없음 -> TMP 최댓값
+        val secondDay = forecast.dailyForecasts[1]
+        assertThat(secondDay.minTemperature).isEqualTo(17) // TMN@0600 존재
+        assertThat(secondDay.maxTemperature).isEqualTo(27) // TMX@1500 존재
+        server.verify()
+    }
+
+    @Test
+    fun `강수확률은 현재 시각에 가장 가까운 POP 값을 사용한다`() {
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        val closeHour = "%02d00".format(now.hour)
+        val farHour = "%02d00".format((now.hour + 12) % 24)
+        expectVilageFcst(
+            withJson(
+                vilageFcstBodyWithPop(fcstDate = today, closeTime = closeHour, farTime = farHour)
+            )
+        )
+
+        val forecast = provider.fetchForecastPanel(37.5665, 126.9780)
+
+        assertThat(forecast.precipitationProbability).isEqualTo(30)
+        server.verify()
+    }
+
     private fun expectNcst(responder: org.springframework.test.web.client.ResponseCreator) {
         server.expect(requestTo(containsString("getUltraSrtNcst"))).andRespond(responder)
     }
 
     private fun expectFcst(responder: org.springframework.test.web.client.ResponseCreator) {
         server.expect(requestTo(containsString("getUltraSrtFcst"))).andRespond(responder)
+    }
+
+    private fun expectVilageFcst(responder: org.springframework.test.web.client.ResponseCreator) {
+        server.expect(requestTo(containsString("getVilageFcst"))).andRespond(responder)
     }
 
     private fun withJson(body: String) =
@@ -168,6 +228,51 @@ class KmaWeatherProviderTest {
         private val NO_DATA_BODY = """
             {"response":{"header":{"resultCode":"03","resultMsg":"NO_DATA"},
              "body":{"dataType":"JSON","items":{"item":[]},"pageNo":1,"numOfRows":1000,"totalCount":0}}}
+        """.trimIndent()
+
+        private val VILAGE_FCST_4_DAYS_BODY = """
+            {"response":{"header":{"resultCode":"00","resultMsg":"NORMAL_SERVICE"},
+             "body":{"dataType":"JSON","items":{"item":[
+               {"baseDate":"20260708","baseTime":"0500","category":"TMN","fcstDate":"20260708","fcstTime":"0600","fcstValue":"18"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMX","fcstDate":"20260708","fcstTime":"1500","fcstValue":"29"},
+               {"baseDate":"20260708","baseTime":"0500","category":"SKY","fcstDate":"20260708","fcstTime":"0900","fcstValue":"3"},
+               {"baseDate":"20260708","baseTime":"0500","category":"PTY","fcstDate":"20260708","fcstTime":"0900","fcstValue":"0"},
+               {"baseDate":"20260708","baseTime":"0500","category":"SKY","fcstDate":"20260708","fcstTime":"1200","fcstValue":"1"},
+               {"baseDate":"20260708","baseTime":"0500","category":"PTY","fcstDate":"20260708","fcstTime":"1200","fcstValue":"0"},
+               {"baseDate":"20260708","baseTime":"0500","category":"SKY","fcstDate":"20260708","fcstTime":"1800","fcstValue":"4"},
+               {"baseDate":"20260708","baseTime":"0500","category":"PTY","fcstDate":"20260708","fcstTime":"1800","fcstValue":"0"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMN","fcstDate":"20260709","fcstTime":"0600","fcstValue":"15"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMX","fcstDate":"20260709","fcstTime":"1500","fcstValue":"25"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMN","fcstDate":"20260710","fcstTime":"0600","fcstValue":"16"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMX","fcstDate":"20260710","fcstTime":"1500","fcstValue":"26"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMN","fcstDate":"20260711","fcstTime":"0600","fcstValue":"14"},
+               {"baseDate":"20260708","baseTime":"0500","category":"TMX","fcstDate":"20260711","fcstTime":"1500","fcstValue":"24"}
+             ]},"pageNo":1,"numOfRows":1000,"totalCount":14}}}
+        """.trimIndent()
+
+        private val VILAGE_FCST_5_DAYS_NO_TODAY_TMN_TMX_BODY = """
+            {"response":{"header":{"resultCode":"00","resultMsg":"NORMAL_SERVICE"},
+             "body":{"dataType":"JSON","items":{"item":[
+               {"baseDate":"20260708","baseTime":"1700","category":"TMP","fcstDate":"20260708","fcstTime":"0900","fcstValue":"18"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMP","fcstDate":"20260708","fcstTime":"1200","fcstValue":"22"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMP","fcstDate":"20260708","fcstTime":"1500","fcstValue":"20"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMN","fcstDate":"20260709","fcstTime":"0600","fcstValue":"17"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMX","fcstDate":"20260709","fcstTime":"1500","fcstValue":"27"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMN","fcstDate":"20260710","fcstTime":"0600","fcstValue":"16"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMX","fcstDate":"20260710","fcstTime":"1500","fcstValue":"26"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMN","fcstDate":"20260711","fcstTime":"0600","fcstValue":"15"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMX","fcstDate":"20260711","fcstTime":"1500","fcstValue":"25"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMN","fcstDate":"20260712","fcstTime":"0600","fcstValue":"14"},
+               {"baseDate":"20260708","baseTime":"1700","category":"TMX","fcstDate":"20260712","fcstTime":"1500","fcstValue":"24"}
+             ]},"pageNo":1,"numOfRows":1000,"totalCount":11}}}
+        """.trimIndent()
+
+        fun vilageFcstBodyWithPop(fcstDate: String, closeTime: String, farTime: String): String = """
+            {"response":{"header":{"resultCode":"00","resultMsg":"NORMAL_SERVICE"},
+             "body":{"dataType":"JSON","items":{"item":[
+               {"baseDate":"$fcstDate","baseTime":"0500","category":"POP","fcstDate":"$fcstDate","fcstTime":"$closeTime","fcstValue":"30"},
+               {"baseDate":"$fcstDate","baseTime":"0500","category":"POP","fcstDate":"$fcstDate","fcstTime":"$farTime","fcstValue":"80"}
+             ]},"pageNo":1,"numOfRows":1000,"totalCount":2}}}
         """.trimIndent()
     }
 }

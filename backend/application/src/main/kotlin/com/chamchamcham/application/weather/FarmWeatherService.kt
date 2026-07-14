@@ -23,11 +23,12 @@ class FarmWeatherService(
         }
 
         val snapshot = weatherProvider.fetchCurrentWeather(latitude, longitude)
+        val forecast = runCatching { weatherProvider.fetchForecastPanel(latitude, longitude) }.getOrNull()
         return FarmWeatherResult.CurrentDetail(
             snapshot = snapshot,
             roadAddress = farm.roadAddress,
-            precipitationProbability = null,
-            forecast = emptyList(),
+            precipitationProbability = forecast?.precipitationProbability,
+            forecast = forecast?.dailyForecasts ?: emptyList(),
             uvIndex = null
         )
     }
