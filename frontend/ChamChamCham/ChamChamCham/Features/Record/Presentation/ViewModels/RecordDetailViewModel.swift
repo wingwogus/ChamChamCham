@@ -20,6 +20,8 @@ final class RecordDetailViewModel {
     }
 
     private(set) var state: LoadState = .loading
+    private(set) var isDeleting = false
+    var deleteError: String?
 
     private let recordId: UUID
     private let repository: any RecordRepository
@@ -41,6 +43,21 @@ final class RecordDetailViewModel {
             state = .loaded(try await repository.fetchDetail(id: recordId))
         } catch {
             state = .failed(RecordErrorMessage.text(for: error))
+        }
+    }
+
+    /// Deletes the record. Returns `true` on success so the view can pop + refresh the list. On failure the
+    /// detail stays visible and `deleteError` surfaces the reason.
+    func delete() async -> Bool {
+        isDeleting = true
+        deleteError = nil
+        defer { isDeleting = false }
+        do {
+            try await repository.deleteRecord(id: recordId)
+            return true
+        } catch {
+            deleteError = RecordErrorMessage.text(for: error)
+            return false
         }
     }
 }

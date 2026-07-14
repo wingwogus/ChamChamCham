@@ -13,6 +13,7 @@ import Foundation
 protocol RecordRepository: Sendable {
     func fetchRecords(_ query: RecordQuery) async throws -> RecordPage
     func fetchDetail(id: UUID) async throws -> RecordDetail
+    func deleteRecord(id: UUID) async throws
     func fetchActiveCrops() async throws -> [ActiveCrop]
     func fetchFarmCrops() async throws -> [FarmWithCrops]
     func fetchWeather(farmId: UUID) async throws -> CurrentWeather
@@ -34,6 +35,10 @@ struct RemoteRecordRepository: RecordRepository {
     func fetchDetail(id: UUID) async throws -> RecordDetail {
         let dto: RecordDetailResponseDTO = try await apiClient.send(RecordEndpoint.recordDetail(id: id))
         return dto.toDomain()
+    }
+
+    func deleteRecord(id: UUID) async throws {
+        _ = try await apiClient.send(RecordEndpoint.deleteRecord(id: id)) as EmptyDTO
     }
 
     func fetchActiveCrops() async throws -> [ActiveCrop] {

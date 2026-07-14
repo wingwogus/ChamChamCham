@@ -10,14 +10,20 @@ import SwiftUI
 /// 영농기록 결과 상세(읽기) — Figma `심기 작업 결과 - 씨앗` (node `1498:21864`). Structure is shared across all
 /// eight workTypes; only the 작업 정보 rows differ (assembled in `RecordDetailLabels`).
 ///
-/// Scope (2026-07-14): read-only. The ⋮ menu is rendered but inert — 수정/삭제 designs aren't captured yet. The
-/// "참참참의 코칭" (AI) section is a placeholder: the deployed backend has no coaching data source (conflict C-18).
+/// Scope (2026-07-14): read + delete. The ⋮ menu uses native confirmation dialogs (no custom UI). 수정(edit) is
+/// deferred — the deployed detail response returns no media ids, so an edit can't preserve existing photos
+/// (conflict C-19). The "참참참의 코칭" (AI) section is a placeholder: the backend has no coaching source (C-18).
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: RecordDetailViewModel
+    @State private var showActions = false
+    @State private var showDeleteConfirm = false
+    private let onMutated: () -> Void
     private let horizontalInset: CGFloat = 20
 
-    init(recordId: UUID, repository: any RecordRepository) {
+    /// `onMutated` fires after a successful delete (later: edit) so the list can refresh.
+    init(recordId: UUID, repository: any RecordRepository, onMutated: @escaping () -> Void = {}) {
+        self.onMutated = onMutated
         _viewModel = State(initialValue: RecordDetailViewModel(recordId: recordId, repository: repository))
     }
 
@@ -27,8 +33,8 @@ struct RecordDetailView: View {
                 title: "",
                 isDetail: true,
                 showBorder: false,
-                leading: .init("chevron.backward") { dismiss() },
-                trailing: [.init("ellipsis")] // 수정/삭제 — 캡처 후 연결(현재 inert)
+                leading: .init(.asset("arrow_back_ios_new")) { dismiss() },
+                trailing: [.init(.asset("more_vert")) { showActions = true }]
             )
 
             switch viewModel.state {
@@ -43,6 +49,42 @@ struct RecordDetailView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.onAppear() }
+        .confirmationDialog("기록 관리", isPresented: $showActions, titleVisibility: .hidden) {
+            Button("삭제", role: .destructive) { showDeleteConfirm = true }
+            Button("취소", role: .cancel) {}
+        }
+        .confirmationDialog("이 기록을 삭제할까요?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("삭제", role: .destructive) {
+                Task {
+                    if await viewModel.delete() {
+                        onMutated()
+                        dismiss()
+                    }
+                }
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("삭제한 기록은 되돌릴 수 없어요.")
+        }
+        .alert(
+            "삭제하지 못했어요",
+            isPresented: Binding(
+                get: { viewModel.deleteError != nil },
+                set: { if !$0 { viewModel.deleteError = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(viewModel.deleteError ?? "")
+        }
+        .overlay {
+            if viewModel.isDeleting {
+                ZStack {
+                    Color.black.opacity(0.08).ignoresSafeArea()
+                    ProgressView()
+                }
+            }
+        }
     }
 
     // MARK: - States

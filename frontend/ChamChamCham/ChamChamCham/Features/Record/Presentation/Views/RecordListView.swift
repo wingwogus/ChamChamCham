@@ -41,7 +41,7 @@ struct RecordListView: View {
                 AppTopAppBar(
                     title: "영농 기록",
                     showBorder: false,
-                    trailing: [.init("magnifyingglass"), .init("bell")]
+                    trailing: [.init(.asset("search")), .init(.asset("notifications"))]
                 )
                 AppTabBar(titles: ["기록", "리포트"], selection: $selectedTab)
                     .frame(height: 56)
@@ -89,8 +89,10 @@ struct RecordListView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: UUID.self) { recordId in
-            RecordDetailView(recordId: recordId, repository: repository)
-                .toolbar(.hidden, for: .tabBar)
+            RecordDetailView(recordId: recordId, repository: repository) {
+                Task { await viewModel.reload() }
+            }
+            .toolbar(.hidden, for: .tabBar)
         }
     }
 
@@ -114,7 +116,7 @@ struct RecordListView: View {
             label: title,
             isSelected: false,
             style: .solidPastel,
-            trailingSystemImage: "chevron.down",
+            trailingSystemImage: .asset("keyboard_arrow_down"),
             action: action
         )
     }
@@ -204,11 +206,11 @@ struct RecordListView: View {
         }
         VStack(alignment: .trailing, spacing: 20) {
             if isSpeedDialOpen {
-                speedDialItem(label: "음성으로 기록하기", systemImage: "mic.fill") {
+                speedDialItem(label: "음성으로 기록하기", icon: .asset("mic")) {
                     // 음성 기록 화면 미수집 — 후속.
                     isSpeedDialOpen = false
                 }
-                speedDialItem(label: "텍스트로 기록하기", systemImage: "pencil") {
+                speedDialItem(label: "텍스트로 기록하기", icon: .asset("edit")) {
                     isSpeedDialOpen = false
                     showCompose = true
                 }
@@ -216,8 +218,7 @@ struct RecordListView: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) { isSpeedDialOpen.toggle() }
             } label: {
-                Image(systemName: isSpeedDialOpen ? "xmark" : "plus")
-                    .font(.system(size: 28, weight: .medium))
+                AppIconView(source: isSpeedDialOpen ? .asset("close") : .asset("add_2"), size: 28)
                     .foregroundStyle(isSpeedDialOpen ? Color.Icon.default : Color.Icon.inverse)
                     .frame(width: 72, height: 72)
                     .background(isSpeedDialOpen ? Color.Object.default : Color.Object.primary)
@@ -232,14 +233,13 @@ struct RecordListView: View {
         .padding(.bottom, Spacing.xl)
     }
 
-    private func speedDialItem(label: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    private func speedDialItem(label: String, icon: AppIconSource, action: @escaping () -> Void) -> some View {
         HStack(spacing: 16) {
             Text(label)
                 .appTypography(.titleMediumEmphasized)
                 .foregroundStyle(Color.Text.inverse)
             Button(action: action) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 28, weight: .medium))
+                AppIconView(source: icon, size: 28)
                     .foregroundStyle(Color.Icon.inverse)
                     .frame(width: 72, height: 72)
                     .background(Color.Object.primary)
@@ -303,8 +303,7 @@ struct RecordRemoteImage: View {
                         ProgressView()
                     }
                 } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 24))
+                    AppIconView(source: .asset("photo"), size: 24)
                         .foregroundStyle(Color.Icon.disabled)
                 }
             }
