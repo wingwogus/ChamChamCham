@@ -127,6 +127,39 @@ class RecordFeedbackGenerationServiceTest {
     }
 
     @Test
+    fun `retries a language violation with a fixed diagnostic code only`() {
+        val generatedText = "DRIP으로 관수한 점은 잘했어요."
+        val invalidResult = validResult("doc-1", context.recordCitationId()).copy(
+            goodPoint = validItem(text = generatedText),
+        )
+        val chatClient = FakeChatClient(invalidResult, validResult("doc-1", context.recordCitationId()))
+
+        service(documents = listOf(officialDocument("doc-1")), chatClient = chatClient)
+            .generate(context)
+
+        assertThat(chatClient.attempts).isEqualTo(2)
+        assertThat(chatClient.requestSpec.userTexts.last())
+            .contains("good_point_text_language")
+            .doesNotContain(generatedText, "DRIP으로")
+    }
+
+    @Test
+    fun `two language violations fail as structured output invalid`() {
+        val invalidResult = validResult("doc-1", context.recordCitationId()).copy(
+            goodPoint = validItem(text = "DRIP으로 관수한 점은 잘했어요."),
+        )
+        val chatClient = FakeChatClient(invalidResult, invalidResult)
+
+        assertThatThrownBy {
+            service(documents = listOf(officialDocument("doc-1")), chatClient = chatClient)
+                .generate(context)
+        }.isInstanceOfSatisfying(RecordFeedbackGenerationFailure::class.java) {
+            assertThat(it.code).isEqualTo(RecordFeedbackFailureCode.STRUCTURED_OUTPUT_INVALID)
+        }
+        assertThat(chatClient.attempts).isEqualTo(2)
+    }
+
+    @Test
     fun `retries once when structured output parsing fails`() {
         val chatClient = FakeChatClient(
             RuntimeException("structured output parse failed"),
@@ -331,7 +364,7 @@ class RecordFeedbackGenerationServiceTest {
 
     private fun validItem(
         basis: String = "점적관수",
-        text: String = "점적관수로 토양 상태를 확인한 점이 좋았어요.",
+        text: String = "흙 상태를 살핀 점은 잘했어요.",
         refs: List<String> = listOf(context.recordCitationId()),
     ): RecordFeedbackGoodPoint {
         return RecordFeedbackGoodPoint(
@@ -345,7 +378,7 @@ class RecordFeedbackGenerationServiceTest {
         due: RecordFeedbackActionDue = RecordFeedbackActionDue.NEXT_CHECK,
         category: RecordFeedbackActionCategory = RecordFeedbackActionCategory.IRRIGATION,
         basis: String = "토양 상태",
-        text: String = "다음 점검 때 토양 상태를 다시 살펴보세요.",
+        text: String = "다음 점검 때 흙 상태를 다시 살펴보세요.",
         refs: List<String> = listOf(context.recordCitationId(), "doc-1"),
     ): RecordFeedbackAction {
         return RecordFeedbackAction(

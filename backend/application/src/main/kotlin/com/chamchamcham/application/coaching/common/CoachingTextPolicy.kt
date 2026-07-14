@@ -2,7 +2,7 @@ package com.chamchamcham.application.coaching.common
 
 object CoachingTextPolicy {
     val promptInstructions: String = """
-        농부에게 보여 줄 summary와 text는 친근한 존댓말로 작성한다.
+        농부에게 보여 줄 모든 문장은 친근한 존댓말로 작성한다.
         영어 알파벳, 내부 enum, 영어 필드명과 영어 단위를 쓰지 않는다.
         관수는 물 주기, 시비는 거름 주기처럼 일상에서 쓰는 말로 풀어 쓴다.
         공식 기술 문서의 어려운 표현을 그대로 복사하지 말고 뜻을 쉬운 말로 설명한다.

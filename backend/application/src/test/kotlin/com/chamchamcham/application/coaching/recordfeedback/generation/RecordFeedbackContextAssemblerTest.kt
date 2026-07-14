@@ -49,8 +49,11 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.junit.jupiter.MockitoExtension
 import java.math.BigDecimal
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
@@ -69,6 +72,7 @@ class RecordFeedbackContextAssemblerTest {
     private val recordId = UUID.fromString("00000000-0000-0000-0000-000000000002")
     private val farmId = UUID.fromString("00000000-0000-0000-0000-000000000003")
     private val cropId = UUID.fromString("00000000-0000-0000-0000-000000000004")
+    private val clock = Clock.fixed(Instant.parse("2026-07-08T00:00:00Z"), ZoneOffset.UTC)
     private lateinit var assembler: RecordFeedbackContextAssembler
     private lateinit var record: FarmingRecord
 
@@ -84,6 +88,7 @@ class RecordFeedbackContextAssemblerTest {
             weedingRecordRepository = weedingRecordRepository,
             harvestRecordRepository = harvestRecordRepository,
             weatherPort = weatherPort,
+            clock = clock,
         )
     }
 
@@ -451,10 +456,57 @@ class RecordFeedbackContextAssemblerTest {
         assertThat(context.warnings).containsExactly("weather_provider_unavailable")
     }
 
+    @Test
+    fun `record from exactly seven days ago still fetches live weather`() {
+        stubOwnedRecord(
+            workType = WorkType.PRUNING,
+            workedAt = LocalDateTime.of(2026, 7, 1, 9, 0),
+        )
+        `when`(mediaRepository.countByRecord_Id(recordId)).thenReturn(0)
+        `when`(weatherPort.fetch(37.1, 128.2, 7)).thenReturn(liveWeather())
+
+        val context = assembler.assemble(memberId, recordId)
+
+        assertThat(context.weather).isEqualTo(liveWeather())
+        assertThat(context.warnings).isEmpty()
+        verify(weatherPort).fetch(37.1, 128.2, 7)
+    }
+
+    @Test
+    fun `record older than seven days skips live weather`() {
+        stubOwnedRecord(
+            workType = WorkType.PRUNING,
+            workedAt = LocalDateTime.of(2026, 6, 30, 9, 0),
+        )
+        `when`(mediaRepository.countByRecord_Id(recordId)).thenReturn(0)
+
+        val context = assembler.assemble(memberId, recordId)
+
+        assertThat(context.weather).isNull()
+        assertThat(context.warnings).containsExactly("weather_skipped_for_historical_record")
+        verifyNoInteractions(weatherPort)
+    }
+
+    @Test
+    fun `future record skips live weather`() {
+        stubOwnedRecord(
+            workType = WorkType.PRUNING,
+            workedAt = LocalDateTime.of(2026, 7, 9, 9, 0),
+        )
+        `when`(mediaRepository.countByRecord_Id(recordId)).thenReturn(0)
+
+        val context = assembler.assemble(memberId, recordId)
+
+        assertThat(context.weather).isNull()
+        assertThat(context.warnings).containsExactly("weather_skipped_for_historical_record")
+        verifyNoInteractions(weatherPort)
+    }
+
     private fun stubOwnedRecord(
         workType: WorkType,
         latitude: Double? = 37.1,
         longitude: Double? = 128.2,
+        workedAt: LocalDateTime = LocalDateTime.of(2026, 7, 1, 8, 30),
     ) {
         val member = Member(
             id = memberId,
@@ -483,7 +535,7 @@ class RecordFeedbackContextAssemblerTest {
             farm = farm,
             crop = crop,
             workType = workType,
-            workedAt = LocalDateTime.of(2026, 7, 1, 8, 30),
+            workedAt = workedAt,
             weatherCondition = "맑음",
             weatherTemperature = 27,
             memo = "오전 작업 기록",

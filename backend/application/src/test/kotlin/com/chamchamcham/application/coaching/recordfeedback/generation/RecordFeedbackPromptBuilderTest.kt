@@ -1,9 +1,24 @@
 package com.chamchamcham.application.coaching.recordfeedback.generation
 
+import com.chamchamcham.application.coaching.common.CoachingTextPolicy
+import com.chamchamcham.domain.crop.CropUsePartCategory
+import com.chamchamcham.domain.farming.FertilizerAmountUnit
+import com.chamchamcham.domain.farming.FertilizerMaterialCategory
+import com.chamchamcham.domain.farming.FertilizingMethod
+import com.chamchamcham.domain.farming.GrowthPeriodUnit
+import com.chamchamcham.domain.farming.HarvestSource
+import com.chamchamcham.domain.farming.PesticideAmountUnit
+import com.chamchamcham.domain.farming.PesticideCategory
+import com.chamchamcham.domain.farming.PropagationMethod
+import com.chamchamcham.domain.farming.SeedAmountUnit
+import com.chamchamcham.domain.farming.SeedlingUnit
+import com.chamchamcham.domain.farming.SprayAmountUnit
+import com.chamchamcham.domain.farming.WeedingMethod
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder
+import java.math.BigDecimal
 
 class RecordFeedbackPromptBuilderTest {
     private val objectMapper: ObjectMapper = Jackson2ObjectMapperBuilder.json().build()
@@ -42,6 +57,7 @@ class RecordFeedbackPromptBuilderTest {
             "각 text는 15~25자를 목표로 하되, 최대 60자까지 허용한다.",
         )
         assertThat(prompt.system).contains("응답은 RecordFeedbackContent JSON schema만 따른다")
+        assertThat(prompt.system).contains(CoachingTextPolicy.promptInstructions)
         assertThat(prompt.system).contains("goodPoint", "nextActions", "basis", "text", "evidenceRefs")
         assertThat(prompt.system).doesNotContain(
             "summary",
@@ -55,7 +71,7 @@ class RecordFeedbackPromptBuilderTest {
     }
 
     @Test
-    fun `prompt includes target record live weather typed detail and evidence`() {
+    fun `prompt translates target record and live weather without raw internal values`() {
         val prompt = builder.build(
             context = readFixture("today-record-feedback-watering.json"),
             queries = listOf(RecordFeedbackRetrievalQuery("참당귀 물주기 재배 관리 약용작물", "crop_work_type")),
@@ -63,21 +79,97 @@ class RecordFeedbackPromptBuilderTest {
         )
 
         assertThat(prompt.user).contains("작물: 참당귀")
-        assertThat(prompt.user).contains("작업유형: 관수")
+        assertThat(prompt.user).contains("쓰는 부위: 뿌리와 껍질")
+        assertThat(prompt.user).contains("작업 유형: 물 주기")
         assertThat(prompt.user).contains("오전 흙 표면이 말라 보여 점적 관수함.")
-        assertThat(prompt.user).contains("예보: 2026-07-04 강수 22.0mm")
-        assertThat(prompt.user).contains("riskFlags=HEAVY_RAIN,HIGH_HUMIDITY")
-        assertThat(prompt.user).contains("작업상세: irrigationAmount=NORMAL, irrigationMethod=DRIP")
-        assertThat(prompt.user).contains("현재 날씨: 구름많음, 30C")
+        assertThat(prompt.user).contains("2026-07-04", "비 22.0밀리미터", "비 올 확률 80퍼센트")
+        assertThat(prompt.user).contains("물 준 양: 보통 양", "물을 준 방법: 호스로 조금씩 물을 줌")
+        assertThat(prompt.user).contains("현재 날씨: 구름많음, 30도")
         assertThat(prompt.user).contains("허용 citationIds:")
         assertThat(prompt.user).contains("record:10000000-0000-0000-0000-000000000004 : 대상 영농기록 context")
         assertThat(prompt.user).contains("weather:current : 현재 날씨 context")
         assertThat(prompt.user).contains("weather:2026-07-04 : 예보 날씨 context")
         assertThat(prompt.user).contains("[doc-1] 농업기술길잡이 007 약용작물 p.123")
-        assertThat(prompt.user).contains("영농 경력: 1")
-        assertThat(prompt.user).contains("경영 형태: NON_REGISTERED_FARMER")
-        assertThat(prompt.user).contains("최저 21.4C")
+        assertThat(prompt.user).contains("영농 경력: 1년")
+        assertThat(prompt.user).contains("최저 21.4도")
+        assertThat(prompt.user).doesNotContain(
+            "schemaVersion",
+            "managementType",
+            "NON_REGISTERED_FARMER",
+            "irrigationAmount",
+            "irrigationMethod",
+            "NORMAL",
+            "DRIP",
+            "riskFlags",
+            "HEAVY_RAIN",
+            "HIGH_HUMIDITY",
+            "source=",
+            "FAKE_WEATHER_PORT",
+            "crop_work_type",
+        )
         assertThat(prompt.user).doesNotContain("최근 기록", "작물주기", "작업 횟수")
+    }
+
+    @Test
+    fun `prompt translates every typed record detail without enum names`() {
+        val base = readFixture("today-record-feedback-watering.json")
+        val cases = listOf(
+            PlantingFeedbackDetail(
+                seedAmount = BigDecimal("1.2500"),
+                seedAmountUnit = SeedAmountUnit.KG,
+                seedlingCount = 18,
+                seedlingUnit = SeedlingUnit.JU,
+                propagationMethod = PropagationMethod.SEED,
+            ) to listOf("씨앗 양: 1.2500킬로그램", "모종 수: 18포기", "심은 방법: 씨앗을 뿌림"),
+            FertilizingFeedbackDetail(
+                materialCategory = FertilizerMaterialCategory.ORGANIC_FERTILIZER,
+                amount = BigDecimal("2.5000"),
+                amountUnit = FertilizerAmountUnit.KG,
+                applicationMethod = FertilizingMethod.SOIL,
+            ) to listOf(
+                "거름 종류: 동식물 재료로 만든 거름",
+                "거름 양: 2.5000킬로그램",
+                "거름을 준 방법: 흙에 거름을 줌",
+            ),
+            PestControlFeedbackDetail(
+                pesticideCategory = PesticideCategory.FUNGICIDE,
+                pesticideAmount = BigDecimal("120.0000"),
+                pesticideAmountUnit = PesticideAmountUnit.ML,
+                totalSprayAmount = BigDecimal("20.0000"),
+                totalSprayAmountUnit = SprayAmountUnit.L,
+                pestTarget = "점무늬병",
+            ) to listOf(
+                "약 종류: 병을 막는 약",
+                "약 사용량: 120.0000밀리리터",
+                "약을 섞은 물의 양: 20.0000리터",
+            ),
+            WeedingFeedbackDetail(WeedingMethod.HAND) to listOf("풀을 정리한 방법: 손으로 풀을 뽑음"),
+            HarvestFeedbackDetail(
+                harvestAmountKg = BigDecimal("82.0000"),
+                amountUnknown = false,
+                medicinalPart = CropUsePartCategory.ROOT_BARK,
+                harvestSource = HarvestSource.CULTIVATED,
+                growthPeriod = 6,
+                growthPeriodUnit = GrowthPeriodUnit.MONTH,
+                isFinalHarvest = true,
+            ) to listOf(
+                "수확량: 82.0000킬로그램",
+                "수확한 부위: 뿌리와 껍질",
+                "기른 곳: 밭에서 기름",
+                "기른 기간: 6개월",
+                "마지막 수확: 네",
+            ),
+        )
+
+        cases.forEach { (detail, expected) ->
+            val prompt = builder.build(
+                context = base.copy(record = base.record.copy(detail = detail)),
+                queries = emptyList(),
+                evidence = emptyList(),
+            )
+
+            assertThat(prompt.user).contains(*expected.toTypedArray())
+        }
     }
 
     @Test

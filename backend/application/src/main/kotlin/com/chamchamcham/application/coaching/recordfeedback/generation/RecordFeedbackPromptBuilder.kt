@@ -1,5 +1,7 @@
 package com.chamchamcham.application.coaching.recordfeedback.generation
 
+import com.chamchamcham.application.coaching.common.CoachingTextPolicy
+import com.chamchamcham.application.coaching.common.toCoachingText
 import org.springframework.stereotype.Component
 
 data class RecordFeedbackEvidence(
@@ -68,7 +70,7 @@ class RecordFeedbackPromptBuilder {
             농부에게 보여줄 text에는 chunkId나 UUID를 직접 쓰지 않는다.
             응답은 RecordFeedbackContent JSON schema만 따른다.
             JSON 최상위 필드는 goodPoint와 nextActions만 둔다.
-        """.trimIndent()
+        """.trimIndent() + "\n" + CoachingTextPolicy.promptInstructions
     }
 
     private fun userPrompt(
@@ -81,7 +83,7 @@ class RecordFeedbackPromptBuilder {
             ${formatContext(context)}
 
             검색 쿼리:
-            ${queries.joinToString("\n") { "- ${it.query} (${it.reason})" }}
+            ${queries.joinToString("\n") { "- ${it.query}" }}
 
             허용 citationIds:
             ${formatAllowedCitationIds(context, evidence)}
@@ -96,28 +98,24 @@ class RecordFeedbackPromptBuilder {
         val weather = context.weather
 
         return buildString {
-            appendLine("- schemaVersion: ${context.schemaVersion}")
             appendLine("- 농장: ${context.farm.name} (${context.farm.roadAddress})")
-            appendLine(
-                "- 회원: 영농 경력: ${context.member.experienceLevel ?: "미상"}, " +
-                    "경영 형태: ${context.member.managementType ?: "미상"}"
-            )
-            appendLine("- 작물: ${context.crop.name} / 약용부위분류: ${context.crop.usePartCategory.recordFeedbackLabel()}")
-            appendLine("- 기록시각: ${record.workedAt}")
-            appendLine("- 작업유형: ${record.workType.label}")
-            appendLine("- 작업상세: ${formatDetail(record.detail)}")
+            appendLine("- 영농 경력: ${context.member.experienceLevel?.let { "${it}년" } ?: "미상"}")
+            appendLine("- 작물: ${context.crop.name}")
+            appendLine("- 쓰는 부위: ${context.crop.usePartCategory.toCoachingText()}")
+            appendLine("- 기록 시각: ${record.workedAt}")
+            appendLine("- 작업 유형: ${record.workType.toCoachingText()}")
+            appendLine("- 작업 상세: ${formatDetail(record.detail)}")
             appendLine("- 메모: ${record.memo}")
-            appendLine("- 사진수: ${record.photoCount}")
-            appendLine("- 기록 당시 날씨: ${record.recordedWeatherCondition}, ${record.recordedTemperatureC}C")
+            appendLine("- 사진 수: ${record.photoCount}장")
+            appendLine("- 기록 당시 날씨: ${record.recordedWeatherCondition}, ${record.recordedTemperatureC}도")
             appendLine("- 현재 날씨: ${formatCurrentWeather(weather)}")
             appendLine("- 예보: ${formatForecast(weather?.forecastDays.orEmpty())}")
-            appendLine("- 컨텍스트 경고: ${context.warnings.joinToString(", ").ifBlank { "없음" }}")
         }.trim()
     }
 
     private fun formatCurrentWeather(weather: RecordFeedbackLiveWeather?): String {
         val current = weather?.current ?: return "없음"
-        return "${current.skyCondition}, ${current.temperatureC}C, 관측 ${current.observedAt}, source=${weather.source}"
+        return "${current.skyCondition}, ${current.temperatureC}도, ${current.observedAt} 관측"
     }
 
     private fun formatForecast(forecast: List<RecordFeedbackForecastDay>): String {
@@ -125,57 +123,54 @@ class RecordFeedbackPromptBuilder {
             return "없음"
         }
         return forecast.joinToString(" | ") {
-            "${it.date} 강수 ${it.rainfallMm ?: "미상"}mm, " +
-                "강수확률 ${it.rainProbabilityPct ?: "미상"}%, " +
-                "최고 ${it.maxTemperatureC ?: "미상"}C, " +
-                "최저 ${it.minTemperatureC ?: "미상"}C, " +
-                "습도 ${it.humidityPct ?: "미상"}%, " +
-                "풍속 ${it.windSpeedMs ?: "미상"}m/s, " +
-                "riskFlags=${it.riskFlags.joinToString(",").ifBlank { "없음" }}"
+            "${it.date} 비 ${it.rainfallMm ?: "미상"}밀리미터, " +
+                "비 올 확률 ${it.rainProbabilityPct ?: "미상"}퍼센트, " +
+                "최고 ${it.maxTemperatureC ?: "미상"}도, " +
+                "최저 ${it.minTemperatureC ?: "미상"}도, " +
+                "습도 ${it.humidityPct ?: "미상"}퍼센트, " +
+                "바람 ${it.windSpeedMs ?: "미상"}미터/초"
         }
     }
 
     private fun formatDetail(detail: RecordFeedbackWorkDetail): String {
         return when (detail) {
-            is PlantingFeedbackDetail -> listOf(
-                "seedAmount=${detail.seedAmount ?: "미상"}",
-                "seedAmountUnit=${detail.seedAmountUnit ?: "미상"}",
-                "seedlingCount=${detail.seedlingCount ?: "미상"}",
-                "seedlingUnit=${detail.seedlingUnit ?: "미상"}",
-                "propagationMethod=${detail.propagationMethod}"
-            ).joinToString(", ")
+            is PlantingFeedbackDetail -> buildList {
+                detail.seedAmount?.let { amount ->
+                    add("씨앗 양: $amount${detail.seedAmountUnit?.toCoachingText().orEmpty()}")
+                }
+                detail.seedlingCount?.let { count ->
+                    add("모종 수: $count${detail.seedlingUnit?.toCoachingText().orEmpty()}")
+                }
+                add("심은 방법: ${detail.propagationMethod.toCoachingText()}")
+            }.joinToString(", ")
 
             is WateringFeedbackDetail -> listOf(
-                "irrigationAmount=${detail.irrigationAmount ?: "미상"}",
-                "irrigationMethod=${detail.irrigationMethod ?: "미상"}"
+                "물 준 양: ${detail.irrigationAmount?.toCoachingText() ?: "미상"}",
+                "물을 준 방법: ${detail.irrigationMethod?.toCoachingText() ?: "미상"}",
             ).joinToString(", ")
 
             is FertilizingFeedbackDetail -> listOf(
-                "materialCategory=${detail.materialCategory}",
-                "amount=${detail.amount}",
-                "amountUnit=${detail.amountUnit}",
-                "applicationMethod=${detail.applicationMethod ?: "미상"}"
+                "거름 종류: ${detail.materialCategory.toCoachingText()}",
+                "거름 양: ${detail.amount}${detail.amountUnit.toCoachingText()}",
+                "거름을 준 방법: ${detail.applicationMethod?.toCoachingText() ?: "미상"}",
             ).joinToString(", ")
 
             is PestControlFeedbackDetail -> listOf(
-                "pesticideCategory=${detail.pesticideCategory}",
-                "pesticideAmount=${detail.pesticideAmount}",
-                "pesticideAmountUnit=${detail.pesticideAmountUnit}",
-                "totalSprayAmount=${detail.totalSprayAmount}",
-                "totalSprayAmountUnit=${detail.totalSprayAmountUnit}",
-                "pestTarget=${detail.pestTarget ?: "미상"}"
+                "약 종류: ${detail.pesticideCategory.toCoachingText()}",
+                "약 사용량: ${detail.pesticideAmount}${detail.pesticideAmountUnit.toCoachingText()}",
+                "약을 섞은 물의 양: ${detail.totalSprayAmount}${detail.totalSprayAmountUnit.toCoachingText()}",
+                "관리 대상: ${detail.pestTarget ?: "미상"}",
             ).joinToString(", ")
 
-            is WeedingFeedbackDetail -> "weedingMethod=${detail.weedingMethod ?: "미상"}"
+            is WeedingFeedbackDetail ->
+                "풀을 정리한 방법: ${detail.weedingMethod?.toCoachingText() ?: "미상"}"
 
             is HarvestFeedbackDetail -> listOf(
-                "harvestAmountKg=${detail.harvestAmountKg ?: "미상"}",
-                "amountUnknown=${detail.amountUnknown}",
-                "medicinalPart=${detail.medicinalPart}",
-                "harvestSource=${detail.harvestSource}",
-                "growthPeriod=${detail.growthPeriod}",
-                "growthPeriodUnit=${detail.growthPeriodUnit}",
-                "isFinalHarvest=${detail.isFinalHarvest}"
+                "수확량: ${detail.harvestAmountKg?.let { "${it}킬로그램" } ?: "모름"}",
+                "수확한 부위: ${detail.medicinalPart.toCoachingText()}",
+                "기른 곳: ${detail.harvestSource.toCoachingText()}",
+                "기른 기간: ${detail.growthPeriod}${detail.growthPeriodUnit.toCoachingText()}",
+                "마지막 수확: ${if (detail.isFinalHarvest) "네" else "아니요"}",
             ).joinToString(", ")
 
             CommonFeedbackDetail -> "공통 상세 없음"

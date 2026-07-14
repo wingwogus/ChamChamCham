@@ -13,6 +13,8 @@ import com.chamchamcham.domain.farming.WateringRecordRepository
 import com.chamchamcham.domain.farming.WeedingRecordRepository
 import com.chamchamcham.domain.farming.WorkType
 import org.springframework.stereotype.Component
+import java.time.Clock
+import java.time.LocalDate
 import java.util.UUID
 
 @Component
@@ -26,6 +28,7 @@ class RecordFeedbackContextAssembler(
     private val weedingRecordRepository: WeedingRecordRepository,
     private val harvestRecordRepository: HarvestRecordRepository,
     private val weatherPort: RecordFeedbackWeatherPort,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) {
     fun assemble(memberId: UUID, recordId: UUID): RecordFeedbackContext {
         val record = recordRepository.findContextSourceByIdAndMemberId(recordId, memberId)
@@ -131,6 +134,12 @@ class RecordFeedbackContextAssembler(
     }
 
     private fun fetchWeather(record: FarmingRecord): Pair<RecordFeedbackLiveWeather?, List<String>> {
+        val today = LocalDate.now(clock)
+        val workedOn = record.workedAt.toLocalDate()
+        if (workedOn.isBefore(today.minusDays(WEATHER_LIMIT_DAYS.toLong())) || workedOn.isAfter(today)) {
+            return null to listOf(WEATHER_SKIPPED_FOR_HISTORICAL_RECORD)
+        }
+
         val latitude = record.farm.latitude
         val longitude = record.farm.longitude
         if (latitude == null || longitude == null) {
@@ -154,5 +163,6 @@ class RecordFeedbackContextAssembler(
         const val WEATHER_LIMIT_DAYS = 7
         const val WEATHER_LOCATION_UNAVAILABLE = "weather_location_unavailable"
         const val WEATHER_PROVIDER_UNAVAILABLE = "weather_provider_unavailable"
+        const val WEATHER_SKIPPED_FOR_HISTORICAL_RECORD = "weather_skipped_for_historical_record"
     }
 }

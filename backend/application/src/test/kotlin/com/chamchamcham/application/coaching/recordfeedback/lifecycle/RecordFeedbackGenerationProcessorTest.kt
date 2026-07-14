@@ -104,7 +104,10 @@ class RecordFeedbackGenerationProcessorTest {
         `when`(generationService.generate(anyContext(), org.mockito.Mockito.isNull())).thenThrow(
             RecordFeedbackGenerationFailure(
                 RecordFeedbackFailureCode.STRUCTURED_OUTPUT_INVALID,
-                IllegalStateException("invalid product output: next_action_1_text_length,unknown_evidence:untrusted-generated-value"),
+                IllegalStateException(
+                    "invalid product output: next_action_1_text_length,next_action_1_text_language," +
+                        "unknown_evidence:untrusted-generated-value",
+                ),
             ),
         )
 
@@ -115,6 +118,7 @@ class RecordFeedbackGenerationProcessorTest {
             .contains("record feedback generation failed")
             .contains("STRUCTURED_OUTPUT_INVALID")
             .contains("next_action_1_text_length")
+            .contains("next_action_1_text_language")
             .contains("unknown_evidence")
             .doesNotContain("untrusted-generated-value")
     }

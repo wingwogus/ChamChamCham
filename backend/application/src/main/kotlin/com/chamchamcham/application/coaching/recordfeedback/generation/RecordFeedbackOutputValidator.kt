@@ -1,5 +1,6 @@
 package com.chamchamcham.application.coaching.recordfeedback.generation
 
+import com.chamchamcham.application.coaching.common.CoachingTextPolicy
 import com.chamchamcham.domain.coaching.recordfeedback.RecordFeedbackActionCategory
 
 object RecordFeedbackOutputValidator {
@@ -91,6 +92,9 @@ object RecordFeedbackOutputValidator {
         }
         if (!item.text.hasFriendlyHonorificTone()) {
             warnings += "${prefix}_text_tone"
+        }
+        if (CoachingTextPolicy.hasDisallowedLanguage(item.text)) {
+            warnings += "${prefix}_text_language"
         }
         item.evidenceRefs
             .filter { it.isNotBlank() }

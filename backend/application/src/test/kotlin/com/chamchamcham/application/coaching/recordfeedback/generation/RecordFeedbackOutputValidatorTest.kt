@@ -43,6 +43,33 @@ class RecordFeedbackOutputValidatorTest {
     }
 
     @Test
+    fun `rejects English and difficult farming terms only in public text`() {
+        val invalid = validResult().copy(
+            goodPoint = validItem(
+                basis = "DRIP 관수",
+                text = "DRIP으로 관수한 점은 잘했어요.",
+            ),
+            nextActions = listOf(
+                validAction(
+                    due = RecordFeedbackActionDue.THIS_WEEK,
+                    category = RecordFeedbackActionCategory.WEATHER,
+                    basis = "비 예보",
+                    text = "비 오기 전 물길을 정리하세요.",
+                    refs = listOf("weather:2026-07-04"),
+                ),
+                validAction(
+                    basis = "토양 수분",
+                    text = "다음에는 토양 수분을 확인하세요.",
+                ),
+            ),
+        )
+
+        assertThat(RecordFeedbackOutputValidator.validate(invalid, context, documents))
+            .contains("good_point_text_language", "next_action_1_text_language")
+            .doesNotContain("good_point_basis_language", "next_action_1_basis_language")
+    }
+
+    @Test
     fun `rejects weather action without weather evidence`() {
         val invalid = validResult(
             category = RecordFeedbackActionCategory.WEATHER,
@@ -79,7 +106,7 @@ class RecordFeedbackOutputValidatorTest {
     @Test
     fun `accepts text at exact 15 and 60 character boundaries`() {
         val valid = validResult().copy(
-            goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("토양", 15)),
+            goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("흙", 15)),
             nextActions = listOf(
                 validAction(
                     due = RecordFeedbackActionDue.THIS_WEEK,
@@ -88,7 +115,7 @@ class RecordFeedbackOutputValidatorTest {
                     text = textOfLengthWithBasis("비예보", 60),
                     refs = listOf("weather:2026-07-04"),
                 ),
-                validAction(basis = "토양", text = textOfLengthWithBasis("토양", 15)),
+                validAction(basis = "토양", text = textOfLengthWithBasis("흙", 15)),
             ),
         )
 
@@ -105,7 +132,7 @@ class RecordFeedbackOutputValidatorTest {
     @Test
     fun `rejects text at 14 and 61 character boundaries`() {
         val invalid = validResult().copy(
-            goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("토양", 14)),
+            goodPoint = validItem(basis = "토양", text = textOfLengthWithBasis("흙", 14)),
             nextActions = listOf(
                 validAction(
                     due = RecordFeedbackActionDue.THIS_WEEK,
