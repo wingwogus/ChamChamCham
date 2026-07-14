@@ -5,6 +5,7 @@ import com.chamchamcham.application.exception.ErrorCode
 import com.chamchamcham.application.exception.business.BusinessException
 import com.chamchamcham.application.security.TokenProvider
 import com.chamchamcham.application.weather.DailyForecast
+import com.chamchamcham.application.weather.DailyWeatherSummary
 import com.chamchamcham.application.weather.FarmWeatherResult
 import com.chamchamcham.application.weather.FarmWeatherService
 import com.chamchamcham.application.weather.WeatherSnapshot
@@ -160,6 +161,105 @@ class FarmWeatherControllerTest(
         )
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.error.code", equalTo("FARM_001")))
+    }
+
+    @Test
+    fun `returns daily weather summary for explicit farm`() {
+        `when`(farmWeatherService.getDailyWeather(memberId, farmId, LocalDate.of(2026, 7, 1))).thenReturn(
+            DailyWeatherSummary(
+                date = LocalDate.of(2026, 7, 1),
+                skyCondition = "흐림",
+                minTemperature = 18,
+                maxTemperature = 27
+            )
+        )
+
+        mockMvc.perform(
+            get("/api/v1/farms/{farmId}/weather/daily", farmId)
+                .param("date", "2026-07-01")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.date", equalTo("2026-07-01")))
+            .andExpect(jsonPath("$.data.weatherCondition", equalTo("흐림")))
+            .andExpect(jsonPath("$.data.minTemperature", equalTo(18)))
+            .andExpect(jsonPath("$.data.maxTemperature", equalTo(27)))
+    }
+
+    @Test
+    fun `returns daily weather summary for default farm`() {
+        `when`(farmWeatherService.getDailyWeather(memberId, LocalDate.of(2026, 7, 1))).thenReturn(
+            DailyWeatherSummary(
+                date = LocalDate.of(2026, 7, 1),
+                skyCondition = "흐림",
+                minTemperature = 18,
+                maxTemperature = 27
+            )
+        )
+
+        mockMvc.perform(
+            get("/api/v1/farms/weather/daily")
+                .param("date", "2026-07-01")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.date", equalTo("2026-07-01")))
+            .andExpect(jsonPath("$.data.weatherCondition", equalTo("흐림")))
+            .andExpect(jsonPath("$.data.minTemperature", equalTo(18)))
+            .andExpect(jsonPath("$.data.maxTemperature", equalTo(27)))
+    }
+
+    @Test
+    fun `returns bad request when daily weather date is malformed`() {
+        mockMvc.perform(
+            get("/api/v1/farms/{farmId}/weather/daily", farmId)
+                .param("date", "not-a-date")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `returns bad request when daily weather date is in the future`() {
+        `when`(farmWeatherService.getDailyWeather(memberId, farmId, LocalDate.of(2026, 7, 1)))
+            .thenThrow(BusinessException(ErrorCode.WEATHER_DATE_IN_FUTURE))
+
+        mockMvc.perform(
+            get("/api/v1/farms/{farmId}/weather/daily", farmId)
+                .param("date", "2026-07-01")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error.code", equalTo("WEATHER_003")))
+    }
+
+    @Test
+    fun `returns not found when daily weather farm is missing or not owned`() {
+        `when`(farmWeatherService.getDailyWeather(memberId, farmId, LocalDate.of(2026, 7, 1)))
+            .thenThrow(BusinessException(ErrorCode.FARM_NOT_FOUND))
+
+        mockMvc.perform(
+            get("/api/v1/farms/{farmId}/weather/daily", farmId)
+                .param("date", "2026-07-01")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.error.code", equalTo("FARM_001")))
+    }
+
+    @Test
+    fun `returns not found when daily weather data is unavailable`() {
+        `when`(farmWeatherService.getDailyWeather(memberId, farmId, LocalDate.of(2026, 7, 1)))
+            .thenThrow(BusinessException(ErrorCode.WEATHER_DAILY_DATA_NOT_FOUND))
+
+        mockMvc.perform(
+            get("/api/v1/farms/{farmId}/weather/daily", farmId)
+                .param("date", "2026-07-01")
+                .with(authenticatedMember(memberId.toString()))
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.error.code", equalTo("WEATHER_004")))
     }
 
     private fun authenticatedMember(memberId: String): RequestPostProcessor {
