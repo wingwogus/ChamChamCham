@@ -286,7 +286,7 @@ class FarmingRecordServiceTest {
                 pesticideAmount = BigDecimal.ONE,
                 pesticideAmountUnit = PesticideAmountUnit.ML,
                 totalSprayAmount = BigDecimal.TEN,
-                totalSprayAmountUnit = SprayAmountUnit.L,
+                totalSprayAmountUnit = SprayAmountUnit.ML,
                 pestId = pestId,
             ),
         )
@@ -316,7 +316,7 @@ class FarmingRecordServiceTest {
                 pesticideAmount = BigDecimal.ONE,
                 pesticideAmountUnit = PesticideAmountUnit.ML,
                 totalSprayAmount = BigDecimal.TEN,
-                totalSprayAmountUnit = SprayAmountUnit.L,
+                totalSprayAmountUnit = SprayAmountUnit.ML,
             ),
         )
 

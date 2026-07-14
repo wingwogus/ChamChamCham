@@ -230,7 +230,7 @@ class FarmingRecordDetailValidatorTest {
                 pesticideAmount = BigDecimal.ONE,
                 pesticideAmountUnit = PesticideAmountUnit.ML,
                 totalSprayAmount = BigDecimal.TEN,
-                totalSprayAmountUnit = SprayAmountUnit.L,
+                totalSprayAmountUnit = SprayAmountUnit.ML,
             ),
         ).forEach { payload -> assertDoesNotThrow { validator.validate(payload) } }
     }

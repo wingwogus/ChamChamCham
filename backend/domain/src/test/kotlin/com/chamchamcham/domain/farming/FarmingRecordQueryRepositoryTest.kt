@@ -323,7 +323,7 @@ class FarmingRecordQueryRepositoryTest @Autowired constructor(
                 pesticideAmount = BigDecimal.ONE,
                 pesticideAmountUnit = PesticideAmountUnit.ML,
                 totalSprayAmount = BigDecimal.TEN,
-                totalSprayAmountUnit = SprayAmountUnit.L,
+                totalSprayAmountUnit = SprayAmountUnit.ML,
             ),
             now
         )
