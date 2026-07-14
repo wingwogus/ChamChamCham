@@ -32,6 +32,6 @@ class SearchService(
     }
 
     private companion object {
-        const val PREVIEW_SIZE = 5
+        const val PREVIEW_SIZE = 3
     }
 }

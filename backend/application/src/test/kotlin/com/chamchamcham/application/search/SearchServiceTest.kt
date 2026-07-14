@@ -81,7 +81,7 @@ class SearchServiceTest {
         assertThat(sections.map { it.category }).containsExactly(SearchCategory.RECORD, SearchCategory.POST)
         assertThat(sections[0].hasMore).isTrue()
         assertThat(sections[1].hasMore).isFalse()
-        assertThat(recordSearcher.lastQuery?.size).isEqualTo(5)
+        assertThat(recordSearcher.lastQuery?.size).isEqualTo(3)
         assertThat(recordSearcher.lastQuery?.cursor).isNull()
     }
 }
