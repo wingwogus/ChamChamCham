@@ -130,8 +130,7 @@ struct BasicProfileView: View {
             Button {
                 viewModel.goBack()
             } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
+                AppIconView(source: .asset("chevron_backward"), size: 24)
                     .foregroundStyle(Color.Icon.default)
                     .frame(width: 48, height: 48)
             }
@@ -171,10 +170,8 @@ struct BasicProfileView: View {
                 Button {
                     isQualificationTooltipVisible = true
                 } label: {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
+                    AppIconView(source: .asset("info"), size: 24)
                         .foregroundStyle(Color.Icon.subtle)
-                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("자격 안내 보기")
@@ -289,11 +286,8 @@ struct BasicProfileView: View {
             }
         } else {
             avatarCircle {
-                Image(systemName: "person.fill")
-                    .resizable()
-                    .scaledToFit()
+                AppIconView(source: .asset("person"), size: 48)
                     .foregroundStyle(Color.Icon.disabled)
-                    .padding(24)
             }
         }
     }
@@ -317,8 +311,7 @@ struct BasicProfileView: View {
                 .fill(Color.Object.bold)
                 .frame(width: 36, height: 36)
                 .overlay {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                    AppIconView(source: .asset("photo_camera"), size: 18)
                         .foregroundStyle(Color.Icon.inverse)
                 }
         }

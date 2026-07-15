@@ -221,11 +221,11 @@ import SwiftUI
 
 #Preview("AppTopAppBar") {
     VStack(spacing: Spacing.xl) {
-        AppTopAppBar(title: "타이틀", trailing: [.init("bell"), .init("gearshape")])
+        AppTopAppBar(title: "타이틀", trailing: [.init(.asset("notifications")), .init(.asset("settings"))])
         AppTopAppBar(title: "타이틀", isDetail: true,
-                     leading: .init("chevron.left"), trailing: [.init("ellipsis")])
+                     leading: .init(.asset("chevron_backward")), trailing: [.init(.asset("more_vert"))])
         AppTopAppBar(title: "타이틀", background: .subtle,
-                     trailing: [.init("bell")])
+                     trailing: [.init(.asset("notifications"))])
     }
 }
 

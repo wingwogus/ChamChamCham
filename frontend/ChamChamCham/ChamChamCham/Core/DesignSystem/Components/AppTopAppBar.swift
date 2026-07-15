@@ -108,7 +108,7 @@ struct AppTopAppBar: View {
         AppTopAppBar(
             title: "타이틀",
             isDetail: true,
-            leading: .init("chevron.left"),
+            leading: .init(.asset("chevron_backward")),
             trailing: [.init("ellipsis")]
         )
     }

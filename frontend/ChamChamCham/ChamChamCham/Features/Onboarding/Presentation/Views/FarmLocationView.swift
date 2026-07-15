@@ -66,8 +66,7 @@ struct FarmLocationView: View {
             Button {
                 viewModel.goBack()
             } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
+                AppIconView(source: .asset("chevron_backward"), size: 24)
                     .foregroundStyle(Color.Icon.default)
                     .frame(width: 48, height: 48)
             }
@@ -136,8 +135,7 @@ struct FarmLocationView: View {
             isSearchSheetPresented = true
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 22, weight: .medium))
+                AppIconView(source: .asset("search"), size: 22)
                     .foregroundStyle(Color.Icon.default)
                 Text(farmLocationViewModel.selectedAddress?.roadAddrPart1 ?? "주소지를 입력해주세요.")
                     .appTypography(.bodyLarge)
@@ -308,7 +306,7 @@ struct FarmLocationView: View {
 
     private func errorBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
-            Image(systemName: "info.circle.fill")
+            AppIconView(source: .asset("info"), size: 20)
                 .foregroundStyle(Color.Icon.primary)
             Text(message)
                 .appTypography(.labelMedium)
