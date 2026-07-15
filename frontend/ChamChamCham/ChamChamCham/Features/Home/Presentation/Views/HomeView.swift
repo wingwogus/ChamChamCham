@@ -42,14 +42,15 @@ struct HomeView: View {
                     trailing: [.init(.asset("search")), .init(.asset("notifications"))]
                 )
                 ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Spacing.xl) {
                         weatherAndTipRow
                         recentRecordSection
                         policySection
                         popularPostsSection
                     }
                     .padding(.horizontal, 20)
-                    .padding(.vertical, Spacing.md)
+                    .padding(.top, Spacing.xl)
+                    .padding(.bottom, Spacing.lg)
                 }
                 .background(Color.Background.subtle)
                 .refreshable { await viewModel.reload() }
@@ -82,7 +83,7 @@ struct HomeView: View {
     // MARK: - Weather + Tip
 
     private var weatherAndTipRow: some View {
-        HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.md) {
             weatherCard.frame(maxWidth: .infinity)
             tipCard.frame(maxWidth: .infinity)
         }
@@ -129,12 +130,18 @@ struct HomeView: View {
                 HStack(spacing: 4) {
                     AppIconView(source: .asset(WeatherIconMapping.assetName(for: value.weather.condition)), size: 40)
                     Text("\(value.weather.temperature)°")
-                        .appTypography(.headlineMediumEmphasized)
+                        .appTypography(.headlineLarge)
                         .foregroundStyle(Color.Text.default)
                 }
-                Text("최저 \(value.detail.lowTemperature)° | 최고 \(value.detail.highTemperature)°")
-                    .appTypography(.bodyMedium)
-                    .foregroundStyle(Color.Text.muted)
+                HStack(spacing: Spacing.sm) {
+                    Text("최저 \(value.detail.lowTemperature)°")
+                    Rectangle()
+                        .fill(Color.Border.strong)
+                        .frame(width: 1, height: 12)
+                    Text("최고 \(value.detail.highTemperature)°")
+                }
+                .appTypography(.bodyMedium)
+                .foregroundStyle(Color.Text.muted)
             }
         case let .failed(message):
             Text(message)
@@ -169,7 +176,7 @@ struct HomeView: View {
     // MARK: - Recent record
 
     private var recentRecordSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             sectionHeader("나의 최근 영농 기록")
 
             switch viewModel.recentRecordsState {
@@ -179,7 +186,7 @@ struct HomeView: View {
                 emptyStateText("아직 작성한 기록이 없어요")
             case let .loaded(records):
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Spacing.sm) {
+                    HStack(spacing: Spacing.md) {
                         ForEach(records) { record in
                             AppCard(
                                 size: .medium,
@@ -217,7 +224,7 @@ struct HomeView: View {
     // MARK: - Policy
 
     private var policySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             sectionHeader("오늘의 추천 정책") { path.append(HomeRoute.policyList) }
 
             switch viewModel.policyState {
@@ -230,11 +237,11 @@ struct HomeView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(policy.title)
-                                .appTypography(.titleMedium)
+                                .appTypography(.titleMediumEmphasized)
                                 .foregroundStyle(Color.Text.subtle)
                                 .lineLimit(1)
-                            Text("기간: \(policy.applicationPeriodLabel)")
-                                .appTypography(.labelMedium)
+                            Text(policy.applicationPeriodLabel)
+                                .appTypography(.bodyMedium)
                                 .foregroundStyle(Color.Text.muted)
                                 .lineLimit(1)
                         }
@@ -264,7 +271,7 @@ struct HomeView: View {
     // MARK: - Popular posts
 
     private var popularPostsSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             sectionHeader("나의 게시판 인기글")
 
             switch viewModel.popularPostsState {
