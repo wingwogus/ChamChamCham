@@ -53,7 +53,7 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `section shape failures are retried with safe diagnostic codes`() {
-        val generatedText = "다음에는 흙 속을 확인하세요.\n젖은 깊이도 함께 살펴보세요."
+        val generatedText = "다음에는 흙 속을 확인하세요.\n젖은 깊이와 물의 양도 함께 기록하세요."
         val invalid = validContent().copy(
             strengths = emptyList(),
             nextActions = listOf(item(text = generatedText)),
@@ -86,8 +86,25 @@ class ReportFeedbackGenerationServiceTest {
     }
 
     @Test
+    fun `minimum length failures are retried with safe diagnostic codes`() {
+        val generatedText = "가".repeat(29)
+        val invalid = validContent().copy(
+            summary = "가".repeat(19),
+            nextActions = listOf(item(text = generatedText)),
+        )
+        val client = FakeChatClient(invalid, validContent())
+
+        service(client).generate(context())
+
+        assertThat(client.attempts).isEqualTo(2)
+        assertThat(client.requestSpec.userTexts.last())
+            .contains("summary_text_length", "next_action_text_length")
+            .doesNotContain(generatedText)
+    }
+
+    @Test
     fun `English summary is accepted without retry`() {
-        val generatedText = "WATERING 흐름을 확인했어요."
+        val generatedText = "WATERING 작업 기록의 전체 흐름과 관리 방향을 확인했어요."
         val client = FakeChatClient(
             validContent().copy(summary = generatedText),
         )
@@ -99,7 +116,7 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `English item is accepted without retry`() {
-        val generatedText = "DRIP 방식을 다음에도 확인하세요."
+        val generatedText = "다음에는 DRIP 방식으로 물을 준 뒤 흙 속 수분과 젖은 깊이를 확인하세요."
         val client = FakeChatClient(
             validContent().copy(nextActions = listOf(item(text = generatedText))),
         )
@@ -111,7 +128,7 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `English comparison is accepted without retry`() {
-        val generatedText = "WATERING 기록이 늘었어요."
+        val generatedText = "WATERING 기록이 직전보다 늘어 작업 흐름의 변화를 확인했어요."
         val client = FakeChatClient(
             validContent().copy(comparisons = listOf(comparisonItem(text = generatedText))),
         )
@@ -164,7 +181,9 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `English output remains valid on the first attempt`() {
-        val content = validContent().copy(summary = "WATERING 흐름을 확인했어요.")
+        val content = validContent().copy(
+            summary = "WATERING 작업 기록의 전체 흐름과 관리 방향을 확인했어요.",
+        )
         val client = FakeChatClient(content, content)
 
         assertThat(service(client).generate(context()).content).isEqualTo(content)
@@ -317,15 +336,21 @@ class ReportFeedbackGenerationServiceTest {
     )
 
     private fun validContent() = ReportFeedbackContent(
-        summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+        summary = "이번 물 주기 기록의 전체 흐름과 관리 방향을 확인했어요.",
         comparisons = listOf(comparisonItem()),
-        strengths = listOf(item()),
-        improvements = listOf(item(text = "물의 양이 알맞았는지 더 살펴볼 필요가 있어요.")),
-        nextActions = listOf(item(text = "다음에는 물을 준 뒤 흙 속까지 젖었는지 확인하세요.")),
+        strengths = listOf(
+            item(text = "흙 상태를 살핀 뒤 물을 주어 필요한 곳부터 관리한 점이 좋았어요."),
+        ),
+        improvements = listOf(
+            item(text = "물의 양이 알맞았는지 흙 속 수분까지 확인해 기록할 필요가 있어요."),
+        ),
+        nextActions = listOf(
+            item(text = "다음에는 물을 준 뒤 흙 속까지 젖었는지 손으로 확인해 기록하세요."),
+        ),
     )
 
     private fun item(
-        text: String = "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.",
+        text: String = "흙 상태를 살핀 뒤 물을 주어 필요한 곳부터 관리한 점이 좋았어요.",
         evidenceRefs: List<String> = listOf("record:$recordId"),
     ) = ReportFeedbackContentItem(
         basis = "관수 기록 1회",
@@ -334,7 +359,7 @@ class ReportFeedbackGenerationServiceTest {
     )
 
     private fun comparisonItem(
-        text: String = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+        text: String = "직전 재배보다 물 주기 기록이 한 번 늘어 흐름이 안정됐어요.",
         evidenceRefs: List<String> = listOf("report:$reportId", "report:$previousReportId"),
     ) = ReportFeedbackContentItem(
         basis = "직전보다 기록 1회 증가",

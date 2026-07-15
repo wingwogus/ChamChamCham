@@ -99,7 +99,7 @@ class ReportFeedbackOutputValidatorTest {
         val content = validContent().copy(
             comparisons = listOf(
                 comparisonItem(
-                    text = "WATERING 기록이 늘었다.",
+                    text = "WATERING 기록이 직전보다 늘어 작업 흐름의 변화를 확인했어요.",
                     evidenceRefs = listOf("report:$reportId", "report:$previousReportId", unknown),
                 ),
             ),
@@ -113,7 +113,7 @@ class ReportFeedbackOutputValidatorTest {
     fun `allows the same fact repeated across comparison and another section`() {
         val comparison = ReportFeedbackContentItem(
             basis = "직전보다 기록 1회 증가",
-            text = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+            text = "직전 재배보다 물 주기 기록이 한 번 늘어 작업 흐름이 안정됐어요.",
             evidenceRefs = listOf("report:$reportId", "report:$previousReportId"),
         )
         val repeatedWithDifferentBasis = comparison.copy(basis = "이번 기록과 직전 기록의 차이")
@@ -132,7 +132,7 @@ class ReportFeedbackOutputValidatorTest {
             strengths = emptyList(),
             improvements = listOf(
                 item(),
-                item(text = "흙 속 수분도 함께 확인할 필요가 있어요."),
+                item(text = "흙 속 수분도 함께 확인해 물의 양과 젖은 깊이를 기록할 필요가 있어요."),
             ),
             nextActions = emptyList(),
         )
@@ -162,7 +162,7 @@ class ReportFeedbackOutputValidatorTest {
     fun `rejects line breaks inside a section paragraph`() {
         val content = validContent().copy(
             nextActions = listOf(
-                item(text = "다음에는 흙 속을 확인하세요.\n젖은 깊이도 함께 살펴보세요."),
+                item(text = "다음에는 흙 속을 확인하세요.\n젖은 깊이와 물의 양도 함께 기록하세요."),
             ),
         )
 
@@ -174,7 +174,7 @@ class ReportFeedbackOutputValidatorTest {
     fun `allows record-backed feedback without a retrieved technical document`() {
         val content = validContent().copy(
             summary = "이번 물 주기 기록을 꾸준히 남겼어요.",
-            strengths = listOf(item("관수 1회", "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.")),
+            strengths = listOf(item("관수 1회", "물 준 기록을 꾸준히 남겨 전체 작업 흐름을 확인하기 좋았어요.")),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
@@ -196,8 +196,8 @@ class ReportFeedbackOutputValidatorTest {
     @Test
     fun `allows a summary and item text with formal honorifics`() {
         val content = validContent().copy(
-            summary = "이번 물 주기 기록을 꾸준히 남겼습니다.",
-            strengths = listOf(item("관수 1회", "물 준 기록을 남겨 작업 흐름을 확인할 수 있습니다.")),
+            summary = "이번 물 주기 기록을 꾸준히 남겨 전체 작업 흐름을 확인할 수 있습니다.",
+            strengths = listOf(item("관수 1회", "물 준 기록을 꾸준히 남겨 전체 작업 흐름을 확인할 수 있습니다.")),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
@@ -207,10 +207,10 @@ class ReportFeedbackOutputValidatorTest {
     @Test
     fun `allows English and Korean farming terms in public report text`() {
         val content = validContent().copy(
-            summary = "WATERING 흐름을 확인했어요.",
-            strengths = listOf(item("DRIP 관수", "DRIP으로 물을 준 점은 좋았어요.")),
-            improvements = listOf(item("토양", "토양 수분을 더 확인하세요.")),
-            nextActions = listOf(item("방제", "병해충을 방제하세요.")),
+            summary = "WATERING 작업 기록의 전체 흐름과 관리 방향을 확인했어요.",
+            strengths = listOf(item("DRIP 관수", "DRIP으로 물을 준 기록을 꾸준히 남겨 작업 흐름을 확인하기 좋았어요.")),
+            improvements = listOf(item("토양", "토양 수분을 더 확인하고 물을 준 양과 상태를 함께 기록할 필요가 있어요.")),
+            nextActions = listOf(item("방제", "다음에는 병해충 상태를 살핀 뒤 필요한 방제 방법을 정해 실행하세요.")),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
@@ -220,10 +220,10 @@ class ReportFeedbackOutputValidatorTest {
     @Test
     fun `allows English in every report item section`() {
         val content = validContent().copy(
-            summary = "이번 물 주기 기록을 확인했어요.",
-            strengths = listOf(item("기록", "DRIP 방식을 꾸준히 사용했어요.")),
-            improvements = listOf(item("양", "다음에는 kg 단위 대신 한글로 기록하세요.")),
-            nextActions = listOf(item("확인", "pH 대신 흙 상태를 쉬운 말로 적으세요.")),
+            summary = "WATERING 작업 기록의 전체 흐름과 관리 방향을 확인했어요.",
+            strengths = listOf(item("기록", "DRIP으로 물을 준 기록을 꾸준히 남겨 작업 흐름을 확인하기 좋았어요.")),
+            improvements = listOf(item("양", "다음에는 kg 단위 대신 물의 양과 흙 상태를 쉬운 한글로 함께 기록하세요.")),
+            nextActions = listOf(item("확인", "다음에는 pH 수치와 흙 상태를 쉬운 말로 함께 기록해 변화를 확인하세요.")),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
@@ -241,6 +241,39 @@ class ReportFeedbackOutputValidatorTest {
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
+    }
+
+    @Test
+    fun `allows every public text at its exact minimum length`() {
+        val content = validContent().copy(
+            summary = "가".repeat(20),
+            comparisons = listOf(comparisonItem(text = "가".repeat(25))),
+            strengths = listOf(item(text = "가".repeat(30))),
+            improvements = listOf(item(text = "가".repeat(30))),
+            nextActions = listOf(item(text = "가".repeat(30))),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
+    }
+
+    @Test
+    fun `rejects every public text below its role minimum`() {
+        val content = validContent().copy(
+            summary = "가".repeat(19),
+            comparisons = listOf(comparisonItem(text = "가".repeat(24))),
+            strengths = listOf(item(text = "가".repeat(29))),
+            improvements = listOf(item(text = "가".repeat(29))),
+            nextActions = listOf(item(text = "가".repeat(29))),
+        )
+
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
+            .containsExactly(
+                "summary_text_length",
+                "comparison_text_length",
+                "strength_text_length",
+                "improvement_text_length",
+                "next_action_text_length",
+            )
     }
 
     @Test
@@ -279,8 +312,8 @@ class ReportFeedbackOutputValidatorTest {
     @Test
     fun `allows technical language in internal basis`() {
         val content = validContent().copy(
-            summary = "이번 물 주기 기록을 확인했어요.",
-            strengths = listOf(item("WATERING DRIP 관수", "물 준 방법을 꾸준히 지킨 점은 좋았어요.")),
+            summary = "이번 물 주기 기록의 전체 흐름과 관리 방향을 확인했어요.",
+            strengths = listOf(item("WATERING DRIP 관수", "물 준 방법을 꾸준히 지키고 기록까지 남긴 점은 관리에 도움이 됐어요.")),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
@@ -288,7 +321,7 @@ class ReportFeedbackOutputValidatorTest {
 
     private fun item(
         basis: String = "관수 1회",
-        text: String = "물 준 기록을 남겨 작업 흐름을 확인하기 좋았어요.",
+        text: String = "흙 상태를 살핀 뒤 물을 주어 필요한 곳부터 관리한 점이 좋았어요.",
         evidenceRef: String = "record:$recordId",
     ) = ReportFeedbackContentItem(
         basis = basis,
@@ -298,7 +331,7 @@ class ReportFeedbackOutputValidatorTest {
 
     private fun comparisonItem(
         evidenceRefs: List<String> = listOf("report:$reportId", "report:$previousReportId"),
-        text: String = "직전 재배보다 물 주기 기록이 한 번 늘었어요.",
+        text: String = "직전 재배보다 물 주기 기록이 한 번 늘어 흐름이 안정됐어요.",
     ) = ReportFeedbackContentItem(
         basis = "직전보다 기록 1회 증가",
         text = text,
@@ -308,14 +341,16 @@ class ReportFeedbackOutputValidatorTest {
     private fun validContent(
         comparisons: List<ReportFeedbackContentItem> = listOf(comparisonItem()),
     ) = ReportFeedbackContent(
-        summary = "이번 물 주기 기록의 흐름을 확인했어요.",
+        summary = "이번 물 주기 기록의 전체 흐름과 관리 방향을 확인했어요.",
         comparisons = comparisons,
-        strengths = listOf(item()),
+        strengths = listOf(
+            item(text = "흙 상태를 살핀 뒤 물을 주어 필요한 곳부터 관리한 점이 좋았어요."),
+        ),
         improvements = listOf(
-            item("물의 양", "물의 양이 알맞았는지 더 살펴볼 필요가 있어요."),
+            item("물의 양", "물의 양이 알맞았는지 흙 속 수분까지 확인해 기록할 필요가 있어요."),
         ),
         nextActions = listOf(
-            item("흙 속 수분", "다음에는 물을 준 뒤 흙 속까지 젖었는지 확인하세요."),
+            item("흙 속 수분", "다음에는 물을 준 뒤 흙 속까지 젖었는지 손으로 확인해 기록하세요."),
         ),
     )
 

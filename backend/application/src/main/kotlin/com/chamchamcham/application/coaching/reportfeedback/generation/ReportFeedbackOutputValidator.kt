@@ -11,8 +11,7 @@ object ReportFeedbackOutputValidator {
         val warnings = mutableListOf<String>()
         if (content.summary.isBlank()) {
             warnings += "summary_blank"
-        }
-        if (content.summary.length > MAX_TEXT_LENGTH) {
+        } else if (content.summary.length !in MIN_SUMMARY_TEXT_LENGTH..MAX_TEXT_LENGTH) {
             warnings += "summary_text_length"
         }
         if (context.comparisons.isEmpty()) {
@@ -48,9 +47,17 @@ object ReportFeedbackOutputValidator {
             }
             if (item.text.isBlank()) {
                 warnings += "${structured.section.name.lowercase()}_text_blank"
-            }
-            if (item.text.length > MAX_TEXT_LENGTH) {
-                warnings += "${structured.section.name.lowercase()}_text_length"
+            } else {
+                val minimumTextLength = when (structured.section) {
+                    ReportFeedbackItemSection.COMPARISON -> MIN_COMPARISON_TEXT_LENGTH
+                    ReportFeedbackItemSection.STRENGTH,
+                    ReportFeedbackItemSection.IMPROVEMENT,
+                    ReportFeedbackItemSection.NEXT_ACTION,
+                    -> MIN_COACHING_TEXT_LENGTH
+                }
+                if (item.text.length !in minimumTextLength..MAX_TEXT_LENGTH) {
+                    warnings += "${structured.section.name.lowercase()}_text_length"
+                }
             }
             if (item.text.any { it == '\r' || it == '\n' }) {
                 warnings += "${structured.section.name.lowercase()}_text_paragraph"
@@ -75,5 +82,8 @@ object ReportFeedbackOutputValidator {
         return warnings.distinct()
     }
 
+    private const val MIN_SUMMARY_TEXT_LENGTH = 20
+    private const val MIN_COMPARISON_TEXT_LENGTH = 25
+    private const val MIN_COACHING_TEXT_LENGTH = 30
     private const val MAX_TEXT_LENGTH = 50
 }
