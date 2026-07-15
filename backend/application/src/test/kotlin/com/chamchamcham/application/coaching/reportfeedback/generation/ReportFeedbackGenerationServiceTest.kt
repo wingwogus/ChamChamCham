@@ -53,10 +53,8 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `section shape failures are retried with safe diagnostic codes`() {
-        val generatedText = "다음에는 흙 속을 확인하세요.\n젖은 깊이와 물의 양도 함께 기록하세요."
         val invalid = validContent().copy(
             strengths = emptyList(),
-            nextActions = listOf(item(text = generatedText)),
         )
         val client = FakeChatClient(invalid, validContent())
 
@@ -64,8 +62,34 @@ class ReportFeedbackGenerationServiceTest {
 
         assertThat(client.attempts).isEqualTo(2)
         assertThat(client.requestSpec.userTexts.last())
-            .contains("strength_count", "next_action_text_paragraph")
-            .doesNotContain(generatedText)
+            .contains("strength_count")
+    }
+
+    @Test
+    fun `normalizes line breaks in public text before validation`() {
+        val summary = "가".repeat(10) + "\n  " + "나".repeat(10)
+        val comparison = "다".repeat(10) + "\r\n  " + "라".repeat(10)
+        val strength = "마".repeat(10) + "\r  " + "바".repeat(10)
+        val improvement = "사".repeat(10) + "\n\n  " + "아".repeat(10)
+        val nextAction = "자".repeat(10) + " \n " + "차".repeat(10)
+        val client = FakeChatClient(
+            validContent().copy(
+                summary = summary,
+                comparisons = listOf(comparisonItem(text = comparison)),
+                strengths = listOf(item(text = strength)),
+                improvements = listOf(item(text = improvement)),
+                nextActions = listOf(item(text = nextAction)),
+            ),
+        )
+
+        val result = service(client).generate(context()).content
+
+        assertThat(client.attempts).isEqualTo(1)
+        assertThat(result.summary).isEqualTo("가".repeat(10) + " " + "나".repeat(10))
+        assertThat(result.comparisons.single().text).isEqualTo("다".repeat(10) + " " + "라".repeat(10))
+        assertThat(result.strengths.single().text).isEqualTo("마".repeat(10) + " " + "바".repeat(10))
+        assertThat(result.improvements.single().text).isEqualTo("사".repeat(10) + " " + "아".repeat(10))
+        assertThat(result.nextActions.single().text).isEqualTo("자".repeat(10) + " " + "차".repeat(10))
     }
 
     @Test
@@ -87,7 +111,7 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `minimum length failures are retried with safe diagnostic codes`() {
-        val generatedText = "가".repeat(29)
+        val generatedText = "가".repeat(19)
         val invalid = validContent().copy(
             summary = "가".repeat(19),
             nextActions = listOf(item(text = generatedText)),

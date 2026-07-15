@@ -159,15 +159,14 @@ class ReportFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `rejects line breaks inside a section paragraph`() {
+    fun `allows line breaks for generation service normalization`() {
         val content = validContent().copy(
             nextActions = listOf(
                 item(text = "다음에는 흙 속을 확인하세요.\n젖은 깊이와 물의 양도 함께 기록하세요."),
             ),
         )
 
-        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))
-            .containsExactly("next_action_text_paragraph")
+        assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
     }
 
     @Test
@@ -245,12 +244,13 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `allows every public text at its exact minimum length`() {
+        val text = "가".repeat(20)
         val content = validContent().copy(
-            summary = "가".repeat(20),
-            comparisons = listOf(comparisonItem(text = "가".repeat(25))),
-            strengths = listOf(item(text = "가".repeat(30))),
-            improvements = listOf(item(text = "가".repeat(30))),
-            nextActions = listOf(item(text = "가".repeat(30))),
+            summary = text,
+            comparisons = listOf(comparisonItem(text = text)),
+            strengths = listOf(item(text = text)),
+            improvements = listOf(item(text = text)),
+            nextActions = listOf(item(text = text)),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList())).isEmpty()
@@ -258,12 +258,13 @@ class ReportFeedbackOutputValidatorTest {
 
     @Test
     fun `rejects every public text below its role minimum`() {
+        val text = "가".repeat(19)
         val content = validContent().copy(
-            summary = "가".repeat(19),
-            comparisons = listOf(comparisonItem(text = "가".repeat(24))),
-            strengths = listOf(item(text = "가".repeat(29))),
-            improvements = listOf(item(text = "가".repeat(29))),
-            nextActions = listOf(item(text = "가".repeat(29))),
+            summary = text,
+            comparisons = listOf(comparisonItem(text = text)),
+            strengths = listOf(item(text = text)),
+            improvements = listOf(item(text = text)),
+            nextActions = listOf(item(text = text)),
         )
 
         assertThat(ReportFeedbackOutputValidator.validate(content, context, emptyList()))

@@ -100,6 +100,7 @@ class ReportFeedbackGenerationService(
             val content = try {
                 response
                     .entity(ReportFeedbackContent::class.java)
+                    ?.normalizedParagraphs()
                     ?: throw IllegalStateException("empty structured output")
             } catch (exception: BusinessException) {
                 throw ReportFeedbackGenerationFailure(ReportFeedbackFailureCode.CHAT_UNAVAILABLE, exception)

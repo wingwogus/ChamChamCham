@@ -47,20 +47,8 @@ object ReportFeedbackOutputValidator {
             }
             if (item.text.isBlank()) {
                 warnings += "${structured.section.name.lowercase()}_text_blank"
-            } else {
-                val minimumTextLength = when (structured.section) {
-                    ReportFeedbackItemSection.COMPARISON -> MIN_COMPARISON_TEXT_LENGTH
-                    ReportFeedbackItemSection.STRENGTH,
-                    ReportFeedbackItemSection.IMPROVEMENT,
-                    ReportFeedbackItemSection.NEXT_ACTION,
-                    -> MIN_COACHING_TEXT_LENGTH
-                }
-                if (item.text.length !in minimumTextLength..MAX_TEXT_LENGTH) {
-                    warnings += "${structured.section.name.lowercase()}_text_length"
-                }
-            }
-            if (item.text.any { it == '\r' || it == '\n' }) {
-                warnings += "${structured.section.name.lowercase()}_text_paragraph"
+            } else if (item.text.length !in MIN_TEXT_LENGTH..MAX_TEXT_LENGTH) {
+                warnings += "${structured.section.name.lowercase()}_text_length"
             }
             if (item.evidenceRefs.none { it.isNotBlank() }) {
                 warnings += "${structured.section.name.lowercase()}_evidence_refs_blank"
@@ -83,7 +71,6 @@ object ReportFeedbackOutputValidator {
     }
 
     private const val MIN_SUMMARY_TEXT_LENGTH = 20
-    private const val MIN_COMPARISON_TEXT_LENGTH = 25
-    private const val MIN_COACHING_TEXT_LENGTH = 30
+    private const val MIN_TEXT_LENGTH = 20
     private const val MAX_TEXT_LENGTH = 65
 }
