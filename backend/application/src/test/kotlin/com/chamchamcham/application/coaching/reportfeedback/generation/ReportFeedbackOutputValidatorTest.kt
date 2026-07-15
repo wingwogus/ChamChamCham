@@ -230,8 +230,8 @@ class ReportFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `allows summary and every section text at exactly fifty characters`() {
-        val text = "가".repeat(50)
+    fun `allows summary and every section text at exactly sixty five characters`() {
+        val text = "가".repeat(65)
         val content = validContent().copy(
             summary = text,
             comparisons = listOf(comparisonItem(text = text)),
@@ -277,8 +277,8 @@ class ReportFeedbackOutputValidatorTest {
     }
 
     @Test
-    fun `rejects summary and every section text over fifty characters`() {
-        val text = "가".repeat(51)
+    fun `rejects summary and every section text over sixty five characters`() {
+        val text = "가".repeat(66)
         val content = validContent().copy(
             summary = text,
             comparisons = listOf(comparisonItem(text = text)),

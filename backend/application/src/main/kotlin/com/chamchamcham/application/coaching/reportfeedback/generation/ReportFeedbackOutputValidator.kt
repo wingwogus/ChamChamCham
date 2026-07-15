@@ -85,5 +85,5 @@ object ReportFeedbackOutputValidator {
     private const val MIN_SUMMARY_TEXT_LENGTH = 20
     private const val MIN_COMPARISON_TEXT_LENGTH = 25
     private const val MIN_COACHING_TEXT_LENGTH = 30
-    private const val MAX_TEXT_LENGTH = 50
+    private const val MAX_TEXT_LENGTH = 65
 }

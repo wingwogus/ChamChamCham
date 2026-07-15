@@ -70,7 +70,7 @@ class ReportFeedbackGenerationServiceTest {
 
     @Test
     fun `length failures are retried with safe diagnostic codes`() {
-        val generatedText = "가".repeat(51)
+        val generatedText = "가".repeat(66)
         val invalid = validContent().copy(
             summary = generatedText,
             nextActions = listOf(item(text = generatedText)),

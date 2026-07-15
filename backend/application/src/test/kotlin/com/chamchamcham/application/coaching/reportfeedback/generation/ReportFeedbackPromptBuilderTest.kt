@@ -46,11 +46,11 @@ class ReportFeedbackPromptBuilderTest {
                 "서버가 계산한 비교값이 없으면 comparisons는 반드시 빈 배열로 응답한다.",
                 "각 배열 항목의 text는 줄바꿈이나 목록 기호 없이 하나의 문단으로 작성한다.",
                 "한 문단 안에는 자연스럽게 이어지는 여러 문장을 작성해도 된다.",
-                "summary는 20~50자로 작성한다.",
-                "comparisons의 text는 25~50자로 작성한다.",
-                "strengths, improvements, nextActions의 text는 각각 30~50자로 작성한다.",
+                "summary는 20~65자로 작성한다.",
+                "comparisons의 text는 25~65자로 작성한다.",
+                "strengths, improvements, nextActions의 text는 각각 30~65자로 작성한다.",
                 "최소 길이를 맞출 때 의미 없는 표현을 덧붙이지 말고 근거, 판단, 실행 방법을 보강해 다시 쓴다.",
-                "50자를 넘으면 문장을 자르지 말고 핵심 내용을 남겨 다시 쓴다.",
+                "65자를 넘으면 문장을 자르지 말고 핵심 내용을 남겨 다시 쓴다.",
             )
             .doesNotContain(
                 "comparisons, strengths, improvements, nextActions는 근거가 없으면 빈 배열로 응답해도 된다.",
