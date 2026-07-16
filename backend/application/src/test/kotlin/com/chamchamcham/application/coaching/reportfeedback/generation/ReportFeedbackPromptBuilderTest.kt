@@ -32,11 +32,11 @@ class ReportFeedbackPromptBuilderTest {
             .contains("대상 작업 타입 하나만")
             .contains("nextActions")
             .contains("빈 배열")
-            .contains("선택한 작업의 다음 행동은 실행 방법이 드러나게 작성한다.")
+            .contains("nextActions는 다음 작업에서 언제 무엇을 기록하거나 확인할지")
             .contains("summary와 모든 text는 친근한 존댓말로 끝낸다.")
             .contains("comparisons")
             .contains("서버가 계산한 비교값을 그대로 사용하고 다시 계산하지 않는다.")
-            .contains("comparisons에는 변화 사실만")
+            .contains("comparisons는 지난 재배와 달라진 사실만")
             .contains("comparison, strength, improvement, next-action 사이에 같은 내용을 반복하지 않는다.")
             .contains(CoachingTextPolicy.promptInstructions)
             .doesNotContain("다음 사이클 계획")
@@ -83,6 +83,28 @@ class ReportFeedbackPromptBuilderTest {
             )
             .doesNotContain("FERTILIZING")
             .doesNotContain("수확량")
+    }
+
+    @Test
+    fun `prompt defines friendly and distinct roles for every public section`() {
+        val prompt = ReportFeedbackPromptBuilder().build(context(), emptyList())
+
+        assertThat(prompt.system).contains(
+            "summary는 이번 재배에서 확인한 핵심을 작업과 기록 중심으로 균형 있게 요약한다.",
+            "comparisons는 지난 재배와 달라진 사실만 설명하고 평가나 권고를 넣지 않는다.",
+            "strengths는 근거에서 확인한 잘한 행동과 그 행동이 도움이 된 이유를 함께 설명한다.",
+            "improvements는 부족한 점, 그 점이 판단이나 관리에 미친 영향, 앞으로 보완할 방향을 함께 설명한다.",
+            "자료가 부족해도 판단이 어렵거나 해석이 제한됐다는 설명으로 끝내지 않고, 다음에 함께 남길 기록 항목을 안내한다.",
+            "nextActions는 다음 작업에서 언제 무엇을 기록하거나 확인할지 실행 가능한 한 가지 행동으로 작성한다.",
+            "사용자에게 내부 보고서나 시스템을 설명하지 말고 농부가 남긴 작업과 기록을 먼저 말한다.",
+            "공식 기술 문서를 근거로 사용해도 문서를 문장의 주어로 내세우지 않는다.",
+            "다음 개선점 예시는 형식만 참고하고 내용을 복사하지 않는다.",
+            "나쁜 예: \"정보가 없어 해석이 제한됐어요.\"",
+            "좋은 예: \"기록에 필요한 정보가 빠져 판단하기 어려웠어요. 다음에는 빠진 정보도 함께 기록해 보세요.\"",
+            "summary, comparisons, strengths는 \"~했어요.\"처럼 회고형 존댓말로 작성한다.",
+            "improvements는 부족한 점을 부드럽게 설명하고 보완 방향은 \"~해 보세요.\"처럼 제안한다.",
+            "nextActions는 \"~하세요.\"처럼 분명한 행동형 존댓말로 작성한다.",
+        )
     }
 
     @Test
