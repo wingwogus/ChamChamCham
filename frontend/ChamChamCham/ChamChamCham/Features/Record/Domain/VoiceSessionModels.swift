@@ -73,3 +73,44 @@ enum VoiceSessionError: Error, Equatable {
     /// VOICE_003(503) — OpenAI 쪽 장애. "잠시 후 다시 시도" 안내.
     case providerUnavailable
 }
+
+/// AI 후보를 검토 화면(RecordComposeViewModel)에 채워 넣기 위한 평탄화 프리필.
+/// candidate DTO 정제에서 탈락한 원문 값도 유지한다 — 사용자가 검토에서 이어 채운다.
+struct VoiceRecordPrefill: Sendable, Hashable {
+    var farmId: UUID?
+    var cropId: UUID?
+    var workType: WorkType?
+    var workedAt: Date?
+    var memo: String?
+    var plantingMethod: PlantingMethod?
+    var seedAmount: Double?
+    var seedlingCount: Int?
+    var propagationMethod: PropagationMethod?
+    var irrigationAmount: IrrigationAmount?
+    var irrigationMethod: IrrigationMethod?
+    var fertilizerMaterialName: String?
+    var fertilizerAmount: Double?
+    var fertilizerAmountUnit: FertilizerAmountUnit?
+    var fertilizingMethod: FertilizingMethod?
+    var pesticide: Pesticide?
+    var pesticideAmount: Double?
+    var pesticideAmountUnit: PesticideAmountUnit?
+    var totalSprayAmount: Double?
+    var pest: Pest?
+    var weedingMethod: WeedingMethod?
+    var growthPeriod: Int?
+    var harvestAmount: Double?
+    var harvestAmountUnknown: Bool = false
+    var medicinalPart: MedicinalPart?
+    /// 서버 판정 누락 필드(`farmId`/`cropId`/`workType`/`workedAt`/`detail` 리터럴).
+    /// 비어 있지 않으면 검토 화면이 진입 즉시 검증 문구를 노출한다(BR-EXCEPTION-005).
+    var missingFields: [String] = []
+}
+
+/// 대화 화면 → 검토 화면 핸드오프. `navigationDestination(item:)` 바인딩용.
+struct VoiceReviewHandoff: Identifiable, Hashable, Sendable {
+    let sessionId: UUID
+    let prefill: VoiceRecordPrefill
+
+    var id: UUID { sessionId }
+}
