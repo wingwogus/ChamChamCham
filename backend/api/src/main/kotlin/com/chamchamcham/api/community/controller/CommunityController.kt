@@ -42,7 +42,8 @@ class CommunityController(
 
     @GetMapping("/posts")
     fun listPosts(
-        @AuthenticationPrincipal memberId: String?,
+        @AuthenticationPrincipal authenticatedMemberId: String?,
+        @RequestParam(name = "memberId", required = false) authorMemberId: UUID?,
         @RequestParam(required = false) cropId: UUID?,
         @RequestParam(required = false) postType: CommunityPostType?,
         @RequestParam(required = false) keyword: String?,
@@ -54,7 +55,8 @@ class CommunityController(
     ): ResponseEntity<ApiResponse<CommunityResponses.PostPageResponse>> {
         val page = communityPostService.search(
             CommunityPostSearchCondition(
-                memberId = parseMemberId(memberId),
+                memberId = parseMemberId(authenticatedMemberId),
+                authorMemberId = authorMemberId,
                 cropId = cropId,
                 postType = postType,
                 keyword = keyword,
