@@ -132,7 +132,7 @@ class CommunityControllerTest(
     }
 
     @Test
-    fun `list posts maps member id to author filter separately from authenticated member`() {
+    fun `list posts maps author member id separately from authenticated member id`() {
         `when`(
             communityPostService.search(
                 CommunityPostSearchCondition(
@@ -153,7 +153,7 @@ class CommunityControllerTest(
         mockMvc.perform(
             get("/api/v1/community/posts")
                 .with(authenticatedMember(memberId.toString()))
-                .param("memberId", authorMemberId.toString())
+                .param("authorMemberId", authorMemberId.toString())
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.items[0].id", equalTo(postId.toString())))

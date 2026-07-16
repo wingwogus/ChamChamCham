@@ -4,7 +4,7 @@
 
 **Goal:** Allow authenticated clients to filter the existing community post list by a specific author member ID without changing viewer-dependent fields such as `likedByMe`.
 
-**Architecture:** Extend the existing `GET /api/v1/community/posts` search contract with an optional external `memberId` query parameter. Bind it internally as `authorMemberId` and carry it through the application search condition into the domain query condition, where it adds an author predicate independently from the authenticated viewer's ID.
+**Architecture:** Extend the existing `GET /api/v1/community/posts` search contract with an optional `authorMemberId` query parameter and carry it through the application search condition into the domain query condition, where it adds an author predicate independently from the authenticated viewer's `memberId`.
 
 **Tech Stack:** Kotlin, Spring Boot MVC, JPA/HQL, JUnit 5, Mockito, AssertJ
 
@@ -28,7 +28,7 @@
 - Consumes: authenticated viewer UUID from `@AuthenticationPrincipal`
 - Produces: `CommunityPostSearchCondition.authorMemberId: UUID?`
 
-- [x] Add a controller test that calls `GET /api/v1/community/posts?memberId=<uuid>` and expects `CommunityPostService.search` with the viewer ID and target author ID kept separate.
+- [x] Add a controller test that calls `GET /api/v1/community/posts?authorMemberId=<uuid>` and expects `CommunityPostService.search` with the viewer ID and target author ID kept separate.
 - [x] Run `./gradlew :api:test --tests '*CommunityControllerTest'` and confirm compilation/test failure because `authorMemberId` is not supported.
 - [x] Add the optional request parameter and application condition field, updating existing construction sites with `null` where no author filter applies.
 - [x] Re-run the controller test and confirm it passes.
