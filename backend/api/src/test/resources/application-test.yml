@@ -61,8 +61,8 @@ app:
   auth:
     refresh-cookie-secure: false
   voice-session:
-    max-rounds: 10
-    max-duration-seconds: 300
+    max-rounds: 20
+    max-duration-seconds: 480
   mail:
     from-name: ChamChamCham
   media:
