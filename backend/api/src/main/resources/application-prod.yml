@@ -103,6 +103,7 @@ openai:
     voice: marin
     connect-timeout-millis: ${OPENAI_CONNECT_TIMEOUT_MILLIS:3000}
     read-timeout-millis: ${OPENAI_READ_TIMEOUT_MILLIS:8000}
+    expires-after-seconds: ${OPENAI_REALTIME_EXPIRES_AFTER_SECONDS:360}
 
 auth:
   kakao:

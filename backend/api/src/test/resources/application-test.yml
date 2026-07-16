@@ -99,6 +99,7 @@ openai:
     voice: marin
     connect-timeout-millis: 2000
     read-timeout-millis: 2000
+    expires-after-seconds: 360
 
 auth:
   kakao:

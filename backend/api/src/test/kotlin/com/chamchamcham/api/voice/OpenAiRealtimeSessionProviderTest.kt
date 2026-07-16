@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
+import org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withException
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
@@ -25,13 +26,15 @@ class OpenAiRealtimeSessionProviderTest {
     fun setUp() {
         val restClientBuilder = RestClient.builder()
         server = MockRestServiceServer.bindTo(restClientBuilder).build()
-        provider = OpenAiRealtimeSessionProvider(restClientBuilder.build(), BASE_URL, API_KEY, MODEL, VOICE)
+        provider = OpenAiRealtimeSessionProvider(restClientBuilder.build(), BASE_URL, API_KEY, MODEL, VOICE, EXPIRES_AFTER_SECONDS)
     }
 
     @Test
     fun `정상 응답이면 ephemeral secret과 model을 반환한다`() {
         server.expect(requestTo("$BASE_URL/v1/realtime/client_secrets"))
             .andExpect(header("Authorization", "Bearer $API_KEY"))
+            .andExpect(jsonPath("$.expires_after.anchor").value("created_at"))
+            .andExpect(jsonPath("$.expires_after.seconds").value(EXPIRES_AFTER_SECONDS))
             .andRespond(
                 withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
                     .body("""{"value":"ek_test_123","expires_at":1735689600}""")
@@ -75,5 +78,6 @@ class OpenAiRealtimeSessionProviderTest {
         private const val API_KEY = "test-api-key"
         private const val MODEL = "gpt-realtime"
         private const val VOICE = "marin"
+        private const val EXPIRES_AFTER_SECONDS = 360
     }
 }

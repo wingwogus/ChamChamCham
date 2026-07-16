@@ -30,6 +30,7 @@ class OpenAiRealtimeSessionProvider internal constructor(
     private val apiKey: String,
     private val model: String,
     private val voice: String,
+    private val expiresAfterSeconds: Int,
 ) : RealtimeSessionProvider {
 
     @Autowired
@@ -46,6 +47,7 @@ class OpenAiRealtimeSessionProvider internal constructor(
         properties.apiKey,
         properties.model,
         properties.voice,
+        properties.expiresAfterSeconds,
     )
 
     init {
@@ -61,6 +63,7 @@ class OpenAiRealtimeSessionProvider internal constructor(
 
     override fun createEphemeralSession(request: RealtimeSessionRequest): RealtimeSessionResult {
         val body = mapOf(
+            "expires_after" to mapOf("anchor" to "created_at", "seconds" to expiresAfterSeconds),
             "session" to mapOf(
                 "type" to "realtime",
                 "model" to model,
