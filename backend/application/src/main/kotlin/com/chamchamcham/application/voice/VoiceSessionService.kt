@@ -46,7 +46,14 @@ class VoiceSessionService(
             }
 
         val tool = FarmingRecordVoiceToolSchema.build(farmOptions, cropsByFarm)
-        val instructions = VoiceSessionInstructions.build(farmOptions, cropsByFarm, LocalDateTime.now())
+        val instructions = VoiceSessionInstructions.build(
+            farms = farmOptions,
+            cropsByFarm = cropsByFarm,
+            pesticides = emptyList(),
+            now = LocalDateTime.now(),
+            maxRounds = voiceSessionProperties.maxRounds,
+            maxDurationSeconds = voiceSessionProperties.maxDurationSeconds,
+        )
 
         val providerResult = realtimeSessionProvider.createEphemeralSession(
             RealtimeSessionRequest(instructions = instructions, tools = listOf(tool))
