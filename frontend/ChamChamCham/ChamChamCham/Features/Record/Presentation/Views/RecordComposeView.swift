@@ -374,8 +374,12 @@ struct RecordComposeView: View {
         }
     }
 
+    /// Passes a blank `label` so this reserves the same label-row height as the adjacent
+    /// `numberField`'s "레이블 *" line — otherwise the field box sits higher and looks misaligned
+    /// next to the labeled text field in the same `HStack`.
     private func unitDropdown<T: Hashable>(_ items: [T], selection: Binding<T>, title: @escaping (T) -> String) -> some View {
         AppDropdown(
+            " ",
             placeholder: "단위 선택",
             options: items,
             selection: Binding(get: { selection.wrappedValue }, set: { if let v = $0 { selection.wrappedValue = v } }),

@@ -16,16 +16,22 @@ import SwiftUI
 ///   provide feels-like/low-high/UV/precipitation/humidity/wind/5-day forecast yet).
 /// - The policy card shows `applicationPeriodLabel` under the title instead of a computed D-day badge.
 /// - Policy list row taps open the external application/source URL in the system browser.
-/// - Search icon, notification icon, and the record/community section chevrons are inert placeholders
-///   (no search screen, no unread-count API, no cross-tab navigation wiring yet).
+/// - The record/community section chevrons switch `MainTabView`'s tab `selection` (hoisted in via
+///   `tabSelection`) rather than pushing a duplicate list screen onto Home's own `NavigationStack` —
+///   those screens are tab roots with their own stack (and, for Record, a speed-dial binding owned by
+///   `MainTabView`), so a push here would produce a second, independently-scrolled copy.
+/// - Search icon and notification icon are still inert placeholders (no search screen, no
+///   unread-count API yet).
 struct HomeView: View {
     private let container: DIContainer
     @State private var viewModel: HomeViewModel
     @State private var path = NavigationPath()
     @State private var showCompose = false
+    @Binding private var tabSelection: Int
 
-    init(container: DIContainer) {
+    init(container: DIContainer, tabSelection: Binding<Int>) {
         self.container = container
+        _tabSelection = tabSelection
         _viewModel = State(initialValue: HomeViewModel(
             recordRepository: container.makeRecordRepository(),
             communityRepository: container.makeCommunityRepository(),
@@ -180,7 +186,7 @@ struct HomeView: View {
 
     private var recentRecordSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            sectionHeader("나의 최근 영농 기록")
+            sectionHeader("나의 최근 영농 기록") { tabSelection = 1 }
 
             switch viewModel.recentRecordsState {
             case .loading:
@@ -275,7 +281,7 @@ struct HomeView: View {
 
     private var popularPostsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            sectionHeader("나의 게시판 인기글")
+            sectionHeader("나의 게시판 인기글") { tabSelection = 2 }
 
             switch viewModel.popularPostsState {
             case .loading:
@@ -331,6 +337,8 @@ struct HomeView: View {
             } label: {
                 AppIconView(source: .asset("arrow_forward_ios"), size: 24)
                     .foregroundStyle(Color.Icon.default)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .disabled(action == nil)
         }

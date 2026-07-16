@@ -29,7 +29,7 @@ struct CommunityAvatar: View {
             }
         } else {
             Color.Object.muted.overlay {
-                Image(systemName: "person.fill")
+                AppIconView(source: .asset("person"), size: 20)
                     .foregroundStyle(Color.Icon.disabled)
             }
         }
@@ -52,8 +52,7 @@ struct CommunityRemoteImage: View {
                         ProgressView()
                     }
                 } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 24))
+                    AppIconView(source: .asset("photo"), size: 24)
                         .foregroundStyle(Color.Icon.disabled)
                 }
             }
