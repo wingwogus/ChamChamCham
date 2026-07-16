@@ -37,6 +37,21 @@ class VoiceSessionInstructionsTest {
     }
 
     @Test
+    fun `질문 전에 확인된 것과 남은 것을 요약하도록 지시한다`() {
+        val instructions = build()
+
+        assertThat(instructions).contains("지금까지 확인된 건")
+        assertThat(instructions).contains("남은 건")
+    }
+
+    @Test
+    fun `시간 임박 시 남은 항목을 이후 화면에서 채워야 한다고 안내하도록 지시한다`() {
+        val instructions = build()
+
+        assertThat(instructions).contains("이후 화면에서 직접 채워야")
+    }
+
+    @Test
     fun `농약량 단위와 마지막 수확 여부를 필수로 안내한다`() {
         val instructions = build()
 
