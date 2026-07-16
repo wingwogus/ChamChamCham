@@ -177,6 +177,42 @@ class FarmWeatherServiceTest {
         assertThat(d4).isEqualTo(d4FromLatest)
     }
 
+    /**
+     * 실호출로만 잡힌 회귀. 단기예보는 예보 창 가장자리인 D4를 fcstTime=0000 슬롯 하나로만 줄 때가
+     * 있어 SKY만 있고 TMN/TMX가 없다(실측: 08시 발표의 +4일). 날짜 존재만 보고 그 반쪽짜리를
+     * 고르면 온도를 가진 중기예보를 가려 "구름많음 null~null"이 나간다.
+     */
+    @Test
+    fun `D4가 최신 단기예보에 있어도 온도가 없으면 중기예보를 쓴다`() {
+        given(farmRepository.findByIdAndOwnerId(farmId, memberId)).willReturn(farm)
+        val d4Date = today.plusDays(4)
+        val d4Sliver = DailyForecast(d4Date, WeatherCondition.PARTLY_CLOUDY, null, null)
+        val d4FromMidTerm = DailyForecast(d4Date, WeatherCondition.CLOUDY, 24, 30)
+        val sources = DetailSources(
+            current = currentObservation(precipitationType = null),
+            latest = ShortTermForecast(
+                currentSky = WeatherCondition.CLEAR,
+                precipitationProbability = 10,
+                dailyForecasts = listOf(
+                    dailyForecast(today.plusDays(1)),
+                    dailyForecast(today.plusDays(2)),
+                    dailyForecast(today.plusDays(3)),
+                    d4Sliver
+                )
+            ),
+            todayRange = dailyForecast(today),
+            midTermD4 = d4FromMidTerm,
+            uvIndex = 5,
+            partial = PartialFailure.of()
+        )
+        given(weatherParallelFetcher.fetchDetail(location())).willReturn(sources)
+
+        val result = service.getDetail(memberId, farmId)
+
+        assertThat(result.forecast.find { it.date == d4Date }).isEqualTo(d4FromMidTerm)
+        assertThat(result.forecast).hasSize(5)
+    }
+
     @Test
     fun `D4가 최신 단기예보에 없으면 중기예보를 쓴다`() {
         given(farmRepository.findByIdAndOwnerId(farmId, memberId)).willReturn(farm)

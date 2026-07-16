@@ -74,7 +74,9 @@ class WeatherParallelFetcher(
         val midTermD4 = midFuture.join()
         val uvIndex = uvFuture.join()
 
-        val d4FromLatest = latest?.dailyForecasts?.any { it.date == d4Date } ?: false
+        // 날짜 존재가 아니라 온도까지 있어야 D4를 확보한 것이다 — 단기예보는 D4를 온도 없는
+        // 반쪽짜리로 줄 때가 있고, 그때 서비스는 중기예보를 쓴다(DailyForecast.hasTemperatureRange).
+        val d4FromLatest = latest?.dailyForecasts?.any { it.date == d4Date && it.hasTemperatureRange } ?: false
         val partial = PartialFailure.of(
             "todayMinMax" to (todayRange == null),
             "forecast" to (latest == null),

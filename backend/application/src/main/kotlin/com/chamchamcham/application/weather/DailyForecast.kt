@@ -14,4 +14,15 @@ data class DailyForecast(
     val condition: WeatherCondition,
     val minTemperature: Int?,
     val maxTemperature: Int?
-)
+) {
+    /**
+     * 주간예보 카드가 쓸 만한 하루인지. 요구사항이 날마다 {상태, 온도, 요일}이라 온도가 없으면
+     * 반쪽짜리다.
+     *
+     * 단기예보는 예보 창 가장자리 날짜를 이런 반쪽짜리로 준다 — 실측상 08시 발표의 +4일은
+     * fcstTime=0000 슬롯 하나뿐이라 SKY만 있고 TMN/TMX가 없다. 그 반쪽짜리가 온도를 가진
+     * 중기예보를 가리지 않도록 판정을 여기 한 곳에 둔다.
+     */
+    val hasTemperatureRange: Boolean
+        get() = minTemperature != null && maxTemperature != null
+}

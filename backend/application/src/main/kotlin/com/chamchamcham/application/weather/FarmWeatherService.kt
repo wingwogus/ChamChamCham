@@ -117,8 +117,11 @@ class FarmWeatherService(
         }
 
         val d4Date = today.plusDays(4)
-        // 단기예보가 D4를 주면 더 정확한 그쪽을 쓰고, 없을 때만 중기예보로 폴백한다.
-        val d4 = sources.latest?.dailyForecasts?.find { it.date == d4Date } ?: sources.midTermD4
+        // 단기예보가 D4를 온전히 주면(17시 이후 발표) 더 정확한 그쪽을 쓰고, 아니면 중기예보로 간다.
+        // 날짜 존재만 보면 안 된다 — 단기예보는 D4를 온도 없는 반쪽짜리로 줄 때가 있고, 그게
+        // 온도를 가진 중기예보를 가려 "구름많음 null~null"이 나간다(hasTemperatureRange 참고).
+        val d4 = sources.latest?.dailyForecasts?.find { it.date == d4Date && it.hasTemperatureRange }
+            ?: sources.midTermD4
         d4?.let { days.add(it) }
 
         return days.sortedBy { it.date }
