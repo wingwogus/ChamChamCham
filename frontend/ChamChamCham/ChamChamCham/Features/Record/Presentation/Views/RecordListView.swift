@@ -185,9 +185,12 @@ struct RecordListView: View {
 
     private var filterChipRow: some View {
         HStack(spacing: Spacing.sm) {
-            filterChip(title: cropChipTitle) { activeSheet = .crop }
-            filterChip(title: workTypeChipTitle) { activeSheet = .workType }
-            filterChip(title: dateChipTitle) { activeSheet = .dateRange }
+            filterChip(title: cropChipTitle, isSelected: !viewModel.filter.cropIds.isEmpty) { activeSheet = .crop }
+            filterChip(title: workTypeChipTitle, isSelected: !viewModel.filter.workTypes.isEmpty) { activeSheet = .workType }
+            filterChip(
+                title: dateChipTitle,
+                isSelected: viewModel.filter.startDate != nil || viewModel.filter.endDate != nil
+            ) { activeSheet = .dateRange }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, horizontalInset)
@@ -196,10 +199,10 @@ struct RecordListView: View {
         .background(Color.Background.subtle)
     }
 
-    private func filterChip(title: String, action: @escaping () -> Void) -> some View {
+    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         AppChip(
             label: title,
-            isSelected: false,
+            isSelected: isSelected,
             style: .solidPastel,
             trailingSystemImage: .asset("keyboard_arrow_down"),
             action: action
