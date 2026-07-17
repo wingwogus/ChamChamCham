@@ -46,6 +46,8 @@ struct RecordVoiceComposeView: View {
 
             conversation
 
+            remainingTimeLabel
+
             micButton
                 .padding(.bottom, 32)
 
@@ -103,6 +105,24 @@ struct RecordVoiceComposeView: View {
     }
 
     private static let bottomAnchor = "conversation-bottom"
+
+    // MARK: - 남은 통신 시간
+
+    /// 대화 중에만 남은 시간을 `m:ss`로 상시 표시. 대화 스크롤 영역 바깥(마이크 버튼 위)이라
+    /// 말풍선을 가리지 않는다. 매초 갱신은 `TimelineView`가 하고 VM은 마감 시각만 노출한다.
+    /// 마지막 60초에는 색으로 강조해 임박을 알린다.
+    @ViewBuilder private var remainingTimeLabel: some View {
+        if case .conversing = vm.phase, let deadline = vm.conversationDeadline {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let remaining = max(0, Int(deadline.timeIntervalSince(context.date)))
+                Text("남은 시간 \(remaining / 60):\(String(format: "%02d", remaining % 60))")
+                    .appTypography(.bodyMedium)
+                    .monospacedDigit()
+                    .foregroundStyle(remaining <= 60 ? Color.Text.red : Color.Text.subtle)
+            }
+            .padding(.bottom, 12)
+        }
+    }
 
     // MARK: - 마이크 버튼 (96pt 원형)
 
