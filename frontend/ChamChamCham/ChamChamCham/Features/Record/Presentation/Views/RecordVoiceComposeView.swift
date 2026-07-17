@@ -16,6 +16,7 @@ import SwiftUI
 /// AI의 초안(tool 호출) 완료가 담당한다.
 struct RecordVoiceComposeView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showExitConfirm = false
     private let viewModel: RecordVoiceComposeViewModel
 
     init(viewModel: RecordVoiceComposeViewModel) {
@@ -33,8 +34,13 @@ struct RecordVoiceComposeView: View {
                 title: "기록하기",
                 isDetail: true,
                 leading: .init(.asset("arrow_back_ios_new")) {
-                    vm.abandon()
-                    dismiss()
+                    // 대화 중에는 나가면 내용이 사라지므로 확인을 받고, 그 외에는 바로 나간다.
+                    if case .conversing = vm.phase {
+                        showExitConfirm = true
+                    } else {
+                        vm.abandon()
+                        dismiss()
+                    }
                 }
             )
 
@@ -46,6 +52,17 @@ struct RecordVoiceComposeView: View {
             bottomButton
         }
         .navigationBarHidden(true)
+        .confirmationDialog(
+            "나가면 대화 내용이 사라져요. 나가시겠어요?",
+            isPresented: $showExitConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("나가기", role: .destructive) {
+                vm.abandon()
+                dismiss()
+            }
+            Button("계속하기", role: .cancel) {}
+        }
     }
 
     // MARK: - 대화 말풍선
