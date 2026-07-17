@@ -239,10 +239,10 @@ struct RecordComposeView: View {
         VStack(alignment: .leading, spacing: 16) {
             AppDropdown("진행 방식", placeholder: "물주기 진행 방식을 선택해주세요.",
                         options: IrrigationMethod.allCases, selection: $viewModel.irrigationMethod,
-                        isRequired: true, optionTitle: { $0.label })
+                        optionTitle: { $0.label })
             AppDropdown("물의 양", placeholder: "진행한 물의 양 정도를 선택해주세요.",
                         options: IrrigationAmount.allCases, selection: $viewModel.irrigationAmount,
-                        isRequired: true, optionTitle: { $0.label })
+                        optionTitle: { $0.label })
         }
     }
 
@@ -293,7 +293,7 @@ struct RecordComposeView: View {
                             error: requiredError(Double(vm.pesticideAmount.trimmingCharacters(in: .whitespaces)) == nil))
                 unitDropdown(PesticideAmountUnit.allCases, selection: $viewModel.pesticideAmountUnit) { $0.label }
             }
-            numberField("총 살포량 (L)", placeholder: "총 농약 살포량을 작성해주세요.",
+            numberField("총 살포량 (mL)", placeholder: "총 농약 살포량을 작성해주세요.",
                         text: $viewModel.totalSprayAmount, required: true,
                         error: requiredError(Double(vm.totalSprayAmount.trimmingCharacters(in: .whitespaces)) == nil))
             AppDropdown("대상 병해충", placeholder: "대상 병해충을 선택해주세요.",

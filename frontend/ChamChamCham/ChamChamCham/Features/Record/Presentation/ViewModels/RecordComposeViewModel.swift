@@ -375,7 +375,7 @@ final class RecordComposeViewModel {
             pesticideAmount: amount,
             pesticideAmountUnit: pesticideAmountUnit.rawValue,
             totalSprayAmount: spray,
-            totalSprayAmountUnit: SprayAmountUnit.l.rawValue,
+            totalSprayAmountUnit: SprayAmountUnit.ml.rawValue,
             pestId: selectedPest?.id
         )
     }
