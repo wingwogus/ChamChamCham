@@ -266,17 +266,42 @@ a follow-up session should start deciding fix vs. defer):
    **`.etc` (기타) likely behaves identically** since it shares the same
    `case .pruning, .etc: break` code path — worth a quick capture to
    confirm, but expect the same "nothing to compare" result.
-7. Capture the last remaining Report Detail workType variant (수확/Harvest)
-   — user's explicit plan: capture each screen first (no fixing yet), then
-   once all workTypes are captured, plan a full remediation pass together.
-   기타 (etc) is technically still uncaptured but shares `.pruning`'s empty
-   code path, so may not need its own dedicated Figma frame check — confirm
-   with the user whether to still capture it for completeness. Chart-title
-   mismatches have held for every workType with a chart (4/4 workTypes that
-   have charts at all) — treat that one as very likely universal by the
-   time all workTypes are done. Chart order remains workType-specific, not
-   universal.
-8. `ReportCoachingSection.swift` (AI coaching cards) has not been compared
+7. **수확 (Harvest) capture done** —
+   [2026-07-18-report-detail-harvest.md](2026-07-18-report-detail-harvest.md).
+   **This is the last "regular" workType — all 7 workType labels now have
+   at least one capture except `.etc`, which shares `.pruning`'s empty code
+   path (see item 6) and likely doesn't need its own capture.** Findings 1–5
+   reconfirmed (7th time, no regressions). Base + harvest-amount metric
+   ("총 수확량") matches code exactly — same clean-match class as
+   fertilizing's metric.
+   - **Chart title mismatch — now 5 of 5 workTypes-with-charts** ("수확
+     부위" in code vs Figma's "수확 부위 종류"). This closes out the
+     cross-cutting chart-title hypothesis: every single workType that has
+     any chart at all has had a title mismatch. Treat as confirmed
+     universal, not per-workType, for the eventual remediation plan.
+   - **Bigger finding — a whole chart is missing from code/domain, not just
+     mistitled**: Figma's second detail card, "재배 개월에 따른 수확량"
+     (harvest count by growth-period bucket, e.g. "24개월 때 수확" → 2번),
+     has **no corresponding chart-building call and no supporting field** in
+     `HarvestReportStatistics`. `finalGrowthPeriodMonths` is a single scalar
+     and `growthPeriodRangeMonths` is just `{minMonths, maxMonths}` — neither
+     can produce a per-bucket distribution. This would need a new backend/DTO
+     field (something like `growthPeriodDistribution: [ReportCountDistribution]`),
+     not a presentation-only fix — flag this one for backend discussion in
+     the remediation plan, it's the first "missing feature" finding rather
+     than a copy/order drift.
+   - Inconclusive (not a confirmed finding): the optional "재배 기간" metric
+     didn't appear in this mock — may just be missing mock data.
+   - Reconfirmed (not new): date-separator `-` vs `~`, inline record-row
+     preview — 7th recurrence of both.
+8. Decide with the user whether `.etc` (기타) still needs its own Figma
+   capture — it shares `case .pruning, .etc: break`
+   ([ReportPresentationModels.swift:179-180](../../../ChamChamCham/ChamChamCham/Features/Report/Presentation/Models/ReportPresentationModels.swift)),
+   so it likely reproduces 가지·순 정리's "clean match, nothing to compare"
+   result. If skipped, **all workType captures are effectively done** and the
+   next step is the "리포트 전체 보완 수정 계획" the user wants once capturing
+   wraps up.
+9. `ReportCoachingSection.swift` (AI coaching cards) has not been compared
    against Figma yet — the 심기 capture shows 4 example coaching cards
    (잘한 점/이전 리포트과의 비교/개선 필요점/추천 행동) worth checking once a
    real coaching-populated capture is available.
@@ -293,7 +318,7 @@ a follow-up session should start deciding fix vs. defer):
 2026-07-18-report-detail-chart-spec.md / 2026-07-18-report-detail-planting.md /
 2026-07-18-report-detail-watering.md / 2026-07-18-report-detail-fertilizing.md /
 2026-07-18-report-detail-pest-control.md / 2026-07-18-report-detail-weeding.md /
-2026-07-18-report-detail-pruning.md
+2026-07-18-report-detail-pruning.md / 2026-07-18-report-detail-harvest.md
 문서도 읽어줘. TalkToFigma 연결 절차는 docs/figma/record/HANDOFF.md Part 1과 동일해.
 
 지금까지: Report List View는 검토 완료(대부분 일치, 필터 칩 다중선택 건은 이미
@@ -303,43 +328,46 @@ dev에 병합돼 해결됨). 그래프 포맷 스펙 캡처 완료(turquoise 색
 WorkType 타이틀 폰트/메트릭 카드 라벨·값 스타일)은 커밋 3aa1457b로 수정 완료.
 6번(날짜 구분자 `-` vs `~`)은 디자이너 확인 필요한 열린 질문, 7번(기록 내역
 인라인 프리뷰)은 별도 기능 구현이 필요한 제품 스코프 갭으로 둘 다 미수정.
-물주기(Watering), 비료 주기(Fertilizing), 병해충 관리(Pest Control), 잡초 관리
-(Weeding), 가지·순 정리(Pruning) 화면도 캡처 완료 — 1~5번 수정이 다섯 화면
-모두 그대로 맞음을 재확인했음. 가지·순 정리는 코드가 `case .pruning, .etc:
-break`로 아무 메트릭/차트도 추가하지 않는데, Figma도 정확히 그렇게 되어있어서
-새 발견 0건인 클린 매치였음. 남은 workType: 수확(Harvest), 그리고 `.etc`(기타,
-`.pruning`과 같은 코드 경로라 캡처해도 똑같을 가능성 높음 — 사용자에게 캡처
-할지 확인).
 
-4개 workType(차트가 있는 workType 기준)에서 공통으로 나온 패턴: **차트
-타이틀이 코드와 Figma에서 전부 다름** — 이건 개별 workType 버그가 아니라
-ReportPresentationModels.swift 전반의 카피 동기화 문제로 보임. 수확 캡처에서도
-재현되면 사실상 보편적인 문제로 확정해도 됨.
+**물주기/비료 주기/병해충 관리/잡초 관리/가지·순 정리/수확 — 6개 workType
+전부 캡처 완료.** 1~5번 수정이 전부 그대로 맞음을 재확인했음(회귀 없음). 남은
+건 `.etc`(기타)뿐인데, 코드가 `case .pruning, .etc: break`로 가지·순 정리와
+완전히 같은 경로라 캡처해도 똑같은 "클린 매치, 발견사항 없음" 결과가 나올
+가능성이 높음 — **다음 세션은 먼저 사용자에게 `.etc`도 캡처할지 물어보고,
+스킵한다면 캡처 단계는 사실상 끝난 것으로 보고 바로 "리포트 전체 보완 수정
+계획" 단계로 넘어가면 됨.**
 
-**차트 순서는 워크타입마다 다름 (주의)**: 물주기·비료 주기는 순서가 코드와
-Figma가 반대였지만, 병해충 관리는 코드 순서가 이미 Figma와 일치하고 잡초
-관리는 차트가 1개뿐이라 순서 문제 자체가 없음 — "항상 방식 분포 차트가 맨
-앞" 가설은 Figma 쪽 규칙일 뿐, 코드가 항상 틀린 건 아니므로 workType별로
-개별 확인 필요.
+6개 workType에서 나온 핵심 발견 요약:
+- **차트 타이틀 불일치가 차트를 가진 5개 workType 전부(5/5)에서 재현됨** —
+  물주기/비료 주기/병해충 관리/잡초 관리/수확 전부. 개별 workType 버그가
+  아니라 ReportPresentationModels.swift 전반의 카피 동기화 문제로 확정해도
+  될 만큼 근거가 쌓임.
+- **차트 순서는 workType마다 다름** — 물주기·비료 주기는 코드-Figma 순서가
+  반대, 병해충 관리는 이미 일치, 잡초 관리·가지·순 정리는 차트가 0~1개라
+  순서 문제 자체가 없음 — "보편적 버그"로 취급하지 말 것.
+- **수확에서 발견한 더 큰 이슈**: Figma의 두 번째 차트("재배 개월에 따른
+  수확량", 성장 개월 구간별 수확 횟수)는 코드/도메인 모델에 대응하는 필드
+  자체가 없음(`finalGrowthPeriodMonths`는 단일 스칼라, `growthPeriodRangeMonths`
+  는 min/max 범위일 뿐 구간별 분포가 아님) — 단순 타이틀/카피 문제가 아니라
+  백엔드에 새 필드가 필요할 수 있는 **진짜 기능 누락**. 전체 보완 계획에서
+  별도 항목으로 다룰 것.
+- 병해충 관리: 농약 사용량 메트릭 타이틀 포맷 불일치, "총 살포량" 값이 코드는
+  항상 L 단위인데 Figma는 ml(DTO 단위 자체를 확인해야 할 수도 있음).
+- 잡초 관리: distribution 차트도 카테고리 4개 이상이면 스택바 대신 도넛으로
+  렌더링됨을 확인(count<=3 규칙, 버그 아님).
+- 가지·순 정리: 코드가 `.pruning, .etc: break`로 메트릭/차트를 아예 안
+  만드는데 Figma도 정확히 그래서 발견사항 0건.
 
-병해충 관리에서 추가로: 농약 사용량 메트릭 타이틀 포맷 불일치, "총 살포량"
-값이 코드는 항상 L 단위인데 Figma는 ml로 표시(백엔드 DTO 단위 자체를 확인
-해야 할 수도 있는 이슈, 프레젠테이션만 고쳐서 될 문제인지 불확실).
+날짜 구분자(`-` vs `~`)와 기록 내역 인라인 프리뷰는 캡처한 모든 workType에서
+예외 없이 재발(7/7) — 개별 workType 이슈가 아니라 Detail 화면 전체의 이슈로
+확정.
 
-잡초 관리에서 추가로: distribution 차트(appendDistributionChart)도 카테고리
-개수가 4개 이상이면 스택바가 아니라 도넛으로 렌더링됨을 확인(count<=3 규칙,
-버그 아님 — 그냥 처음 확인된 케이스).
+**사용자 방침(중요)**: 지금까지는 캡처부터 하고 발견된 이슈는 즉시 고치지
+않았음(심기의 findings 1-5만 예외적으로 이미 승인받아 수정·커밋함). `.etc`
+캡처 여부를 확인한 뒤에는 "리포트 전체 보완 수정 계획"을 세우는 단계로
+넘어가면 됨 — 이제부터는 캡처가 아니라 계획 수립이 다음 국면이라는 것을 놓치지
+말 것.
 
-**사용자 방침(중요)**: 지금은 캡처만 한다 — workType 하나씩 다 캡처한 뒤에야
-"리포트 전체 보완 수정 계획"을 별도로 세울 예정. 발견한 이슈를 캡처 중간에
-바로 고치지 말 것.
-
-다음 단계: 마지막 남은 workType인 수확(Harvest) 캡처를 진행하면 돼. 각 캡처 때
-findings 1–5(아이콘/타이포/컬러)가 재발하지 않는지만 가볍게 재확인하고, 새로
-나오는 workType별 메트릭/차트 타이틀 불일치는 기존 캡처 문서 형식대로 기록만
-해두면 됨. `.etc`(기타)는 `.pruning`과 코드 경로가 동일해서 캡처가 꼭 필요한지
-사용자에게 먼저 확인. 모든 workType 캡처가 끝나면 사용자 방침대로 "리포트 전체
-보완 수정 계획"을 별도로 세우는 단계로 넘어가면 됨. 이 워크트리엔
-Core/Config/Secrets.swift가 없으니(gitignore) 빌드 확인이 필요하면 메인
-체크아웃에서 복사해와.
+이 워크트리엔 Core/Config/Secrets.swift가 없으니(gitignore) 빌드 확인이
+필요하면 메인 체크아웃에서 복사해와.
 ```
