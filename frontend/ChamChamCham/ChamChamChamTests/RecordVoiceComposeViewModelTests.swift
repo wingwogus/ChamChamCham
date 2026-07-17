@@ -434,4 +434,21 @@ struct RecordVoiceComposeViewModelTests {
         #expect(await repo.cancelledSessionIds.count == 1) // best-effort 취소
         #expect(vm.reviewHandoff == nil)
     }
+
+    // MARK: - 마이크 상태
+
+    @Test("AI 발화 상태: assistant 아이템 시작 시 true, 응답 완료 시 false")
+    func assistantSpeakingToggles() async {
+        let (vm, _, transport) = makeViewModel()
+        await startConversation(vm, transport)
+        #expect(!vm.isAssistantSpeaking)
+
+        await transport.emit(.itemStarted(itemId: "a1", role: .assistant))
+        #expect(await waitUntil { vm.isAssistantSpeaking })
+
+        // tool 호출이 없으므로 responseCompleted는 자동 종료하지 않고 발화 상태만 내린다.
+        await transport.emit(.responseCompleted)
+        #expect(await waitUntil { !vm.isAssistantSpeaking })
+        #expect(vm.phase == .conversing(muted: false))
+    }
 }
