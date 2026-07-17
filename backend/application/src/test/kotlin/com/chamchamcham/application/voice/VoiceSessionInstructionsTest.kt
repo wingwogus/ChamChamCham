@@ -29,11 +29,12 @@ class VoiceSessionInstructionsTest {
     }
 
     @Test
-    fun `대화 한도와 시간 임박 시 마무리 규칙을 포함한다`() {
+    fun `대화 한도와 스스로 시간을 관리하는 규칙을 포함한다`() {
         val instructions = build()
 
         assertThat(instructions).contains("10번", "5분")
-        assertThat(instructions).contains("시간이 얼마 남지 않았습니다")
+        assertThat(instructions).contains("스스로 시간을 관리")
+        assertThat(instructions).doesNotContain("시간이 얼마 남지 않았습니다")
     }
 
     @Test
@@ -45,10 +46,10 @@ class VoiceSessionInstructionsTest {
     }
 
     @Test
-    fun `시간 임박 시 남은 항목을 이후 화면에서 채워야 한다고 안내하도록 지시한다`() {
+    fun `마무리 시 남은 항목은 이후 화면에서 채울 수 있다고 안내하도록 지시한다`() {
         val instructions = build()
 
-        assertThat(instructions).contains("이후 화면에서 직접 채워야")
+        assertThat(instructions).contains("이후 화면에서 직접 채울 수 있다")
     }
 
     @Test
