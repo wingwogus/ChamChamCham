@@ -241,6 +241,7 @@ struct RecordVoiceComposeViewModelTests {
 
         #expect(vm.reviewHandoff?.prefill.missingFields == ["farmId", "cropId"])
         #expect(vm.reviewHandoff?.prefill.workType == .watering)
+        #expect(vm.reviewHandoff?.reason == .autoCompleted) // AI 자동 종료
         #expect(await transport.closeCount >= 1)
     }
 
@@ -279,6 +280,7 @@ struct RecordVoiceComposeViewModelTests {
 
         vm.finishTapped()
         #expect(await waitUntil { vm.phase == .reviewing })
+        #expect(vm.reviewHandoff?.reason == .userFinished) // 사용자가 직접 완료
         // tool 호출 없이 수동 종료 → 후보는 비었고 workedAt만 기본값
         let candidate = await repo.submittedCandidates.first
         #expect(candidate?.workType == nil)
