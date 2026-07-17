@@ -192,16 +192,38 @@ a follow-up session should start deciding fix vs. defer):
    - Reconfirmed (not new): date-separator `-` vs `~` question and the
      inline record-row-preview scope gap both recur identically on this
      screen — not workType-specific, systemic to the Detail screen.
-3. Capture the remaining Report Detail workType variants one at a time
-   (비료 주기/병해충 관리/잡초 관리/가지·순 정리/수확/기타) — user's explicit
-   plan: capture each screen first (no fixing yet), then once all workTypes
-   are captured, plan a full remediation pass together. Header/badges/
-   metrics/coaching/history layout is shared across workTypes; only the
-   metric fields and chart data/titles differ per type — confirm against
-   each capture rather than assuming. Findings 1–5 are structural fixes
-   already applied to the shared chrome, so no need to re-flag them per
-   workType (just spot-check for regressions, as done for 물주기).
-4. `ReportCoachingSection.swift` (AI coaching cards) has not been compared
+3. **비료 주기 (Fertilizing) capture done** —
+   [2026-07-18-report-detail-fertilizing.md](2026-07-18-report-detail-fertilizing.md).
+   Findings 1–5 reconfirmed (no regressions). Base + fertilizing metric
+   titles/values match code exactly this time (no metric-title mismatch,
+   unlike 물주기). 2 new findings, both a **repeat of the 물주기 pattern** —
+   this is the important signal from this capture:
+   - **Chart titles never match Figma's copy**: none of the 3 chart titles
+     ("비료 종류별 작업 횟수"/"비료 종류별 사용량"/"비료 주는 방법" in code
+     vs "각 비료 사용 횟수"/"각 비료 사용량"/"진행한 비료주기 방식" in
+     Figma) match — same class of drift as 물주기's chart-title finding, now
+     confirmed on 2 of 2 workTypes captured so far.
+   - **Chart order**: Figma consistently puts the method/style-distribution
+     chart **first**; code's append order is inconsistent (second for
+     watering, last for fertilizing) — confirmed on 2 of 2 workTypes.
+   - Reconfirmed (not new): date-separator `-` vs `~`, inline record-row
+     preview — both recur a third time.
+   - **Working hypothesis for the eventual remediation plan**: the
+     chart-title and chart-order issues look systemic to
+     `ReportPresentationModels.swift`'s per-workType chart-building code
+     (`appendChart`/`appendDistributionChart` call sites), not isolated
+     per-workType bugs — keep capturing the rest to see if this holds for
+     all 7 workTypes before deciding a single fix vs. per-workType fixes.
+4. Capture the remaining Report Detail workType variants one at a time
+   (병해충 관리/잡초 관리/가지·순 정리/수확/기타) — user's explicit plan:
+   capture each screen first (no fixing yet), then once all workTypes are
+   captured, plan a full remediation pass together. Header/badges/metrics/
+   coaching/history layout is shared across workTypes; only the metric
+   fields and chart data/titles differ per type — confirm against each
+   capture rather than assuming. Findings 1–5 are structural fixes already
+   applied to the shared chrome, so no need to re-flag them per workType
+   (just spot-check for regressions, as done for 물주기/비료 주기).
+5. `ReportCoachingSection.swift` (AI coaching cards) has not been compared
    against Figma yet — the 심기 capture shows 4 example coaching cards
    (잘한 점/이전 리포트과의 비교/개선 필요점/추천 행동) worth checking once a
    real coaching-populated capture is available.
@@ -215,7 +237,8 @@ a follow-up session should start deciding fix vs. defer):
 (EnterWorktree path로 재진입)
 
 먼저 docs/figma/report/HANDOFF.md 를 읽고, 이미 캡처된
-2026-07-18-report-detail-chart-spec.md / 2026-07-18-report-detail-planting.md
+2026-07-18-report-detail-chart-spec.md / 2026-07-18-report-detail-planting.md /
+2026-07-18-report-detail-watering.md / 2026-07-18-report-detail-fertilizing.md
 문서도 읽어줘. TalkToFigma 연결 절차는 docs/figma/record/HANDOFF.md Part 1과 동일해.
 
 지금까지: Report List View는 검토 완료(대부분 일치, 필터 칩 다중선택 건은 이미
@@ -225,10 +248,14 @@ dev에 병합돼 해결됨). 그래프 포맷 스펙 캡처 완료(turquoise 색
 WorkType 타이틀 폰트/메트릭 카드 라벨·값 스타일)은 커밋 3aa1457b로 수정 완료.
 6번(날짜 구분자 `-` vs `~`)은 디자이너 확인 필요한 열린 질문, 7번(기록 내역
 인라인 프리뷰)은 별도 기능 구현이 필요한 제품 스코프 갭으로 둘 다 미수정.
-물주기(Watering) 화면도 캡처 완료 — 1~5번 수정이 여기서도 그대로 맞음을
-재확인했고, 새 발견 2개(메트릭 타이틀 "가장 자주 준 물의 양" vs Figma
-"평균 물 준 양" 의미 불일치, 차트 순서/타이틀이 코드와 반대)는 문서화만 하고
-미수정.
+물주기(Watering), 비료 주기(Fertilizing) 화면도 캡처 완료 — 1~5번 수정이 두
+화면 모두 그대로 맞음을 재확인했음. 두 화면 모두에서 공통으로 나온 패턴: (1)
+차트 타이틀이 코드와 Figma에서 전부 다름, (2) Figma는 방식/방법 분포 차트를
+항상 맨 앞에 두는데 코드는 workType마다 순서가 제각각(물주기는 두 번째, 비료
+주기는 맨 마지막) — 이건 개별 workType 버그가 아니라
+ReportPresentationModels.swift의 차트 생성 코드 전반에 걸친 체계적인 문제일
+가능성이 있음. 나머지 workType 캡처하면서 이 패턴이 계속 재현되는지 계속
+확인할 것.
 
 **사용자 방침(중요)**: 지금은 캡처만 한다 — workType 하나씩 다 캡처한 뒤에야
 "리포트 전체 보완 수정 계획"을 별도로 세울 예정. 발견한 이슈를 캡처 중간에
