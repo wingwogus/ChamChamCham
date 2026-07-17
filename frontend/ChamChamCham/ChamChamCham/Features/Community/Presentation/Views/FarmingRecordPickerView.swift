@@ -57,7 +57,7 @@ final class FarmingRecordPickerState {
     }
 
     func selectRecord(_ id: UUID) {
-        selectedRecordID = id
+        selectedRecordID = (selectedRecordID == id) ? nil : id
     }
 
     private func reload() async {
