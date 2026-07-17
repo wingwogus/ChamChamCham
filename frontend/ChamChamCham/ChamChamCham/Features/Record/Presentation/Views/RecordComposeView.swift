@@ -343,21 +343,33 @@ struct RecordComposeView: View {
             Text("사진 첨부하기").appTypography(.bodyMediumEmphasized).foregroundStyle(Color.Text.default)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Array(vm.mediaIds.enumerated()), id: \.offset) { index, _ in
-                        AppImageUploadSlot(label: "", onRemove: { vm.removeImage(at: index) }) {
-                            RoundedRectangle(cornerRadius: 8).fill(Color.Object.muted)
-                                .overlay(
-                                    AppIconView(source: .asset("photo"), size: 24)
-                                        .foregroundStyle(Color.Icon.disabled)
-                                )
-                        }
-                    }
                     if vm.canAddMorePhotos {
                         PhotosPicker(selection: $photoItem, matching: .images) {
-                            AppImagePlaceholderSlot(count: vm.mediaIds.count, isUploading: vm.isUploadingImage)
+                            AppImageUploadSlot(label: "\(vm.attachments.count)/5", isInteractive: false)
+                        }
+                    }
+                    ForEach(vm.attachments) { attachment in
+                        AppImageUploadSlot(onRemove: { vm.removeImage(id: attachment.id) }) {
+                            photoThumbnail(for: attachment)
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// 고른 사진은 즉시 미리보기로 보여주고, 업로드가 끝날 때까지 스피너를 덧씌운다.
+    @ViewBuilder
+    private func photoThumbnail(for attachment: RecordComposeViewModel.Attachment) -> some View {
+        ZStack {
+            if let uiImage = UIImage(data: attachment.previewData) {
+                Image(uiImage: uiImage).resizable().scaledToFill()
+            } else {
+                Color.Object.muted
+            }
+            if attachment.isUploading {
+                Color.black.opacity(0.3)
+                ProgressView().tint(Color.Icon.inverse)
             }
         }
     }
@@ -437,28 +449,6 @@ struct RecordComposeView: View {
             selection: Binding(get: { selection.wrappedValue }, set: { if let v = $0 { selection.wrappedValue = v } }),
             optionTitle: title
         )
-    }
-}
-
-/// 사진 추가 빈 슬롯 (0/5 카운터 + 카메라 아이콘).
-private struct AppImagePlaceholderSlot: View {
-    let count: Int
-    let isUploading: Bool
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 8).fill(Color.Object.muted)
-            .frame(width: 96, height: 96)
-            .overlay {
-                if isUploading {
-                    ProgressView()
-                } else {
-                    VStack(spacing: 2) {
-                        AppIconView(source: .asset("photo_camera"), size: 24)
-                            .foregroundStyle(Color.Icon.subtle)
-                        Text("\(count)/5").appTypography(.bodyMedium).foregroundStyle(Color.Text.subtle)
-                    }
-                }
-            }
     }
 }
 
