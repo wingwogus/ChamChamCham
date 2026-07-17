@@ -11,23 +11,41 @@ import SwiftUI
 /// The "+" chip opens the crop picker; the floating pencil opens the composer.
 struct CommunityView: View {
     private let container: DIContainer
+    /// Browsing without an account. Passed down from `MainTabView`, not read from `AppState` in `init` —
+    /// `@Environment` isn't populated yet at init time.
+    private let isGuest: Bool
+    @Environment(AppState.self) private var appState
     @State private var viewModel: CommunityFeedViewModel
     @State private var showCompose = false
     @State private var showCropPicker = false
+    @State private var showSearch = false
+    @State private var showLoginRequiredAlert = false
     @Binding private var selection: Int
     private let tabItems: [AppNavBar.Item]
     private let horizontalInset: CGFloat = 20
 
-    init(container: DIContainer, selection: Binding<Int>, tabItems: [AppNavBar.Item]) {
+    init(container: DIContainer, selection: Binding<Int>, tabItems: [AppNavBar.Item], isGuest: Bool = false) {
         self.container = container
+        self.isGuest = isGuest
         _selection = selection
         self.tabItems = tabItems
         _viewModel = State(
             initialValue: CommunityFeedViewModel(
                 repository: container.makeCommunityRepository(),
-                cropCatalog: container.makeCropCatalogService()
+                cropCatalog: container.makeCropCatalogService(),
+                isGuest: isGuest
             )
         )
+    }
+
+    /// Runs `action` if signed in; a guest gets a login prompt instead. Guards every write/personalized
+    /// action (게시글 작성, 좋아요, 작물 보드 추가) so a token-less request never even fires.
+    private func requireAuth(_ action: () -> Void) {
+        guard !isGuest else {
+            showLoginRequiredAlert = true
+            return
+        }
+        action()
     }
 
     var body: some View {
@@ -37,7 +55,7 @@ struct CommunityView: View {
                     AppTopAppBar(
                         title: "정보 공유",
                         showBorder: false,
-                        trailing: [.init(.asset("search"))]
+                        trailing: [.init(.asset("search")) { requireAuth { showSearch = true } }]
                     )
                     postTypeTabs
                     cropChipRow
@@ -48,7 +66,7 @@ struct CommunityView: View {
             .appTabBarDock(items: tabItems, selection: $selection)
             .navigationBarHidden(true)
             .navigationDestination(for: CommunityPostSummary.self) { post in
-                CommunityDetailView(postId: post.id, container: container)
+                CommunityDetailView(postId: post.id, container: container, isGuest: isGuest)
             }
         }
         .task { await viewModel.onAppear() }
@@ -65,6 +83,10 @@ struct CommunityView: View {
                 Task { await viewModel.addBoards(from: crops) }
             }
         }
+        .fullScreenCover(isPresented: $showSearch) {
+            SearchView(container: container)
+        }
+        .loginRequiredAlert(isPresented: $showLoginRequiredAlert, appState: appState)
     }
 
     // MARK: - Post type tabs (자유 이야기 / Q&A)
@@ -89,7 +111,7 @@ struct CommunityView: View {
     private var cropChipRow: some View {
         HStack(spacing: 0) {
             Button {
-                showCropPicker = true
+                requireAuth { showCropPicker = true }
             } label: {
                 AppIconView(source: .asset("add"), size: 24)
                     .foregroundStyle(Color.Icon.subtle)
@@ -154,7 +176,7 @@ struct CommunityView: View {
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {
                             CommunityPostRow(post: post) {
-                                Task { await viewModel.toggleLike(post) }
+                                requireAuth { Task { await viewModel.toggleLike(post) } }
                             }
                         }
                         .buttonStyle(.plain)
@@ -213,7 +235,7 @@ struct CommunityView: View {
             variant: .primary,
             size: .xlarge
         ) {
-            showCompose = true
+            requireAuth { showCompose = true }
         }
         .padding(.trailing, horizontalInset)
         .padding(.bottom, Spacing.xl)
@@ -230,6 +252,7 @@ struct CommunityPostRow: View {
 
     let post: CommunityPostSummary
     var onTapLike: () -> Void
+    var showsDivider: Bool = true
 
     var body: some View {
         AppListItem(
@@ -239,7 +262,8 @@ struct CommunityPostRow: View {
             badges: badges,
             dateText: rowDateText(post.createdAt),
             likeText: "\(post.likeCount)",
-            commentText: "\(post.commentCount)"
+            commentText: "\(post.commentCount)",
+            showsDivider: showsDivider
         ) {
             CommunityRemoteImage(url: post.thumbnailUrl)
         }

@@ -13,25 +13,44 @@ import SwiftUI
 struct CommunityDetailView: View {
     let postId: UUID
     private let container: DIContainer
+    /// Browsing without an account. Passed down from the caller, not read from `AppState` in `init` —
+    /// `@Environment` isn't populated yet at init time.
+    private let isGuest: Bool
     private let horizontalInset: CGFloat = 20
 
+    @Environment(AppState.self) private var appState
     @State private var viewModel: CommunityDetailViewModel
     /// The logged-in member, read from the local cache — used to show delete only on the user's own content.
     @State private var currentMemberId: UUID?
+    @State private var showLoginRequiredAlert = false
     @FocusState private var commentFieldFocused: Bool
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showPhotoPicker = false
+    /// The image opened full-screen (post body or comment), if any. `nil` dismisses the viewer.
+    @State private var fullscreenImage: FullscreenImage?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    init(postId: UUID, container: DIContainer) {
+    init(postId: UUID, container: DIContainer, isGuest: Bool = false) {
         self.postId = postId
         self.container = container
+        self.isGuest = isGuest
         _viewModel = State(initialValue: CommunityDetailViewModel(
             postId: postId,
             repository: container.makeCommunityRepository(),
-            mediaRepository: container.makeMediaUploadRepository()
+            mediaRepository: container.makeMediaUploadRepository(),
+            recordRepository: container.makeRecordRepository()
         ))
+    }
+
+    /// Runs `action` if signed in; a guest gets a login prompt instead. Guards every write/personalized
+    /// action (좋아요, 댓글 작성/사진 첨부, 다른 회원 프로필 이동) so a token-less request never even fires.
+    private func requireAuth(_ action: () -> Void) {
+        guard !isGuest else {
+            showLoginRequiredAlert = true
+            return
+        }
+        action()
     }
 
     var body: some View {
@@ -55,6 +74,10 @@ struct CommunityDetailView: View {
         }
         .onChange(of: viewModel.didDeletePost) { _, deleted in
             if deleted { dismiss() }
+        }
+        .loginRequiredAlert(isPresented: $showLoginRequiredAlert, appState: appState)
+        .fullScreenCover(item: $fullscreenImage) { item in
+            FullScreenImageViewer(url: item.url)
         }
     }
 
@@ -135,18 +158,21 @@ struct CommunityDetailView: View {
 
     private func postBody(_ detail: CommunityPostDetail) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            detailTagRow(detail)
+
             HStack(alignment: .center, spacing: Spacing.sm) {
                 authorLine(detail)
                 Spacer(minLength: Spacing.md)
             }
-            .frame(height: 32)
+            .frame(height: 48)
+            .padding(.top, Spacing.md)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(detail.title)
                     .appTypography(.titleLarge)
                     .foregroundStyle(Color.Text.default)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, horizontalInset)
+                    .padding(.top, Spacing.md)
 
                 if !detail.imageUrls.isEmpty {
                     imageCarousel(detail.imageUrls)
@@ -157,10 +183,12 @@ struct CommunityDetailView: View {
                     .appTypography(.bodyLarge)
                     .foregroundStyle(Color.Text.subtle)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, Spacing.md)
+                    .padding(.top, Spacing.sm)
 
-                detailTagRow(detail)
-                    .padding(.top, horizontalInset)
+                if let farmingRecord = viewModel.farmingRecord {
+                    CommunityFarmingRecordCard(record: farmingRecord)
+                        .padding(.top, Spacing.md)
+                }
 
                 reactionRow(detail)
                     .padding(.top, Spacing.md)
@@ -173,7 +201,7 @@ struct CommunityDetailView: View {
         HStack(spacing: Spacing.md) {
             likeButton(detail)
             Button {
-                commentFieldFocused = true
+                requireAuth { commentFieldFocused = true }
             } label: {
                 HStack(spacing: Spacing.xs) {
                     AppIconView(source: .asset("chat_bubble_line"), size: 24)
@@ -192,6 +220,11 @@ struct CommunityDetailView: View {
     private func authorLine(_ detail: CommunityPostDetail) -> some View {
         if isPostAuthor {
             postAuthorLine(detail)
+        } else if isGuest {
+            Button { showLoginRequiredAlert = true } label: {
+                postAuthorLine(detail)
+            }
+            .buttonStyle(.plain)
         } else {
             NavigationLink(value: MemberProfileRoute(memberId: detail.author.memberId)) {
                 postAuthorLine(detail)
@@ -202,24 +235,23 @@ struct CommunityDetailView: View {
 
     private func postAuthorLine(_ detail: CommunityPostDetail) -> some View {
         HStack(spacing: Spacing.sm) {
-            CommunityAvatar(profileImageUrl: detail.author.profileImageUrl, size: .small)
-            Text(detail.author.nickname ?? "익명")
-                .appTypography(.bodyLarge)
-                .foregroundStyle(Color.Text.default)
-                .lineLimit(1)
-            Text("·")
-                .appTypography(.bodyLarge)
-                .foregroundStyle(Color.Text.muted)
-            Text(detailDateText(detail.createdAt))
-                .appTypography(.bodyLarge)
-                .foregroundStyle(Color.Text.muted)
-                .lineLimit(1)
+            CommunityAvatar(profileImageUrl: detail.author.profileImageUrl, size: .medium)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(detail.author.nickname ?? "익명")
+                    .appTypography(.bodyMediumEmphasized)
+                    .foregroundStyle(Color.Text.default)
+                    .lineLimit(1)
+                Text(detailDateText(detail.createdAt))
+                    .appTypography(.bodyMedium)
+                    .foregroundStyle(Color.Text.muted)
+                    .lineLimit(1)
+            }
         }
     }
 
     private func likeButton(_ detail: CommunityPostDetail) -> some View {
         Button {
-            Task { await viewModel.toggleLike() }
+            requireAuth { Task { await viewModel.toggleLike() } }
         } label: {
             HStack(spacing: Spacing.xs) {
                 AppIconView(source: .asset(detail.likedByMe ? "favorite" : "favorite_line"), size: 24)
@@ -239,6 +271,8 @@ struct CommunityDetailView: View {
                 ForEach(imageUrls, id: \.self) { url in
                     CommunityRemoteImage(url: url, cornerRadius: 12)
                         .frame(width: 280, height: 210)
+                        .contentShape(Rectangle())
+                        .onTapGesture { fullscreenImage = FullscreenImage(url: url) }
                 }
             }
         }
@@ -247,9 +281,9 @@ struct CommunityDetailView: View {
     private func detailTagRow(_ detail: CommunityPostDetail) -> some View {
         HStack(spacing: Spacing.sm) {
             if detail.postType == .question {
-                AppBadge(label: "Q&A", size: .medium, style: .solidPastel, variant: .secondary)
+                AppBadge(label: "Q&A", size: .medium, style: .solid, variant: .primary)
             }
-            AppBadge(label: detail.cropName, size: .medium, style: .solidPastel, variant: .secondary)
+            AppBadge(label: detail.cropName, size: .medium, style: .solidPastel, variant: .primary)
         }
     }
 
@@ -281,12 +315,15 @@ struct CommunityDetailView: View {
                         replyTarget: comment,
                         currentMemberId: currentMemberId,
                         onReply: { target in
-                            viewModel.startReply(to: target)
-                            commentFieldFocused = true
+                            requireAuth {
+                                viewModel.startReply(to: target)
+                                commentFieldFocused = true
+                            }
                         },
                         onDelete: { target in
                             Task { await viewModel.deleteComment(target) }
-                        }
+                        },
+                        onImageTap: { url in fullscreenImage = FullscreenImage(url: url) }
                     )
                     .task { await viewModel.loadMoreCommentsIfNeeded(currentItem: comment) }
                 }
@@ -322,11 +359,13 @@ struct CommunityDetailView: View {
                     isFocused: $commentFieldFocused,
                     isSubmitting: viewModel.isSubmittingComment,
                     isPhotoEnabled: true,
-                    onPhotoTap: { showPhotoPicker = true },
+                    onPhotoTap: { requireAuth { showPhotoPicker = true } },
                     onRemoveAttachment: { viewModel.removeImage() },
                     onSubmit: {
-                        commentFieldFocused = false
-                        Task { await viewModel.submitComment() }
+                        requireAuth {
+                            commentFieldFocused = false
+                            Task { await viewModel.submitComment() }
+                        }
                     },
                     attachment: { attachmentThumbnail(attachment) }
                 )
@@ -336,15 +375,18 @@ struct CommunityDetailView: View {
                     isFocused: $commentFieldFocused,
                     isSubmitting: viewModel.isSubmittingComment,
                     isPhotoEnabled: true,
-                    onPhotoTap: { showPhotoPicker = true },
+                    onPhotoTap: { requireAuth { showPhotoPicker = true } },
                     onSubmit: {
-                        commentFieldFocused = false
-                        Task { await viewModel.submitComment() }
+                        requireAuth {
+                            commentFieldFocused = false
+                            Task { await viewModel.submitComment() }
+                        }
                     }
                 )
             }
         }
         .background(Color.Background.default)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     /// The picked image is shown immediately; while its upload is in flight a dimmed spinner overlays it.
@@ -372,6 +414,51 @@ struct CommunityDetailView: View {
     }
 }
 
+/// The 영농일지 card shown in post detail when the post shares a record (BR-COMMUNITY-002, Figma `커뮤니티 /
+/// 게시물 내 영농일지 포함 시`). Unlike `AppCard`, this composition has no thumbnail — a farming record's detail
+/// response carries no title, so 활동 유형 (`workType.label`) stands in for it.
+private struct CommunityFarmingRecordCard: View {
+    private static let padding: CGFloat = 20
+
+    let record: RecordDetail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                AppBadge(label: record.cropName, size: .medium, style: .solidPastel, variant: .secondary)
+                Spacer()
+                Text(dateText)
+                    .appTypography(.labelMedium)
+                    .foregroundStyle(Color.Text.muted)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(record.workType.label)
+                    .appTypography(.titleMediumEmphasized)
+                    .foregroundStyle(Color.Text.subtle)
+                Text(record.memo)
+                    .appTypography(.bodyLarge)
+                    .foregroundStyle(Color.Text.muted)
+                    .lineLimit(2)
+            }
+        }
+        .padding(Self.padding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.Object.default)
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.Border.default, lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var dateText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd"
+        return formatter.string(from: record.workedAt)
+    }
+}
+
 /// One comment and its replies. Replies always attach to the thread's root comment (`replyTarget`), so the
 /// tree stays a single indent level. A soft-deleted comment shows placeholder text but still renders replies.
 private struct CommentRow: View {
@@ -381,6 +468,8 @@ private struct CommentRow: View {
     let currentMemberId: UUID?
     let onReply: (CommunityComment) -> Void
     let onDelete: (CommunityComment) -> Void
+    /// Opens the tapped comment image full-screen.
+    let onImageTap: (String) -> Void
     @State private var isReadMoreActive = false
 
     private var isMine: Bool {
@@ -397,7 +486,8 @@ private struct CommentRow: View {
                     replyTarget: replyTarget,
                     currentMemberId: currentMemberId,
                     onReply: onReply,
-                    onDelete: onDelete
+                    onDelete: onDelete,
+                    onImageTap: onImageTap
                 )
                 .padding(.leading, Spacing.xl)
             }
@@ -420,6 +510,8 @@ private struct CommentRow: View {
                 },
                 attachment: {
                     CommunityRemoteImage(url: imageUrl, cornerRadius: 8)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onImageTap(imageUrl) }
                 }
             )
         } else {
@@ -441,4 +533,11 @@ private struct CommentRow: View {
             )
         }
     }
+}
+
+/// Wraps an image URL so it can drive `.fullScreenCover(item:)`. The URL string is a stable identity for
+/// the presented image.
+private struct FullscreenImage: Identifiable {
+    let url: String
+    var id: String { url }
 }
