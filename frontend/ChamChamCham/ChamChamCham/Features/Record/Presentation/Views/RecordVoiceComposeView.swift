@@ -17,6 +17,7 @@ import SwiftUI
 struct RecordVoiceComposeView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirm = false
+    @State private var micPulse = false
     private let viewModel: RecordVoiceComposeViewModel
 
     init(viewModel: RecordVoiceComposeViewModel) {
@@ -47,6 +48,8 @@ struct RecordVoiceComposeView: View {
             conversation
 
             remainingTimeLabel
+
+            micStatusLabel
 
             micButton
                 .padding(.bottom, 32)
@@ -124,6 +127,36 @@ struct RecordVoiceComposeView: View {
         }
     }
 
+    // MARK: - 마이크 상태 안내
+
+    /// 마이크가 지금 어떤 상태인지 알려주는 문구 — "말해도 되는지"를 사용자가 인지하게 한다.
+    private var micStatusText: String? {
+        switch vm.phase {
+        case .preparing:
+            "연결 중이에요…"
+        case .conversing(muted: true):
+            "마이크가 꺼져 있어요 · 탭하면 켜져요"
+        case .conversing(muted: false):
+            vm.isAssistantSpeaking ? "AI가 답하고 있어요" : "듣고 있어요 · 말씀하세요"
+        default:
+            nil
+        }
+    }
+
+    /// 사용자 발화를 받는 중(대화·음소거 해제·AI 비발화)일 때만 마이크가 은은히 펄스한다.
+    private var isListening: Bool {
+        if case .conversing(muted: false) = vm.phase { !vm.isAssistantSpeaking } else { false }
+    }
+
+    @ViewBuilder private var micStatusLabel: some View {
+        if let micStatusText {
+            Text(micStatusText)
+                .appTypography(.bodyMedium)
+                .foregroundStyle(Color.Text.subtle)
+                .padding(.bottom, 12)
+        }
+    }
+
     // MARK: - 마이크 버튼 (96pt 원형)
 
     @ViewBuilder private var micButton: some View {
@@ -136,6 +169,7 @@ struct RecordVoiceComposeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(micAccessibilityLabel)
+            .accessibilityValue(micStatusText ?? "")
         case .failed, .cancelled:
             EmptyView()
         }
@@ -154,6 +188,14 @@ struct RecordVoiceComposeView: View {
         .frame(width: 96, height: 96)
         .background(micBackground)
         .clipShape(Circle())
+        // 듣는 중일 때만 은은한 펄스(1.0↔1.06). AI 발화/음소거/준비 중에는 멈춘다.
+        .scaleEffect(micPulse ? 1.06 : 1.0)
+        .animation(
+            isListening ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true) : .default,
+            value: micPulse
+        )
+        .onChange(of: isListening) { _, listening in micPulse = listening }
+        .onAppear { micPulse = isListening }
     }
 
     private var isMicBusy: Bool {

@@ -20,6 +20,9 @@ import Foundation
 final class RecordVoiceComposeViewModel {
     private(set) var phase: VoiceSessionPhase = .idle
     private(set) var transcript: [VoiceTranscriptItem] = []
+    /// AI가 지금 답변(발화)하는 중인지. 마이크 상태 안내("AI가 답하고 있어요")에 쓰인다.
+    /// assistant 아이템 시작/전사 delta에서 true, 응답 완료(response.done)에서 false.
+    private(set) var isAssistantSpeaking = false
     /// 검토 화면 핸드오프. `navigationDestination(item:)` 바인딩용이라 settable.
     var reviewHandoff: VoiceReviewHandoff?
     /// VOICE_002(이미 처리된 세션) — 재시도 금지. 플로우 컨테이너가 토스트와 함께 닫는다.
@@ -128,6 +131,7 @@ final class RecordVoiceComposeViewModel {
     private func start() async {
         transcript = []
         toolArgumentsJSON = nil
+        isAssistantSpeaking = false
         sessionId = nil
         reviewHandoff = nil
         cancelDeadline()
@@ -171,6 +175,7 @@ final class RecordVoiceComposeViewModel {
             }
 
         case let .itemStarted(itemId, role):
+            if role == .assistant { isAssistantSpeaking = true }
             guard index(of: itemId) == nil else { return }
             transcript.append(VoiceTranscriptItem(itemId: itemId, role: role, text: ""))
 
@@ -178,6 +183,7 @@ final class RecordVoiceComposeViewModel {
             upsert(itemId: itemId, role: .user) { $0.text = text }
 
         case let .assistantTranscriptDelta(itemId, delta):
+            isAssistantSpeaking = true
             upsert(itemId: itemId, role: .assistant) { $0.text += delta }
 
         case let .assistantTranscriptDone(itemId, text):
@@ -188,6 +194,7 @@ final class RecordVoiceComposeViewModel {
             toolArgumentsJSON = argumentsJSON
 
         case .responseCompleted:
+            isAssistantSpeaking = false
             // 초안이 나온 응답 사이클이 닫히면 자동 종료 — 마무리 안내 음성/전사가 끝난 뒤다.
             if toolArgumentsJSON != nil, case .conversing = phase {
                 Task { await endConversation() }
