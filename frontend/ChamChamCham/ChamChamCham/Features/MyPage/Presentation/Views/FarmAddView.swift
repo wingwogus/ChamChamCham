@@ -98,7 +98,7 @@ private struct FarmAddCropStepView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.Background.default)
-        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
     }
 

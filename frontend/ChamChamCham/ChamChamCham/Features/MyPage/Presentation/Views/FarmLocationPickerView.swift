@@ -39,6 +39,7 @@ struct FarmLocationPickerView: View {
                 .ignoresSafeArea(.container, edges: .bottom)
         }
         .background(Color.Background.default)
+        .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .bottom) { bottomCTA }
         .sheet(isPresented: $isSearchSheetPresented) {
             AddressSearchSheet(viewModel: location) { address in
@@ -110,9 +111,9 @@ struct FarmLocationPickerView: View {
             HStack(spacing: Spacing.sm) {
                 AppIconView(source: .asset("search"), size: 22)
                     .foregroundStyle(Color.Icon.default)
-                Text(location.selectedAddress?.roadAddrPart1 ?? "주소지를 입력해주세요.")
+                Text(displayedAddressText ?? "주소지를 입력해주세요.")
                     .appTypography(.bodyLarge)
-                    .foregroundStyle(location.selectedAddress == nil ? Color.Text.muted : Color.Text.default)
+                    .foregroundStyle(displayedAddressText == nil ? Color.Text.muted : Color.Text.default)
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -125,6 +126,13 @@ struct FarmLocationPickerView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// 도로명이 없는 농지(지적도에 도로명 미부여)는 지번 주소로 표시한다. 둘 다 없으면 nil(미입력).
+    private var displayedAddressText: String? {
+        guard let address = location.selectedAddress else { return nil }
+        if !address.roadAddrPart1.isEmpty { return address.roadAddrPart1 }
+        return address.jibunAddr.isEmpty ? nil : address.jibunAddr
     }
 
     private func farmNameOverlayField(_ farmName: Binding<String>) -> some View {
