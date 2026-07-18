@@ -6,6 +6,7 @@
 //
 
 import AuthenticationServices
+import Foundation
 import Observation
 
 enum AppleSignInError: Error {
@@ -50,7 +51,8 @@ final class AuthViewModel {
                 identityToken: identityToken,
                 nonce: rawNonce,
                 authorizationCode: authorizationCode,
-                userIdentifier: credential.user
+                userIdentifier: credential.user,
+                name: Self.formattedName(from: credential.fullName)
             )
             handleLoginSuccess(response, appState: appState)
         } catch let authError as ASAuthorizationError where authError.code == .canceled {
@@ -91,6 +93,17 @@ final class AuthViewModel {
         } catch {
             loginState = .failed("네이버 로그인에 실패했어요. 잠시 후 다시 시도해주세요.")
         }
+    }
+
+    /// Apple hands the user's name to the client only on the *first* authorization (never inside the identity
+    /// token), so we forward it at login for new-member creation and onboarding prefill. Returns nil when Apple
+    /// omitted it (every subsequent sign-in) or the components produce an empty string.
+    private static func formattedName(from components: PersonNameComponents?) -> String? {
+        guard let components else { return nil }
+        let formatter = PersonNameComponentsFormatter()
+        formatter.style = .default
+        let formatted = formatter.string(from: components).trimmingCharacters(in: .whitespacesAndNewlines)
+        return formatted.isEmpty ? nil : formatted
     }
 
     private func handleLoginSuccess(_ response: LoginResponseDTO, appState: AppState) {

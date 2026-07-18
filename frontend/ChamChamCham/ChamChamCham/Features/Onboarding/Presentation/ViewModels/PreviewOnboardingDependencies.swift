@@ -25,7 +25,8 @@ struct PreviewAuthRepository: AuthRepository {
         identityToken: String,
         nonce: String,
         authorizationCode: String?,
-        userIdentifier: String?
+        userIdentifier: String?,
+        name: String?
     ) async throws -> LoginResponseDTO {
         throw OnboardingSubmissionError.missingRequiredField("preview")
     }

@@ -197,7 +197,7 @@ actor StubAuthRepository: AuthRepository {
     }
 
     func loginWithKakao(idToken: String, nonce: String, kakaoAccessToken: String?) async throws -> LoginResponseDTO { throw MyPageTestError.unused }
-    func loginWithApple(identityToken: String, nonce: String, authorizationCode: String?, userIdentifier: String?) async throws -> LoginResponseDTO { throw MyPageTestError.unused }
+    func loginWithApple(identityToken: String, nonce: String, authorizationCode: String?, userIdentifier: String?, name: String?) async throws -> LoginResponseDTO { throw MyPageTestError.unused }
     func loginWithNaver(accessToken: String) async throws -> LoginResponseDTO { throw MyPageTestError.unused }
 
     func logout() async throws {
