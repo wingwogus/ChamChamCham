@@ -127,6 +127,18 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
 
         val combined = repository.searchCompleted(condition(farmId = farmId, cropId = cropId, size = 20))
         assertThat(combined.rows.map { it.id }).containsExactly(newestAcrossScopes.id)
+
+        val multiple = repository.searchCompleted(
+            FarmingCycleReportQueryRepository.SearchCondition(
+                memberId = memberId,
+                farmIds = setOf(farmId, requireNotNull(otherFarm.id)),
+                cropIds = setOf(cropId, requireNotNull(otherCrop.id)),
+                cursor = null,
+                size = 20,
+            ),
+        )
+        assertThat(multiple.rows.map { it.id })
+            .containsExactly(newestAcrossScopes.id, olderAcrossScopes.id)
     }
 
     @Test
@@ -262,6 +274,19 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
             requireNotNull(active.id) to WorkType.WATERING,
             requireNotNull(sameEndOtherScope.id) to WorkType.PLANTING,
         )
+
+        val multiple = repository.searchWorkItems(
+            FarmingCycleReportQueryRepository.WorkItemSearchCondition(
+                memberId = memberId,
+                farmIds = setOf(farmId, requireNotNull(otherFarm.id)),
+                cropIds = setOf(cropId, requireNotNull(otherCrop.id)),
+                workTypes = emptyList(),
+                cursor = null,
+                size = 20,
+            ),
+        ).rows
+        assertThat(multiple.map { it.reportId })
+            .containsOnly(latest.id, active.id, sameEndOtherScope.id)
     }
 
     @Test
@@ -461,8 +486,8 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
     ): FarmingCycleReportQueryRepository.SearchCondition =
         FarmingCycleReportQueryRepository.SearchCondition(
             memberId = memberId,
-            farmId = farmId,
-            cropId = cropId,
+            farmIds = farmId?.let(::setOf).orEmpty(),
+            cropIds = cropId?.let(::setOf).orEmpty(),
             cursor = cursor,
             size = size,
         )
@@ -477,8 +502,8 @@ class FarmingCycleReportQueryRepositoryTest @Autowired constructor(
     ): FarmingCycleReportQueryRepository.WorkItemSearchCondition =
         FarmingCycleReportQueryRepository.WorkItemSearchCondition(
             memberId = memberId,
-            farmId = farmId,
-            cropId = cropId,
+            farmIds = farmId?.let(::setOf).orEmpty(),
+            cropIds = cropId?.let(::setOf).orEmpty(),
             workTypes = workTypes,
             cursor = cursor,
             size = size,
