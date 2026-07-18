@@ -96,7 +96,8 @@ class AuthController(
                 identityToken = request.identityToken,
                 nonce = request.nonce,
                 authorizationCode = request.authorizationCode,
-                userIdentifier = request.userIdentifier
+                userIdentifier = request.userIdentifier,
+                name = request.name
             )
         )
         return ResponseEntity.ok(ApiResponse.ok(AuthResponses.LoginResponse.from(result)))
