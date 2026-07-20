@@ -122,25 +122,26 @@ struct FarmCard: View {
         action: (() -> Void)?,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(spacing: Spacing.sm) {
-            content()
-            Spacer(minLength: Spacing.sm)
-            Button {
-                action?()
-            } label: {
+        Button {
+            action?()
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                content()
+                Spacer(minLength: Spacing.sm)
                 AppIconView(source: icon, size: 20)
                     .foregroundStyle(Color.Icon.subtle)
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
-            .disabled(action == nil)
+            .padding(.horizontal, Spacing.md)
+            .frame(maxWidth: .infinity, minHeight: rowHeight, maxHeight: rowHeight, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.Object.default : Color.Object.subtle)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, Spacing.md)
-        .frame(maxWidth: .infinity, minHeight: rowHeight, maxHeight: rowHeight, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.Object.default : Color.Object.subtle)
-        )
+        .buttonStyle(.plain)
+        .disabled(action == nil)
     }
 
     private func rowLabel(_ text: String) -> some View {
