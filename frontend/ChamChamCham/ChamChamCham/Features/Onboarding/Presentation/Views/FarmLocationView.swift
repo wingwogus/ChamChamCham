@@ -39,7 +39,10 @@ struct FarmLocationView: View {
                 .padding(.bottom, 20)
 
             mapOverlaySection
-                .ignoresSafeArea(.container, edges: .bottom)
+                // 이 서브트리에 하단 카드가 살고 TextField가 오버레이돼 있다. `.container`만
+                // 무시하면 서브트리가 바닥까지 늘어나면서 키보드 회피가 이 안쪽에 다시 적용돼
+                // 카드가 위로 밀려 상단 필드·우측 툴바와 겹친다. `.keyboard`까지 무시해 고정한다.
+                .ignoresSafeArea(.all, edges: .bottom)
         }
         .background(Color.Background.default)
         // 농지명 필드에 키보드 툴바로 "완료"를 달아 탭-바깥 없이도 키보드를 닫을 수 있게 한다.
