@@ -171,8 +171,12 @@ final class RecordVoiceComposeViewModel {
             let session = try await voiceRepository.createSession()
             guard case .preparing = phase else {
                 // 화면이 닫힌 뒤에야 발급된 세션 — abandon 시점엔 sessionId가 nil이라
-                // 거기서 못 지운 세션이므로 여기서 best-effort 취소한다.
-                await voiceRepository.cancel(sessionId: session.sessionId)
+                // 거기서 못 지운 세션이므로 여기서 best-effort 취소한다. 이 지점은 abandon()이
+                // startTask를 이미 취소한 뒤라, 이 task에서 직접 await하면 URLSession이 취소를
+                // 보고 즉시 실패한다 — 취소 영향 밖의 비구조 Task로 보낸다(abandon과 같은 패턴).
+                Task { [voiceRepository] in
+                    await voiceRepository.cancel(sessionId: session.sessionId)
+                }
                 return
             }
             sessionId = session.sessionId
