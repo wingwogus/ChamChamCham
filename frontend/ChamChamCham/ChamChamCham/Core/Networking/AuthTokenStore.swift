@@ -15,7 +15,7 @@ actor AuthTokenStore {
     private var cachedAccessToken: String?
     private var cachedRefreshToken: String?
     private var isLoaded = false
-    private var sessionExpiredContinuations: [AsyncStream<Void>.Continuation] = []
+    private var sessionExpiredContinuations: [UUID: AsyncStream<Void>.Continuation] = [:]
 
     init(storage: KeychainTokenStorage = KeychainTokenStorage()) {
         self.storage = storage
@@ -54,7 +54,7 @@ actor AuthTokenStore {
         cachedAccessToken = nil
         cachedRefreshToken = nil
         isLoaded = true
-        for continuation in sessionExpiredContinuations {
+        for continuation in sessionExpiredContinuations.values {
             continuation.yield(())
         }
     }
@@ -62,9 +62,24 @@ actor AuthTokenStore {
     /// The single coupling point between the networking layer and app-level auth state — `RootView` subscribes to
     /// this to fall back to the logged-out flow whenever `clear()` runs, without `Core/Networking` importing `AppState`.
     func sessionExpiredEvents() -> AsyncStream<Void> {
-        AsyncStream { continuation in
-            sessionExpiredContinuations.append(continuation)
+        let id = UUID()
+        return AsyncStream { continuation in
+            // 구독이 끝나면(소비 Task 취소/종료) 저장소에서 제거해 누적을 막는다 —
+            // onTermination은 actor 밖에서 불리므로 actor로 되돌아와 제거한다.
+            continuation.onTermination = { _ in
+                Task { await self.removeSessionExpiredContinuation(id) }
+            }
+            sessionExpiredContinuations[id] = continuation
         }
+    }
+
+    /// 테스트 관찰용 — 구독 종료 시 continuation이 실제로 정리되는지 검증한다.
+    var sessionExpiredObserverCount: Int {
+        sessionExpiredContinuations.count
+    }
+
+    private func removeSessionExpiredContinuation(_ id: UUID) {
+        sessionExpiredContinuations[id] = nil
     }
 
     private func loadIfNeeded() {
