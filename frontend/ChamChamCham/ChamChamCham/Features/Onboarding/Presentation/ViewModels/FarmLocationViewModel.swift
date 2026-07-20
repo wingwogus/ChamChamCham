@@ -56,8 +56,17 @@ final class FarmLocationViewModel {
     }
 
     var canProceed: Bool {
-        guard selectedAddress != nil else { return false }
+        guard let selectedAddress, hasContent(selectedAddress) else { return false }
         return selectedParcel != nil || manualAreaSqm != nil || isDrawnPolygonValid
+    }
+
+    /// `selectAddress(_:)`로 기존 밭 데이터를 그대로 채우는 수정 진입 경로는 `makeAddress`의
+    /// 둘 다 빈 값 가드를 거치지 않는다. 레거시 데이터로 도로명·지번이 모두 비어 있는 밭이면
+    /// `selectedAddress`가 non-nil이어도 내용이 없는 것이므로, "주소 없음"과 동일하게 취급해
+    /// 저장 버튼이 기존 검증 문구("주소지는 필수로 입력해주세요")로 막히게 한다.
+    private func hasContent(_ address: JusoAddress) -> Bool {
+        !address.roadAddrPart1.trimmingCharacters(in: .whitespaces).isEmpty
+            || !address.jibunAddr.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     // MARK: - Submission fields
@@ -110,7 +119,7 @@ final class FarmLocationViewModel {
     }
 
     func requiredInputError(farmName: String) -> String? {
-        let isAddressMissing = selectedAddress == nil
+        let isAddressMissing = selectedAddress.map { !hasContent($0) } ?? true
         let isFarmNameMissing = farmName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
         switch (isAddressMissing, isFarmNameMissing) {
