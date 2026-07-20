@@ -32,23 +32,6 @@ struct FarmLocationMapSection: View {
     /// 현재 위치 승인을 못 받았을 때의 폴백 카메라(서울 시청).
     private static let seoul = CLLocationCoordinate2D(latitude: 37.5665, longitude: 126.9780)
 
-    /// 대한민국을 넉넉히 덮는 근사 바운딩박스(제주·울릉도·독도 포함). 정확한 국경/EEZ가 아니라
-    /// 서비스 지역 제한용 사각 경계다 — 이 앱은 대한민국 전용 서비스이므로 지도 팬/탭을 이
-    /// 범위로 제한한다.
-    private static let koreaBounds = (minLat: 33.0, maxLat: 38.65, minLon: 124.5, maxLon: 131.95)
-
-    private static func isWithinKorea(_ coordinate: CLLocationCoordinate2D) -> Bool {
-        (koreaBounds.minLat...koreaBounds.maxLat).contains(coordinate.latitude)
-            && (koreaBounds.minLon...koreaBounds.maxLon).contains(coordinate.longitude)
-    }
-
-    private static func clampedToKorea(_ coordinate: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
-        CLLocationCoordinate2D(
-            latitude: min(max(coordinate.latitude, koreaBounds.minLat), koreaBounds.maxLat),
-            longitude: min(max(coordinate.longitude, koreaBounds.minLon), koreaBounds.maxLon)
-        )
-    }
-
     var body: some View {
         ZStack(alignment: .top) {
             mapSection
@@ -108,17 +91,10 @@ struct FarmLocationMapSection: View {
             }
             .mapStyle(mapStyleIsSatellite ? .hybrid(elevation: .realistic) : .standard)
             .onMapCameraChange { context in
-                let center = context.region.center
-                if Self.isWithinKorea(center) {
-                    mapCenter = center
-                } else {
-                    // 대한민국 밖으로 팬 하면 경계 안으로 튕겨 들어온다(서비스 지역 제한).
-                    setCamera(to: Self.clampedToKorea(center), span: cameraSpanMeters)
-                }
+                mapCenter = context.region.center
             }
             .onTapGesture { screenPoint in
-                guard let coordinate = proxy.convert(screenPoint, from: .local),
-                      Self.isWithinKorea(coordinate) else { return }
+                guard let coordinate = proxy.convert(screenPoint, from: .local) else { return }
                 Task { await viewModel.handleMapTap(at: coordinate) }
             }
         }
