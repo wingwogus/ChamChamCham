@@ -49,12 +49,12 @@ struct AppNavBar: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, Spacing.xs)
+                    .padding(.vertical, Spacing.sm)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .frame(height: 60, alignment: .top)
+        .frame(height: 72, alignment: .top)
         .padding(.horizontal, 20)
         .background(Color.Background.default)
         .overlay(alignment: .top) {
