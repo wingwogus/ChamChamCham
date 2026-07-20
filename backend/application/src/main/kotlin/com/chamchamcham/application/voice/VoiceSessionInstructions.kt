@@ -27,7 +27,9 @@ object VoiceSessionInstructions {
         currentTimeRule(now),
         farmCropContext(farms, cropsByFarm),
         WORK_TYPE_REQUIREMENTS,
+        EXCEPTION_HANDLING,
         pesticideSection(pesticides),
+        COMPLETION_CONFIRMATION,
         MEMO_AND_SAVE_RULE,
     ).joinToString("\n\n")
 
@@ -102,6 +104,22 @@ object VoiceSessionInstructions {
           반대쪽 항목은 절대 채우지 마세요.
     """.trimIndent()
 
+    // 예외 상황을 사용자가 반드시 인지하도록 하는 규칙. 조용히 넘기거나 값을 지어내지 않는다.
+    private val EXCEPTION_HANDLING = """
+        예외 상황이 생겨도 사용자가 반드시 인지하도록, 조용히 넘기거나 임의로 값을 지어내지 말고
+        항상 말로 알리세요:
+        - 작업 유형을 특정할 수 없으면 특정 유형에 억지로 맞추지 말고 ETC(기타)로 분류하고,
+          "그 작업은 특정 유형에 안 맞아서 '기타'로 기록할게요"처럼 알리세요.
+        - 사용자가 말한 값이 선택지에 없으면 임의로 만들지 말고, 가장 비슷한 항목이 있으면
+          "○○ 말씀이신가요?"로 확인하고, 마땅한 항목이 없으면 비우거나 기타로 두겠다고 알리세요.
+        - 숫자만 말하고 단위가 분명하지 않으면 단위를 되물으세요(예: "20이면 ml인가요, g인가요?").
+        - 농약명이 목록에 없거나 정확하지 않으면 들리는 대로 기록하되, "확인 화면에서 정확한 농약을
+          목록에서 선택해 주세요"라고 안내하세요.
+        - 사용자가 한 번에 여러 작업을 말하면, 한 기록에는 한 작업만 담깁니다. 하나를 먼저 기록하고
+          나머지는 저장 후 다시 한 번 기록해야 한다고 알리세요.
+        - 영농 작업이 아닌 이야기이면 "오늘 하신 영농 작업을 알려주시면 기록할게요"처럼 부드럽게 되돌리세요.
+    """.trimIndent()
+
     // 회원 작물에 흔히 쓰는 농약 목록(있을 때만). 비슷한 이름을 확인해 정확히 기록하도록 돕는다.
     private fun pesticideSection(pesticides: List<VoicePesticideOption>): String? {
         if (pesticides.isEmpty()) return null
@@ -118,12 +136,22 @@ object VoiceSessionInstructions {
         }
     }
 
+    // 저장 전 완료 확인. 필수값을 다 모아도 사용자가 마쳤다고 해야 넘어가고, 자동 저장이 아님을 알린다.
+    private val COMPLETION_CONFIRMATION = """
+        필수 정보를 모두 확인했더라도 곧바로 save_farming_record를 호출하지 마세요. 사용자가 더 말할
+        내용이 있을 수 있으니 "필요한 내용은 다 확인했어요. 더 기록하거나 덧붙일 내용이 있으신가요?
+        없으면 확인 화면으로 넘어갈게요"처럼 한 번 물어보고, 사용자가 마쳤다고 답하면 그때 호출하세요.
+        넘어가기 전에는 말씀하신 내용이 다음 확인 화면에서 검토·수정된 뒤 최종 저장된다는 점을 알려,
+        지금 자동 저장되는 것이 아님을 인지하게 하세요. 단, 대화 시간·횟수가 임박했다면 이 확인을
+        생략하고 마무리하세요.
+    """.trimIndent()
+
     // memo 자동 작성 규칙 + 저장 도구 호출 조건.
     private val MEMO_AND_SAVE_RULE = """
         memo는 사용자에게 따로 묻지 마세요. 필요한 정보가 모두 모이면
         대화 내용을 바탕으로 30자 이상 500자 이내의 요약문을 직접 작성해 memo에 채우세요.
 
-        필요한 정보를 모두 확인했을 때만 save_farming_record를 호출하세요. 확신할 수 없는 값은
-        추측해서 채우지 말고 비워두세요.
+        필요한 정보를 모두 확인하고 사용자가 마쳤다고 확인했을 때만 save_farming_record를 호출하세요.
+        확신할 수 없는 값은 추측해서 채우지 말고 비워두세요.
     """.trimIndent()
 }
