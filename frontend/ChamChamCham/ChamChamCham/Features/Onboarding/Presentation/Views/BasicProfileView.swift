@@ -99,13 +99,27 @@ struct BasicProfileView: View {
                 .padding(.bottom, 40)
             }
             .scrollDismissesKeyboard(.interactively)
+            // 연락처(.phonePad)·귀농 년차(.numberPad)는 Return/완료 키가 없어 탭-바깥/스크롤로만
+            // 닫혀 답답하다. 키보드 툴바에 "완료"를 달아 어떤 키보드든 닫을 수 있게 한다.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("완료") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                        )
+                    }
+                }
+            }
         }
         .background(Color.Background.default)
-        // 키보드가 하단 "다음" 버튼을 밀어 올리지 않도록 고정한다 (SearchView와 동일 패턴).
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .dismissKeyboardOnTap()
+        // "다음" 버튼은 키보드 위로 고정하고(키보드가 밀어 올리지 않음), ScrollView 본문은
+        // 키보드 세이프에어리어를 존중해 포커스된 하단 필드(연락처/귀농 년차)를 키보드 위로
+        // 자동 스크롤한다. 작은 기기(iPhone SE)에서 입력칸이 키보드에 가리는 것을 막는다.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomCTA
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .task(id: pickerItem) {
             guard let pickerItem,

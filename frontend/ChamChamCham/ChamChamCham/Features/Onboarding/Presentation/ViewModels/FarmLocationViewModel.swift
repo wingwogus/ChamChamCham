@@ -17,6 +17,9 @@ final class FarmLocationViewModel {
         case loadingParcel
         case parcelNotFound
         case loaded
+        /// 주소→좌표 변환이 도로명·지번 모두 실패한 상태. 막다른 에러가 아니라, 지도에 직접
+        /// 표시하도록 안내하는 폴백 상태다. `retryable`은 네트워크성 실패라 재시도가 의미 있는 경우.
+        case coordinateUnavailable(retryable: Bool)
         case failed(String)
     }
 
@@ -221,15 +224,39 @@ final class FarmLocationViewModel {
         return JusoAddress(roadAddrPart1: roadText, jibunAddr: jibunText, bdNm: "")
     }
 
+    /// 좌표변환에 실패한 주소로 재시도한다(네트워크성 실패 후 "다시 시도" 용). 선택된 주소가
+    /// 없으면 아무것도 하지 않는다.
+    func retryCoordinate() async {
+        guard let address = selectedAddress else { return }
+        await resolveCoordinate(for: address)
+    }
+
     private func resolveCoordinate(for address: JusoAddress) async {
         lookupState = .resolvingCoordinate
         do {
-            let coordinate = try await vworld.geocode(roadAddress: address.roadAddrPart1)
+            let coordinate = try await vworld.geocode(
+                roadAddress: address.roadAddrPart1,
+                jibunAddress: address.jibunAddr
+            )
             resolvedCoordinate = GeoPoint(coordinate)
             // 검색으로 선택한 주소를 유지해야 하므로 주소는 다시 채우지 않는다.
             await fetchParcel(at: coordinate, refreshAddress: false)
         } catch {
-            lookupState = .failed("주소의 좌표를 확인하지 못했어요")
+            // 도로명·지번 모두 실패. 막다른 에러 대신 "지도에 직접 표시" 안내 폴백으로 전환한다.
+            // 선택 주소는 유지해 사용자가 어떤 주소를 다루던 중인지 잃지 않는다.
+            resolvedCoordinate = nil
+            lookupState = .coordinateUnavailable(retryable: Self.isRetryable(error))
+        }
+    }
+
+    /// 네트워크/디코딩 실패는 재시도가 의미 있고, 주소 자체가 좌표를 못 가진 경우(`noResult`)는
+    /// 재시도해도 같으므로 바로 "지도에 직접 표시"로 유도한다.
+    private static func isRetryable(_ error: Error) -> Bool {
+        switch error {
+        case FarmLocationAPIError.network, FarmLocationAPIError.decoding:
+            return true
+        default:
+            return false
         }
     }
 

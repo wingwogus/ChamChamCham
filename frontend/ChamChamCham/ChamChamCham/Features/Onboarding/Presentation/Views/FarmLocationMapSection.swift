@@ -194,8 +194,10 @@ struct FarmLocationMapSection: View {
                 }
             case .parcelNotFound:
                 notFoundCard
+            case .coordinateUnavailable(let retryable):
+                coordinateUnavailableCard(retryable: retryable)
             case .failed(let message):
-                mapStatusCard { errorBanner(message) }
+                mapStatusCard { infoBanner(message) }
             case .idle:
                 EmptyView()
             }
@@ -235,7 +237,7 @@ struct FarmLocationMapSection: View {
         mapStatusCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 if manualAreaChosen {
-                    errorBanner("지도에서 필지를 찾지 못했어요. 면적을 직접 입력해주세요.")
+                    infoBanner("지도에서 필지를 찾지 못했어요. 면적을 직접 입력해주세요.")
                     AppTextField(
                         label: "면적 (㎡)",
                         placeholder: "숫자만 입력하세요",
@@ -246,7 +248,7 @@ struct FarmLocationMapSection: View {
                         keyboardType: .decimalPad
                     )
                 } else {
-                    errorBanner("지도에서 필지를 찾지 못했어요. 면적을 직접 입력하거나 지도에 직접 그려주세요.")
+                    infoBanner("지도에서 필지를 찾지 못했어요. 면적을 직접 입력하거나 지도에 직접 그려주세요.")
                     HStack(spacing: Spacing.sm) {
                         AppButton("면적 직접 입력", variant: .neutral, size: .small, fullWidth: true) {
                             manualAreaChosen = true
@@ -254,6 +256,34 @@ struct FarmLocationMapSection: View {
                         AppButton("지도에 직접 그리기", icon: .asset("edit"), variant: .secondary, size: .small, fullWidth: true) {
                             viewModel.beginDrawing()
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 주소→좌표 변환이 도로명·지번 모두 실패한 경우의 안내 카드.
+    ///
+    /// 에러가 아니라 "지도에 직접 표시" 안내다. 백엔드가 좌표(위도·경도)를 필수로 요구하므로
+    /// 좌표가 없는 이 상태에서는 "면적만 입력" 단독 경로는 노출하지 않고, 좌표가 생기는
+    /// "지도에 직접 그리기"로 유도한다. 네트워크성 실패면 "다시 시도"도 함께 제공한다.
+    private func coordinateUnavailableCard(retryable: Bool) -> some View {
+        mapStatusCard {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if retryable {
+                    infoBanner("지금 위치를 불러오지 못했어요. 네트워크 상태를 확인하고 다시 시도하거나, 지도에 재배지를 직접 표시해주세요.")
+                    HStack(spacing: Spacing.sm) {
+                        AppButton("다시 시도", variant: .neutral, size: .small, fullWidth: true) {
+                            Task { await viewModel.retryCoordinate() }
+                        }
+                        AppButton("지도에 직접 그리기", icon: .asset("edit"), variant: .secondary, size: .small, fullWidth: true) {
+                            viewModel.beginDrawing()
+                        }
+                    }
+                } else {
+                    infoBanner("이 주소의 지도 위치를 자동으로 찾지 못했어요. 지도에 재배지를 직접 표시해주세요.")
+                    AppButton("지도에 직접 그리기", icon: .asset("edit"), variant: .secondary, size: .small, fullWidth: true) {
+                        viewModel.beginDrawing()
                     }
                 }
             }
@@ -329,7 +359,7 @@ struct FarmLocationMapSection: View {
         .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
     }
 
-    private func errorBanner(_ message: String) -> some View {
+    private func infoBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             AppIconView(source: .asset("info"), size: 20)
                 .foregroundStyle(Color.Icon.primary)
