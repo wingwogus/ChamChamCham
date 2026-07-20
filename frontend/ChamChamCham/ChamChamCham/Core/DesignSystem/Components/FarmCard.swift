@@ -39,10 +39,10 @@ struct FarmCard: View {
     var body: some View {
         VStack(spacing: rowSpacing) {
             nameRow
-            row(icon: "chevron.right", action: onTapAddress) {
+            row(icon: .asset("chevron_forward"), action: onTapAddress) {
                 rowLabel(roadAddress)
             }
-            row(icon: "chevron.right", action: onTapCrops) {
+            row(icon: .asset("chevron_forward"), action: onTapCrops) {
                 cropContent
             }
         }
@@ -118,7 +118,7 @@ struct FarmCard: View {
     // MARK: - Rows
 
     private func row<Content: View>(
-        icon: String,
+        icon: AppIconSource,
         action: (() -> Void)?,
         @ViewBuilder content: () -> Content
     ) -> some View {
@@ -128,8 +128,7 @@ struct FarmCard: View {
             Button {
                 action?()
             } label: {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
+                AppIconView(source: icon, size: 20)
                     .foregroundStyle(Color.Icon.subtle)
                     .frame(width: 24, height: 24)
             }
