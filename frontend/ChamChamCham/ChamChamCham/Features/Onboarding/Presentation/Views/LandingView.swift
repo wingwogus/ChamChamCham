@@ -70,9 +70,10 @@ struct LandingView: View {
                 BrandLoginButton(asset: "kakao_login_large_wide", isDisabled: isLoggingIn) {
                     Task { await login(with: authViewModel.loginWithKakao) }
                 }
-                BrandLoginButton(asset: "NAVER_login_Light_KR_green_wide_H56", isDisabled: isLoggingIn) {
-                    Task { await login(with: authViewModel.loginWithNaver) }
-                }
+                // 네이버 로그인: 네이버 측 앱 심사(정식 서비스) 승인 전까지 앱스토어 배포 빌드에서 비활성화.
+                // BrandLoginButton(asset: "NAVER_login_Light_KR_green_wide_H56", isDisabled: isLoggingIn) {
+                //     Task { await login(with: authViewModel.loginWithNaver) }
+                // }
 
                 Button("로그인 없이 둘러보기") {
                     appState.isGuest = true
