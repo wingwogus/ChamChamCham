@@ -234,6 +234,126 @@ struct FarmLocationAddressSyncTests {
     }
 }
 
+@MainActor
+@Suite("FarmLocationViewModel V-World/JUSO 완전 미응답 시 수동 입력 폴백 (App Store 2.1(a))")
+struct FarmLocationManualFallbackTests {
+
+    /// 해외 네트워크 등에서 V-World가 전혀 응답하지 않는 상황(역지오코딩도 실패)을 재현한다.
+    private func makeUnreachableViewModel() -> FarmLocationViewModel {
+        var stub = StubVWorld(parcel: nil)
+        stub.reverseGeocodeError = .network("offline")
+        return FarmLocationViewModel(
+            addressSearch: StubAddressSearch(),
+            vworld: stub,
+            landCharacteristics: StubLandCharacteristics()
+        )
+    }
+
+    @Test("역지오코딩이 완전히 실패해도 작도 후 수동 주소 입력으로 진행 가능해진다")
+    func drawnPolygonProceedsWithManualAddressWhenReverseGeocodeFails() async {
+        let viewModel = makeUnreachableViewModel()
+        viewModel.beginDrawing()
+        for coordinate in FarmLocationTestFixtures.squareCoordinates() {
+            viewModel.addDrawnVertex(coordinate)
+        }
+
+        let didFinish = await viewModel.finishDrawing()
+
+        #expect(didFinish)
+        #expect(viewModel.selectedAddress == nil) // 역지오코딩 실패라 아직 주소 없음
+        #expect(!viewModel.canProceed)
+
+        viewModel.setManualAddress("전북 전주시 완산구 수동입력로 1")
+
+        #expect(viewModel.selectedAddress?.jibunAddr == "전북 전주시 완산구 수동입력로 1")
+        #expect(viewModel.isManualAddress)
+        #expect(viewModel.canProceed)
+    }
+
+    @Test("빈 문자열로 수동 주소를 설정하면 아무 효과가 없다")
+    func setManualAddressIgnoresBlankText() async {
+        let viewModel = makeUnreachableViewModel()
+        viewModel.beginDrawing()
+        for coordinate in FarmLocationTestFixtures.squareCoordinates() {
+            viewModel.addDrawnVertex(coordinate)
+        }
+        await viewModel.finishDrawing()
+
+        viewModel.setManualAddress("   ")
+
+        #expect(viewModel.selectedAddress == nil)
+        #expect(!viewModel.canProceed)
+    }
+
+    @Test("수동 입력 후 재시도가 성공하면 isManualAddress가 다시 false로 돌아간다")
+    func retrySucceedingClearsManualFlag() async {
+        var stub = StubVWorld(parcel: nil)
+        stub.reverseGeocodeError = .network("offline")
+        let viewModel = FarmLocationViewModel(
+            addressSearch: StubAddressSearch(),
+            vworld: stub,
+            landCharacteristics: StubLandCharacteristics()
+        )
+        viewModel.beginDrawing()
+        for coordinate in FarmLocationTestFixtures.squareCoordinates() {
+            viewModel.addDrawnVertex(coordinate)
+        }
+        await viewModel.finishDrawing()
+        viewModel.setManualAddress("전북 전주시 완산구 수동입력로 1")
+        #expect(viewModel.isManualAddress)
+
+        // 네트워크가 복구된 상황을 재현: 재시도 시 이제 성공한다.
+        var recoveredStub = stub
+        recoveredStub.reverseGeocodeError = nil
+        let recoveredViewModel = FarmLocationViewModel(
+            addressSearch: StubAddressSearch(),
+            vworld: recoveredStub,
+            landCharacteristics: StubLandCharacteristics()
+        )
+        recoveredViewModel.beginDrawing()
+        for coordinate in FarmLocationTestFixtures.squareCoordinates() {
+            recoveredViewModel.addDrawnVertex(coordinate)
+        }
+        await recoveredViewModel.finishDrawing()
+        recoveredViewModel.setManualAddress("임시 수동 입력")
+        #expect(recoveredViewModel.isManualAddress)
+
+        await recoveredViewModel.retryDrawnAddress()
+
+        #expect(!recoveredViewModel.isManualAddress)
+        #expect(recoveredViewModel.selectedAddress?.roadAddrPart1 == "전북 전주시 완산구 역지오코딩로 1")
+    }
+
+    @Test("필지 조회가 noParcelFound 외의 이유로 실패해도 canProceed로 가는 경로(작도)가 남아있다")
+    func genericParcelFailureStillLeavesDrawingPathOpen() async {
+        var stub = StubVWorld(parcel: nil)
+        stub.fetchParcelError = .network("offline")
+        let viewModel = FarmLocationViewModel(
+            addressSearch: StubAddressSearch(),
+            vworld: stub,
+            landCharacteristics: StubLandCharacteristics()
+        )
+
+        await viewModel.handleMapTap(at: CLLocationCoordinate2D(latitude: 37.5, longitude: 127.0))
+
+        guard case .failed = viewModel.lookupState else {
+            Issue.record("Expected lookupState to be .failed, got \(viewModel.lookupState)")
+            return
+        }
+        #expect(!viewModel.canProceed)
+
+        // "지도에 직접 그리기"(항상 노출되는 버튼)로 여전히 완결 가능해야 한다.
+        viewModel.beginDrawing()
+        for coordinate in FarmLocationTestFixtures.squareCoordinates() {
+            viewModel.addDrawnVertex(coordinate)
+        }
+        await viewModel.finishDrawing()
+        viewModel.setManualAddress("전북 전주시 완산구 수동입력로 1")
+
+        #expect(viewModel.canProceed)
+    }
+}
+
 @Suite("FarmlandParcel geometry")
 struct FarmlandParcelGeometryTests {
 

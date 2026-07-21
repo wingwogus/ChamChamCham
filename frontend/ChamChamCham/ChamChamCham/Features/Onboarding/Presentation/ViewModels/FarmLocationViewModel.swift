@@ -26,6 +26,9 @@ final class FarmLocationViewModel {
     var isSearching = false
     var searchResults: [JusoAddress] = []
     var selectedAddress: JusoAddress?
+    /// `selectedAddress`가 역지오코딩이 아니라 `setManualAddress`로 채워졌는지. 작도 완료
+    /// 후 주소 카드의 안내 문구를 "자동으로 확인된 위치" 대신 "직접 입력한 주소"로 갈리는 데 쓴다.
+    var isManualAddress = false
     var resolvedCoordinate: GeoPoint?
     var selectedParcel: FarmlandParcel?
     var manualAreaText: String = ""
@@ -161,7 +164,10 @@ final class FarmLocationViewModel {
             // A newer keystroke already superseded this search — leave state to the task that replaces it.
         } catch {
             searchResults = []
-            lookupState = .failed("주소 검색 중 오류가 발생했어요")
+            // 실패를 "오류"로 표현하지 않는다 — 국내 주소 검색 서비스가 일부 네트워크
+            // 경로에서 응답하지 않는 건 이 앱 특성상 정상적으로 있을 수 있는 경로다.
+            // 항상 다음 행동(지도에 직접 그리기)을 제시한다.
+            lookupState = .failed("주소를 찾지 못했어요. 지도에서 직접 위치를 표시해주세요.")
         }
     }
 
@@ -229,6 +235,7 @@ final class FarmLocationViewModel {
         isDrawingMode = false
         parcelBeforeDrawing = nil
         selectedAddress = nil
+        isManualAddress = false
         guard let centroid = FarmlandParcel.centroid(of: drawnCoordinates) else { return true }
         if let reverse = try? await vworld.reverseGeocode(at: centroid.clLocationCoordinate) {
             selectedAddress = makeAddress(road: reverse.roadAddress, jibun: reverse.jibunAddress)
@@ -243,7 +250,18 @@ final class FarmLocationViewModel {
         guard let centroid = FarmlandParcel.centroid(of: drawnCoordinates) else { return }
         if let reverse = try? await vworld.reverseGeocode(at: centroid.clLocationCoordinate) {
             selectedAddress = makeAddress(road: reverse.roadAddress, jibun: reverse.jibunAddress)
+            isManualAddress = false
         }
+    }
+
+    /// 역지오코딩이 실패했을 때(네트워크 미도달 등) 사용자가 직접 타이핑한 주소로 진행할 수
+    /// 있게 한다. 폴리곤 좌표가 실제 위치의 진실이고, 주소는 사람이 알아보기 위한 라벨이므로
+    /// 자동 조회가 안 되면 사용자가 직접 채우는 것으로 대체 가능하다.
+    func setManualAddress(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        selectedAddress = JusoAddress(roadAddrPart1: "", jibunAddr: trimmed, bdNm: "")
+        isManualAddress = true
     }
 
     /// 도로명/지번 중 존재하는 값으로 주소를 만든다. 둘 다 비면 nil(주소 미확정).
@@ -331,7 +349,14 @@ final class FarmLocationViewModel {
             }
         } catch {
             selectedParcel = nil
-            lookupState = .failed("지적도 정보를 불러오지 못했어요")
+            if refreshAddress {
+                let reverse = await reverseTask
+                selectedAddress = makeAddress(road: reverse?.roadAddress, jibun: reverse?.jibunAddress)
+            }
+            // "오류"로 표현하지 않는다 — 지적도 조회가 일부 네트워크 경로에서 응답하지
+            // 않는 건 이 앱 특성상 정상적으로 있을 수 있는 경로다. 항상 다음 행동(지도에
+            // 직접 그리기)을 제시한다.
+            lookupState = .failed("지적도 정보를 불러오지 못했어요. 지도에서 직접 경계를 그려주세요.")
         }
     }
 

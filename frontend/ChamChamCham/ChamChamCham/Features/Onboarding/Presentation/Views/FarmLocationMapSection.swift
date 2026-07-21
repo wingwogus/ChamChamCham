@@ -28,6 +28,7 @@ struct FarmLocationMapSection: View {
     @State private var mapStyleIsSatellite = false
     @State private var didSetInitialCamera = false
     @State private var manualAreaChosen = false
+    @State private var manualAddressText = ""
 
     /// 현재 위치 승인을 못 받았을 때의 폴백 카메라(서울 시청).
     private static let seoul = CLLocationCoordinate2D(latitude: 37.5665, longitude: 126.9780)
@@ -57,6 +58,9 @@ struct FarmLocationMapSection: View {
         }
         .onChange(of: viewModel.lookupState) { _, _ in
             manualAreaChosen = false
+        }
+        .onChange(of: viewModel.isDrawingMode) { _, isDrawing in
+            if isDrawing { manualAddressText = "" }
         }
     }
 
@@ -209,7 +213,7 @@ struct FarmLocationMapSection: View {
             case .coordinateUnavailable(let retryable):
                 coordinateUnavailableCard(retryable: retryable)
             case .failed(let message):
-                mapStatusCard { infoBanner(message) }
+                failedCard(message)
             case .idle:
                 EmptyView()
             }
@@ -269,6 +273,20 @@ struct FarmLocationMapSection: View {
                             viewModel.beginDrawing()
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// 필지 조회·주소 검색 등에서 `noParcelFound`/`coordinateUnavailable`이 아닌 그 외
+    /// 실패(네트워크 미도달 등)의 안내 카드. 다른 실패 카드들과 마찬가지로 "지도에 직접
+    /// 그리기"를 항상 제시해, 해당 서비스가 전혀 응답하지 않아도 등록을 끝낼 수 있게 한다.
+    private func failedCard(_ message: String) -> some View {
+        mapStatusCard {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                infoBanner(message)
+                AppButton("지도에 직접 그리기", icon: .asset("edit"), variant: .secondary, size: .small, fullWidth: true) {
+                    viewModel.beginDrawing()
                 }
             }
         }
@@ -360,7 +378,9 @@ struct FarmLocationMapSection: View {
     }
 
     /// 작도 완료 후 역지오코딩된 주소. VWorld는 거리·신뢰도를 검증하지 않으므로 자동 확정하지
-    /// 않고 사용자가 육안으로 확인하도록 노출한다. 실패 시엔 재시도를 제공한다.
+    /// 않고 사용자가 육안으로 확인하도록 노출한다. 자동 조회가 응답하지 않는 경우(해외
+    /// 네트워크 등, 이 앱 특성상 정상적으로 있을 수 있는 경로)에는 직접 입력으로 대체한다 —
+    /// 폴리곤 좌표가 실제 위치의 진실이고 주소는 사람이 알아보기 위한 라벨이기 때문이다.
     @ViewBuilder
     private var drawnAddressSection: some View {
         if let address = viewModel.selectedAddress,
@@ -369,15 +389,32 @@ struct FarmLocationMapSection: View {
                 Text(address.roadAddrPart1.isEmpty ? address.jibunAddr : address.roadAddrPart1)
                     .appTypography(.bodyMedium)
                     .foregroundStyle(Color.Text.default)
-                Text("자동으로 확인된 위치예요. 실제 밭 위치와 다르면 다시 그려주세요.")
-                    .appTypography(.labelMedium)
-                    .foregroundStyle(Color.Text.subtle)
+                Text(
+                    viewModel.isManualAddress
+                        ? "직접 입력한 주소예요. 실제 밭 위치와 다르면 다시 입력해주세요."
+                        : "자동으로 확인된 위치예요. 실제 밭 위치와 다르면 다시 그려주세요."
+                )
+                .appTypography(.labelMedium)
+                .foregroundStyle(Color.Text.subtle)
             }
         } else {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                infoBanner("이 위치의 주소를 확인하지 못했어요.")
-                AppButton("주소 다시 확인", variant: .neutral, size: .small, fullWidth: true) {
-                    Task { await viewModel.retryDrawnAddress() }
+                infoBanner("이 위치는 등록된 도로명 주소가 없을 수 있어요. 주소를 직접 입력해주세요.")
+                AppTextField(
+                    label: nil,
+                    placeholder: "주소를 입력해주세요",
+                    text: $manualAddressText
+                )
+                HStack(spacing: Spacing.sm) {
+                    AppButton("다시 확인", variant: .neutral, size: .small, fullWidth: true) {
+                        Task { await viewModel.retryDrawnAddress() }
+                    }
+                    AppButton(
+                        "입력 완료", icon: .asset("check"), variant: .secondary, size: .small, fullWidth: true,
+                        appearsDisabled: manualAddressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ) {
+                        viewModel.setManualAddress(manualAddressText)
+                    }
                 }
             }
         }
