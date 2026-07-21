@@ -31,6 +31,7 @@ struct RecordListView: View {
     @State private var showSearch = false
     @State private var path = NavigationPath()
     @State private var toastMessage: String?
+    @State private var isRecordFilterRowVisible = true
     @Binding private var selection: Int
     private let tabItems: [AppNavBar.Item]
     private let horizontalInset: CGFloat = 20
@@ -100,6 +101,7 @@ struct RecordListView: View {
 
                 if selectedTab == 0 {
                     filterChipRow
+                        .collapsibleFilterRow(isVisible: isRecordFilterRowVisible)
                     recordList
                 } else {
                     ReportListView(viewModel: reportViewModel)
@@ -110,6 +112,11 @@ struct RecordListView: View {
             }
         }
         .task { await viewModel.onAppear() }
+        .onChange(of: selectedTab) { _, _ in
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isRecordFilterRowVisible = true
+            }
+        }
         .fullScreenCover(isPresented: $showCompose) {
             NavigationStack {
                 RecordComposeView(
@@ -245,6 +252,8 @@ struct RecordListView: View {
 
     private var recordList: some View {
         ScrollView {
+            FilterRowPanObserver(isVisible: $isRecordFilterRowVisible)
+                .frame(height: 1)
             if viewModel.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)

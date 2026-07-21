@@ -22,6 +22,7 @@ struct CommunityView: View {
     @State private var showCropPicker = false
     @State private var showSearch = false
     @State private var showLoginRequiredAlert = false
+    @State private var isCropChipRowVisible = true
     @Binding private var selection: Int
     private let tabItems: [AppNavBar.Item]
     private let horizontalInset: CGFloat = 20
@@ -62,6 +63,7 @@ struct CommunityView: View {
                     )
                     postTypeTabs
                     cropChipRow
+                        .collapsibleFilterRow(isVisible: isCropChipRowVisible)
                     postList
                 }
                 writeButton
@@ -169,6 +171,8 @@ struct CommunityView: View {
 
     private var postList: some View {
         ScrollView {
+            FilterRowPanObserver(isVisible: $isCropChipRowVisible)
+                .frame(height: 1)
             sortRow
             if viewModel.isLoading {
                 ProgressView()

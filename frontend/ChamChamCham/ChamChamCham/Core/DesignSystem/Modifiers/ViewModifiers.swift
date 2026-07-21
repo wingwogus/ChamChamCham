@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 private struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
@@ -31,6 +32,154 @@ extension View {
                 #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
             )
         }
+    }
+
+    func collapsibleFilterRow(isVisible: Bool, height: CGFloat = 60) -> some View {
+        modifier(CollapsibleFilterRowModifier(isVisible: isVisible, height: height))
+    }
+
+}
+
+private struct CollapsibleFilterRowModifier: ViewModifier {
+    let isVisible: Bool
+    let height: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .frame(height: isVisible ? height : 0)
+            .opacity(isVisible ? 1 : 0)
+            .clipped()
+    }
+}
+
+struct FilterRowPanObserver: UIViewRepresentable {
+    @Binding var isVisible: Bool
+    let threshold: CGFloat
+
+    init(isVisible: Binding<Bool>, threshold: CGFloat = 12) {
+        _isVisible = isVisible
+        self.threshold = threshold
+    }
+
+    func makeUIView(context: Context) -> PanObservationView {
+        let view = PanObservationView()
+        view.onPan = context.coordinator.handlePan(translationY:state:)
+        return view
+    }
+
+    func updateUIView(_ uiView: PanObservationView, context: Context) {
+        context.coordinator.isVisible = $isVisible
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isVisible: $isVisible, threshold: threshold)
+    }
+
+    final class Coordinator {
+        var isVisible: Binding<Bool>
+        let threshold: CGFloat
+        private var lastTranslationY: CGFloat?
+        private var accumulatedTranslationY: CGFloat = 0
+
+        init(isVisible: Binding<Bool>, threshold: CGFloat) {
+            self.isVisible = isVisible
+            self.threshold = threshold
+        }
+
+        func handlePan(translationY: CGFloat, state: UIGestureRecognizer.State) {
+            switch state {
+            case .began:
+                lastTranslationY = translationY
+                accumulatedTranslationY = 0
+            case .changed:
+                guard let lastTranslationY else {
+                    self.lastTranslationY = translationY
+                    return
+                }
+
+                let delta = translationY - lastTranslationY
+                if (delta > 0 && accumulatedTranslationY < 0) || (delta < 0 && accumulatedTranslationY > 0) {
+                    accumulatedTranslationY = 0
+                }
+                accumulatedTranslationY += delta
+                self.lastTranslationY = translationY
+
+                if accumulatedTranslationY <= -threshold {
+                    setVisible(false)
+                } else if accumulatedTranslationY >= threshold {
+                    setVisible(true)
+                }
+            case .cancelled, .ended, .failed:
+                lastTranslationY = nil
+                accumulatedTranslationY = 0
+            default:
+                break
+            }
+        }
+
+        private func setVisible(_ newValue: Bool) {
+            guard isVisible.wrappedValue != newValue else { return }
+            accumulatedTranslationY = 0
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isVisible.wrappedValue = newValue
+            }
+        }
+    }
+}
+
+final class PanObservationView: UIView {
+    var onPan: ((CGFloat, UIGestureRecognizer.State) -> Void)?
+
+    private weak var observedScrollView: UIScrollView?
+    private var isLookupScheduled = false
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        observeAncestorScrollView()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        observeAncestorScrollView()
+    }
+
+    deinit {
+        observedScrollView?.panGestureRecognizer.removeTarget(self, action: #selector(handlePan(_:)))
+    }
+
+    private func observeAncestorScrollView() {
+        guard observedScrollView == nil else { return }
+        guard let scrollView = ancestorScrollView() else {
+            scheduleLookup()
+            return
+        }
+
+        observedScrollView = scrollView
+        scrollView.panGestureRecognizer.addTarget(self, action: #selector(handlePan(_:)))
+    }
+
+    private func scheduleLookup() {
+        guard !isLookupScheduled else { return }
+        isLookupScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.isLookupScheduled = false
+            self?.observeAncestorScrollView()
+        }
+    }
+
+    private func ancestorScrollView() -> UIScrollView? {
+        var view = superview
+        while let currentView = view {
+            if let scrollView = currentView as? UIScrollView {
+                return scrollView
+            }
+            view = currentView.superview
+        }
+        return nil
+    }
+
+    @objc private func handlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
+        onPan?(gestureRecognizer.translation(in: observedScrollView).y, gestureRecognizer.state)
     }
 }
 

@@ -11,12 +11,14 @@ struct ReportListView: View {
     let viewModel: ReportListViewModel
 
     @State private var activeSheet: ReportFilterKind?
+    @State private var isFilterRowVisible = true
 
     var body: some View {
         GeometryReader { proxy in
             let inset = ReportListLayout.horizontalInset(availableWidth: proxy.size.width)
             VStack(spacing: 0) {
                 filterRow(horizontalInset: inset)
+                    .collapsibleFilterRow(isVisible: isFilterRowVisible)
                 reportList(horizontalInset: inset)
             }
         }
@@ -70,6 +72,8 @@ struct ReportListView: View {
 
     private func reportList(horizontalInset: CGFloat) -> some View {
         ScrollView {
+            FilterRowPanObserver(isVisible: $isFilterRowVisible)
+                .frame(height: 1)
             LazyVStack(spacing: ReportListLayout.cardSpacing) {
                 if viewModel.isShowingCachedData {
                     cachedBanner
