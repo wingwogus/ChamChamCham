@@ -11,12 +11,12 @@ struct ReportListView: View {
     let viewModel: ReportListViewModel
 
     @State private var activeSheet: ReportFilterKind?
+    @State private var isFilterRowVisible = true
 
     var body: some View {
         GeometryReader { proxy in
             let inset = ReportListLayout.horizontalInset(availableWidth: proxy.size.width)
             VStack(spacing: 0) {
-                filterRow(horizontalInset: inset)
                 reportList(horizontalInset: inset)
             }
         }
@@ -69,39 +69,49 @@ struct ReportListView: View {
     }
 
     private func reportList(horizontalInset: CGFloat) -> some View {
-        ScrollView {
-            LazyVStack(spacing: ReportListLayout.cardSpacing) {
-                if viewModel.isShowingCachedData {
-                    cachedBanner
-                }
-
-                if viewModel.isLoading, viewModel.reports.isEmpty {
-                    loadingState
-                } else if let errorMessage = viewModel.errorMessage, viewModel.reports.isEmpty {
-                    errorState(errorMessage)
-                } else if viewModel.reports.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(viewModel.reports) { report in
-                        NavigationLink(value: ReportRoute.detail(report.key)) {
-                            ReportListCard(summary: report)
+        ZStack(alignment: .top) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    FilterRowPanObserver(isVisible: $isFilterRowVisible)
+                        .frame(height: 1)
+                    LazyVStack(spacing: ReportListLayout.cardSpacing) {
+                        if viewModel.isShowingCachedData {
+                            cachedBanner
                         }
-                        .buttonStyle(.plain)
-                        .task { await viewModel.loadMoreIfNeeded(currentItem: report) }
-                    }
 
-                    if viewModel.isLoadingMore {
-                        ProgressView()
-                            .padding(Spacing.md)
-                            .accessibilityLabel("리포트 더 불러오는 중")
+                        if viewModel.isLoading, viewModel.reports.isEmpty {
+                            loadingState
+                        } else if let errorMessage = viewModel.errorMessage, viewModel.reports.isEmpty {
+                            errorState(errorMessage)
+                        } else if viewModel.reports.isEmpty {
+                            emptyState
+                        } else {
+                            ForEach(viewModel.reports) { report in
+                                NavigationLink(value: ReportRoute.detail(report.key)) {
+                                    ReportListCard(summary: report)
+                                }
+                                .buttonStyle(.plain)
+                                .task { await viewModel.loadMoreIfNeeded(currentItem: report) }
+                            }
+
+                            if viewModel.isLoadingMore {
+                                ProgressView()
+                                    .padding(Spacing.md)
+                                    .accessibilityLabel("리포트 더 불러오는 중")
+                            }
+                        }
                     }
+                    .padding(.horizontal, horizontalInset)
+                    .padding(.top, 20)
+                    .padding(.bottom, Spacing.xl)
                 }
+                .padding(.top, isFilterRowVisible ? 60 : 0)
             }
-            .padding(.horizontal, horizontalInset)
-            .padding(.top, 20)
-            .padding(.bottom, Spacing.xl)
+            .refreshable { await viewModel.refresh() }
+            filterRow(horizontalInset: horizontalInset)
+                .filterRowOverlay(isVisible: isFilterRowVisible)
         }
-        .refreshable { await viewModel.refresh() }
+        .clipped()
         .overlay(alignment: .top) {
             if viewModel.isRefreshing {
                 ProgressView()

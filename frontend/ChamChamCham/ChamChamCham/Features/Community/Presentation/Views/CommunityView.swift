@@ -22,6 +22,7 @@ struct CommunityView: View {
     @State private var showCropPicker = false
     @State private var showSearch = false
     @State private var showLoginRequiredAlert = false
+    @State private var isCropChipRowVisible = true
     @Binding private var selection: Int
     private let tabItems: [AppNavBar.Item]
     private let horizontalInset: CGFloat = 20
@@ -61,7 +62,6 @@ struct CommunityView: View {
                         trailing: [.init(.asset("search")) { requireAuth { showSearch = true } }]
                     )
                     postTypeTabs
-                    cropChipRow
                     postList
                 }
                 writeButton
@@ -168,35 +168,45 @@ struct CommunityView: View {
     // MARK: - List
 
     private var postList: some View {
-        ScrollView {
-            sortRow
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Spacing.xl)
-            } else if let errorMessage = viewModel.errorMessage {
-                emptyState(text: errorMessage, systemImage: "exclamationmark.triangle")
-            } else if viewModel.posts.isEmpty {
-                communityEmptyState
-            } else {
-                LazyVStack(spacing: CommunityPostRow.Layout.interRowSpacing) {
-                    ForEach(viewModel.posts) { post in
-                        NavigationLink(value: post) {
-                            CommunityPostRow(post: post) {
-                                requireAuth { Task { await viewModel.toggleLike(post) } }
+        ZStack(alignment: .top) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    FilterRowPanObserver(isVisible: $isCropChipRowVisible)
+                        .frame(height: 1)
+                    sortRow
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, Spacing.xl)
+                    } else if let errorMessage = viewModel.errorMessage {
+                        emptyState(text: errorMessage, systemImage: "exclamationmark.triangle")
+                    } else if viewModel.posts.isEmpty {
+                        communityEmptyState
+                    } else {
+                        LazyVStack(spacing: CommunityPostRow.Layout.interRowSpacing) {
+                            ForEach(viewModel.posts) { post in
+                                NavigationLink(value: post) {
+                                    CommunityPostRow(post: post) {
+                                        requireAuth { Task { await viewModel.toggleLike(post) } }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .task { await viewModel.loadMoreIfNeeded(currentItem: post) }
+                            }
+                            if viewModel.isLoadingMore {
+                                ProgressView().padding(Spacing.md)
                             }
                         }
-                        .buttonStyle(.plain)
-                        .task { await viewModel.loadMoreIfNeeded(currentItem: post) }
-                    }
-                    if viewModel.isLoadingMore {
-                        ProgressView().padding(Spacing.md)
+                        .padding(.bottom, 112)
                     }
                 }
-                .padding(.bottom, 112)
+                .padding(.top, isCropChipRowVisible ? 60 : 0)
             }
+            .refreshable { await viewModel.reload() }
+            cropChipRow
+                .filterRowOverlay(isVisible: isCropChipRowVisible)
         }
-        .refreshable { await viewModel.reload() }
+        .clipped()
     }
 
     private var sortSelection: Binding<CommunityPostSort> {

@@ -13,10 +13,12 @@ struct AppCommentInput: View {
     static let inputRowHeight: CGFloat = 48
     static let attachmentSize: CGFloat = 64
     static let attachmentCornerRadius: CGFloat = 4
+    static let topPadding: CGFloat = 8
+    static let bottomPadding: CGFloat = 8
 
     static func containerHeight(isFocused: Bool, hasImage: Bool) -> CGFloat {
         let imageHeight = hasImage ? attachmentSize : 0
-        return 8 + inputRowHeight + imageHeight + (isFocused ? 12 : 32)
+        return topPadding + inputRowHeight + imageHeight + bottomPadding
     }
 
     static func resolvedFilled(override: Bool?, hasText: Bool) -> Bool {
@@ -102,12 +104,16 @@ struct AppCommentInput: View {
                 .frame(height: Self.attachmentSize)
             }
         }
-        .padding(.top, Spacing.sm)
-        .padding(.bottom, focusBinding.wrappedValue ? 12 : 32)
+        .padding(.top, Self.topPadding)
+        .padding(.bottom, Self.bottomPadding)
         .padding(.trailing, 12)
         .frame(minHeight: Self.containerHeight(isFocused: focusBinding.wrappedValue, hasImage: attachment != nil), alignment: .top)
         .background(Color.Object.default)
-        .overlay(Rectangle().stroke(Color.Border.default, lineWidth: 1))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.Border.default)
+                .frame(height: 1)
+        }
     }
 
     private var inputRow: some View {
