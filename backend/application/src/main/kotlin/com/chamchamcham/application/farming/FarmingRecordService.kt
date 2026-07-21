@@ -32,6 +32,7 @@ import com.chamchamcham.domain.farming.WeedingRecordRepository
 import com.chamchamcham.domain.farming.WorkType
 import com.chamchamcham.domain.media.UploadedMedia
 import com.chamchamcham.domain.media.UploadedMediaRepository
+import com.chamchamcham.domain.media.UploadedMediaStatus
 import com.chamchamcham.domain.media.UploadedMediaUsageType
 import com.chamchamcham.domain.member.Member
 import com.chamchamcham.domain.member.MemberRepository
@@ -165,7 +166,8 @@ class FarmingRecordService(
         val farm = findFarm(command.farmId, command.memberId)
         val crop = findCrop(command.cropId)
         assertCropRegisteredToFarm(command.memberId, command.farmId, command.cropId)
-        val media = validateMedia(command.memberId, command.mediaIds)
+        val existingRecordMedia = farmingRecordMediaRepository.findByRecord_Id(command.recordId)
+        val media = validateUpdatedMedia(record, command.memberId, command.mediaIds)
 
         val previousScope = ReportScope(
             memberId = command.memberId,
@@ -186,8 +188,7 @@ class FarmingRecordService(
         farmingRecordRepository.flush()
         saveDetail(record, command)
 
-        farmingRecordMediaRepository.deleteByRecord(record)
-        attachMedia(record, media)
+        syncMedia(record, existingRecordMedia, media)
         reportProjectionService.rebuildAll(
             listOf(
                 previousScope,
@@ -421,10 +422,13 @@ class FarmingRecordService(
             harvestAmount = row.harvestAmount,
             pesticideName = row.pesticideName,
             weedingMethod = row.weedingMethod,
+            plantingMethod = row.plantingMethod,
+            materialName = row.materialName,
         )
     }
 
     private fun validateMedia(memberId: UUID, mediaIds: List<UUID>): List<UploadedMedia> {
+        validateDistinctMediaIds(mediaIds)
         if (mediaIds.isEmpty()) {
             return emptyList()
         }
@@ -446,6 +450,50 @@ class FarmingRecordService(
         }
     }
 
+    /// Update-time media validation. Editing without changing photos resubmits the record's own already-
+    /// `ATTACHED` mediaIds, which plain `validateMedia` would reject as `MEDIA_NOT_ATTACHABLE` (it only accepts
+    /// `TEMP`). Mirrors `CommunityPostService.validateUpdatedMedia`: media currently attached to THIS record is
+    /// accepted for re-attachment; media attached to any other record (or a different owner/usage) is rejected.
+    private fun validateUpdatedMedia(record: FarmingRecord, memberId: UUID, mediaIds: List<UUID>): List<UploadedMedia> {
+        validateDistinctMediaIds(mediaIds)
+        if (mediaIds.isEmpty()) {
+            return emptyList()
+        }
+        val recordId = requireNotNull(record.id) { "Persisted farming record id is required" }
+        val mediaById = uploadedMediaRepository.findAllById(mediaIds)
+            .associateBy { requireNotNull(it.id) { "Persisted media id is required" } }
+        val recordMediaByMediaId = farmingRecordMediaRepository.findByUploadedMediaIdIn(mediaIds)
+            .associateBy { requireNotNull(it.uploadedMedia.id) { "Persisted media id is required" } }
+
+        return mediaIds.map { mediaId ->
+            val media = mediaById[mediaId] ?: throw BusinessException(ErrorCode.MEDIA_NOT_FOUND)
+            if (media.owner.id != memberId) {
+                throw BusinessException(ErrorCode.MEDIA_NOT_OWNED)
+            }
+            if (media.usageType != UploadedMediaUsageType.FARMING_RECORD) {
+                throw BusinessException(ErrorCode.MEDIA_USAGE_MISMATCH)
+            }
+
+            val recordMedia = recordMediaByMediaId[mediaId]
+            if (recordMedia != null && recordMedia.record.id != recordId) {
+                throw BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE)
+            }
+            if (!media.isAttachable() && media.status != UploadedMediaStatus.ATTACHED) {
+                throw BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE)
+            }
+            if (media.status == UploadedMediaStatus.ATTACHED && recordMedia?.record?.id != recordId) {
+                throw BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE)
+            }
+            media
+        }
+    }
+
+    private fun validateDistinctMediaIds(mediaIds: List<UUID>) {
+        if (mediaIds.size != mediaIds.toSet().size) {
+            throw BusinessException(ErrorCode.INVALID_INPUT)
+        }
+    }
+
     private fun attachMedia(record: FarmingRecord, media: List<UploadedMedia>) {
         if (media.isEmpty()) {
             return
@@ -460,6 +508,27 @@ class FarmingRecordService(
                 )
             }
         )
+    }
+
+    /// Rewires a record's media on update. Marks media dropped from the final set as DELETED, then must
+    /// flush the delete before attachMedia's insert: Hibernate's action queue runs inserts before deletes,
+    /// so resubmitting an unchanged mediaId would otherwise violate uk_farming_record_media_uploaded_media
+    /// (insert of the same uploaded_media_id lands before the old row is gone).
+    private fun syncMedia(
+        record: FarmingRecord,
+        existingRecordMedia: List<FarmingRecordMedia>,
+        media: List<UploadedMedia>
+    ) {
+        val finalMediaIds = media.mapTo(mutableSetOf()) {
+            requireNotNull(it.id) { "Persisted media id is required" }
+        }
+        existingRecordMedia
+            .filter { requireNotNull(it.uploadedMedia.id) { "Persisted media id is required" } !in finalMediaIds }
+            .forEach { it.uploadedMedia.markDeleted() }
+
+        farmingRecordMediaRepository.deleteByRecord(record)
+        farmingRecordMediaRepository.flush()
+        attachMedia(record, media)
     }
 
     private fun validatePageSize(size: Int) {

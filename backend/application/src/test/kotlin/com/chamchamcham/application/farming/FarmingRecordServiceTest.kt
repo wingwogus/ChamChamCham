@@ -578,7 +578,118 @@ class FarmingRecordServiceTest {
         service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(replacementMediaId)))
 
         verify(farmingRecordMediaRepository).deleteByRecord(record)
+        verify(farmingRecordMediaRepository).flush()
         assertEquals(UploadedMediaStatus.ATTACHED, replacementMedia.status)
+    }
+
+    @Test
+    fun `update flushes the media delete before attaching new rows`() {
+        // Regression for uk_farming_record_media_uploaded_media violations: Hibernate's action queue runs
+        // inserts before deletes, so resubmitting an unchanged mediaId without an explicit flush between
+        // deleteByRecord and attachMedia's insert violates the unique constraint on uploaded_media_id.
+        val record = existingRecord(workType = WorkType.PRUNING)
+        `when`(farmingRecordRepository.findByIdAndIsDeletedFalse(recordId)).thenReturn(record)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        `when`(uploadedMediaRepository.findAllById(listOf(replacementMediaId))).thenReturn(listOf(replacementMedia))
+
+        service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(replacementMediaId)))
+
+        val inOrder = org.mockito.Mockito.inOrder(farmingRecordMediaRepository)
+        inOrder.verify(farmingRecordMediaRepository).deleteByRecord(record)
+        inOrder.verify(farmingRecordMediaRepository).flush()
+        inOrder.verify(farmingRecordMediaRepository).saveAll(org.mockito.ArgumentMatchers.anyIterable())
+    }
+
+    @Test
+    fun `update rejects duplicate media ids in the same request`() {
+        val record = existingRecord(workType = WorkType.PRUNING)
+        `when`(farmingRecordRepository.findByIdAndIsDeletedFalse(recordId)).thenReturn(record)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(mediaId1, mediaId1)))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verify(farmingRecordMediaRepository, never()).deleteByRecord(record)
+    }
+
+    @Test
+    fun `create rejects duplicate media ids in the same request`() {
+        `when`(memberRepository.findById(memberId)).thenReturn(Optional.of(member))
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.create(baseCommand(workType = WorkType.PRUNING, mediaIds = listOf(mediaId1, mediaId1)))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verify(farmingRecordRepository, never()).save(any(FarmingRecord::class.java))
+    }
+
+    @Test
+    fun `update keeps an already-attached photo that belongs to this same record`() {
+        // Regression for MEDIA_NOT_ATTACHABLE on edit: resubmitting a photo the record already has (an
+        // unchanged photo) must not be rejected just because its status is ATTACHED rather than TEMP.
+        val record = existingRecord(workType = WorkType.PRUNING)
+        val alreadyAttached = uploadedMedia(mediaId1, status = UploadedMediaStatus.ATTACHED)
+        val ownRecordMedia = FarmingRecordMedia(record = record, uploadedMedia = alreadyAttached, displayOrder = 0)
+        `when`(farmingRecordRepository.findByIdAndIsDeletedFalse(recordId)).thenReturn(record)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        `when`(uploadedMediaRepository.findAllById(listOf(mediaId1))).thenReturn(listOf(alreadyAttached))
+        `when`(farmingRecordMediaRepository.findByUploadedMediaIdIn(listOf(mediaId1))).thenReturn(listOf(ownRecordMedia))
+
+        service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(mediaId1)))
+
+        verify(farmingRecordMediaRepository).deleteByRecord(record)
+        assertEquals(UploadedMediaStatus.ATTACHED, alreadyAttached.status)
+    }
+
+    @Test
+    fun `update rejects a photo already attached to a different record`() {
+        val record = existingRecord(workType = WorkType.PRUNING)
+        val otherRecord = existingRecord(id = secondRecordId, workType = WorkType.PRUNING)
+        val attachedElsewhere = uploadedMedia(mediaId1, status = UploadedMediaStatus.ATTACHED)
+        val otherRecordMedia = FarmingRecordMedia(record = otherRecord, uploadedMedia = attachedElsewhere, displayOrder = 0)
+        `when`(farmingRecordRepository.findByIdAndIsDeletedFalse(recordId)).thenReturn(record)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        `when`(uploadedMediaRepository.findAllById(listOf(mediaId1))).thenReturn(listOf(attachedElsewhere))
+        `when`(farmingRecordMediaRepository.findByUploadedMediaIdIn(listOf(mediaId1))).thenReturn(listOf(otherRecordMedia))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(mediaId1)))
+        }
+
+        assertEquals(ErrorCode.MEDIA_NOT_ATTACHABLE, exception.errorCode)
+    }
+
+    @Test
+    fun `update marks a dropped photo as deleted while keeping the retained one`() {
+        val record = existingRecord(workType = WorkType.PRUNING)
+        val kept = media1
+        val dropped = replacementMedia
+        val keptRecordMedia = FarmingRecordMedia(record = record, uploadedMedia = kept, displayOrder = 0)
+        val droppedRecordMedia = FarmingRecordMedia(record = record, uploadedMedia = dropped, displayOrder = 1)
+        `when`(farmingRecordRepository.findByIdAndIsDeletedFalse(recordId)).thenReturn(record)
+        `when`(farmRepository.findByIdAndOwnerId(farmId, memberId)).thenReturn(farm)
+        `when`(cropRepository.findById(cropId)).thenReturn(Optional.of(crop))
+        `when`(farmingRecordMediaRepository.findByRecord_Id(recordId)).thenReturn(
+            listOf(keptRecordMedia, droppedRecordMedia)
+        )
+        `when`(uploadedMediaRepository.findAllById(listOf(mediaId1))).thenReturn(listOf(kept))
+        `when`(farmingRecordMediaRepository.findByUploadedMediaIdIn(listOf(mediaId1))).thenReturn(
+            listOf(keptRecordMedia)
+        )
+
+        service.update(updateCommand(workType = WorkType.PRUNING, mediaIds = listOf(mediaId1)))
+
+        assertEquals(UploadedMediaStatus.DELETED, dropped.status)
+        assertEquals(UploadedMediaStatus.ATTACHED, kept.status)
     }
 
     @Test
@@ -793,6 +904,8 @@ class FarmingRecordServiceTest {
                         harvestAmount = BigDecimal.TEN,
                         pesticideName = "친환경약제",
                         weedingMethod = WeedingMethod.HAND,
+                        plantingMethod = PlantingMethod.SEEDLING,
+                        materialName = "유박비료",
                     ),
                 )
             )
@@ -815,6 +928,8 @@ class FarmingRecordServiceTest {
         assertEquals(0, BigDecimal.TEN.compareTo(summary.harvestAmount))
         assertEquals("친환경약제", summary.pesticideName)
         assertEquals(WeedingMethod.HAND, summary.weedingMethod)
+        assertEquals(PlantingMethod.SEEDLING, summary.plantingMethod)
+        assertEquals("유박비료", summary.materialName)
     }
 
     @Test
