@@ -73,7 +73,8 @@ struct CommunityDetailView: View {
                 mediaUpload: container.makeMediaUploadRepository()
             )
         }
-        .safeAreaInset(edge: .bottom) { commentComposer }
+        .safeAreaInset(edge: .bottom, spacing: 0) { commentComposer }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .photosPicker(isPresented: $showPhotoPicker, selection: $pickerItems, maxSelectionCount: 1, matching: .images)
         .onChange(of: pickerItems) { _, items in
             Task { await attach(items) }
@@ -415,7 +416,6 @@ struct CommunityDetailView: View {
             }
         }
         .background(Color.Background.default)
-        .ignoresSafeArea(edges: .bottom)
     }
 
     /// The picked image is shown immediately; while its upload is in flight a dimmed spinner overlays it.
